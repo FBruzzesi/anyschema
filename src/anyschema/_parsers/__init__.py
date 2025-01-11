@@ -1,6 +1,11 @@
 from __future__ import annotations
 
+from types import NoneType
+from types import UnionType
 from typing import TYPE_CHECKING
+from typing import Any
+from typing import GenericAlias
+from typing import _GenericAlias
 
 import narwhals as nw
 from narwhals.schema import Schema
@@ -20,12 +25,38 @@ def model_to_nw_schema(model: BaseModel) -> Schema:
 
 def field_to_nw_type(field_info: FieldInfo) -> DType:
     """Parse Pydantic FieldInfo into Narwhals dtype."""
-    _type, _metadata = field_info.annotation, field_info.metadata
+    _type, _metadata = field_to_type_and_meta(field_info=field_info)
+
+    # Integer types
     if _type is int:
         return parse_integer_metadata(_metadata)
-    if _type is float:  # There is no way of differentiating between Float32 and Float64 in pydantic
+
+    # Float types
+    if _type is float:
+        # There is no way of differentiating between Float32 and Float64 in pydantic,
+        # therefore no matter what the metadata are, we always return Float64
         return nw.Float64()
+
     raise NotImplementedError
+
+
+def field_to_type_and_meta(field_info: FieldInfo) -> tuple[type, tuple[Any]]:
+    annotation = field_info.annotation
+    if (is_union_type := isinstance(annotation, UnionType)) or isinstance(annotation, _GenericAlias | GenericAlias):
+        if is_union_type and len(annotation.__args__) != 2:  # noqa: PLR2004
+            msg = "Unsupported union with more than 2 types."
+            raise NotImplementedError(msg)
+
+        _field0, _field1 = annotation.__args__
+        _field = _field1 if _field0 is NoneType else _field0
+        _metadata = getattr(_field, "__metadata__", ())
+        _type = getattr(_field, "__args__", (_field,))[0]
+
+    else:
+        _type = annotation
+        _metadata = tuple(field_info.metadata)
+
+    return _type, _metadata
 
 
 __all__ = ("field_to_nw_type", "model_to_nw_schema")

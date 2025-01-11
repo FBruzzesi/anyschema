@@ -1,5 +1,5 @@
 from __future__ import annotations
 
 
-class AnySchema:
+class AnySchema:  # pragma: no cover
     pass

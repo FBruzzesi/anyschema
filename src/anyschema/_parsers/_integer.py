@@ -29,7 +29,7 @@ _MAX_INT: Final[int] = 18_446_744_073_709_551_615
 def parse_integer_metadata(metadata: list) -> DType:
     match metadata:
         # pydantic conint(...) case: generates metadata of the form [strict, Interval, multiple_of]
-        case [_, Interval(gt=gt, ge=ge, lt=lt, le=le), _]:
+        case (_, Interval(gt=gt, ge=ge, lt=lt, le=le), _):
             lower_bound = max((gt + 1 if gt is not None else _MIN_INT), (ge if ge is not None else _MIN_INT))
             upper_bound = min((lt - 1 if lt is not None else _MAX_INT), (le if le is not None else _MAX_INT))
 
@@ -42,7 +42,7 @@ def parse_integer_metadata(metadata: list) -> DType:
             return nw.Int64()
 
         # pydantic NonNegativeInt & PositiveInt cases
-        case [Gt(gt=value)] | [Ge(ge=value)]:
+        case (Gt(gt=value),) | (Ge(ge=value),):
             return nw.UInt64() if value >= 0 else nw.Int64()
 
         # All other cases: pure python int and pydantic remaining integer types

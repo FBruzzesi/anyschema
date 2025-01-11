@@ -37,7 +37,7 @@ def field_to_nw_type(field_info: FieldInfo) -> DType:
         # therefore no matter what the metadata are, we always return Float64
         return nw.Float64()
 
-    raise NotImplementedError
+    raise NotImplementedError  # pragma: no cover
 
 
 def field_to_type_and_meta(field_info: FieldInfo) -> tuple[type, tuple[Any]]:

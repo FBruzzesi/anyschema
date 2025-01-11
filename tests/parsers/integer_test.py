@@ -15,7 +15,7 @@ from pydantic import conint
 from anyschema._parsers import model_to_nw_schema
 
 
-def test_parse_python_int() -> None:
+def test_parse_to_integer() -> None:
     class IntegerModel(BaseModel):
         # python integer type
         py_int: int

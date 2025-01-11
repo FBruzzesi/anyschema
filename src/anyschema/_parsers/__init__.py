@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import date
+from datetime import datetime
 from types import NoneType
 from types import UnionType
 from typing import TYPE_CHECKING
@@ -10,6 +12,7 @@ from typing import _GenericAlias
 import narwhals as nw
 from narwhals.schema import Schema
 
+from anyschema._parsers._datetime import parse_datetime_metadata
 from anyschema._parsers._integer import parse_integer_metadata
 
 if TYPE_CHECKING:
@@ -27,15 +30,25 @@ def field_to_nw_type(field_info: FieldInfo) -> DType:
     """Parse Pydantic FieldInfo into Narwhals dtype."""
     _type, _metadata = field_to_type_and_meta(field_info=field_info)
 
-    # Integer types
     if _type is int:
         return parse_integer_metadata(_metadata)
 
-    # Float types
     if _type is float:
         # There is no way of differentiating between Float32 and Float64 in pydantic,
         # therefore no matter what the metadata are, we always return Float64
         return nw.Float64()
+
+    if _type is bool:
+        return nw.Boolean()
+
+    if _type is str:
+        return nw.String()
+
+    if _type is date:
+        return nw.Date()
+
+    if _type is datetime:
+        return parse_datetime_metadata(_metadata)
 
     raise NotImplementedError  # pragma: no cover
 

@@ -18,15 +18,15 @@ from anyschema._parsers import model_to_nw_schema
 
 
 @given(lb=st.floats(), ub=st.floats())
-def test_parse_to_float(lb: float, ub: float) -> None:
+def test_parse_float(lb: float, ub: float) -> None:
     assume(lb < ub)
 
     class FloatModel(BaseModel):
-        # python Float type
+        # python float type
         py_int: float
         py_float_optional: Optional[float]  # noqa: UP007
         py_float_or_none: float | None
-        py_none_or_float: None | float
+        none_or_py_float: None | float
 
         # pydantic NonNegativeFloat type
         non_negative: NonNegativeFloat

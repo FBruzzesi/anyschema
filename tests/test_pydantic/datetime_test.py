@@ -10,7 +10,7 @@ from pydantic import FutureDatetime
 from pydantic import NaiveDatetime
 from pydantic import PastDatetime
 
-from anyschema._parsers import model_to_nw_schema
+from anyschema._pydantic import model_to_nw_schema
 
 
 def test_parse_datetime() -> None:

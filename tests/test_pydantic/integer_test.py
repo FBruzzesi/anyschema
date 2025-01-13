@@ -12,7 +12,7 @@ from pydantic import NonPositiveInt
 from pydantic import PositiveInt
 from pydantic import conint
 
-from anyschema._parsers import model_to_nw_schema
+from anyschema._pydantic import model_to_nw_schema
 
 
 def test_parse_integer() -> None:

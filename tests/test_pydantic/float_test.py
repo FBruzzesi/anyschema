@@ -14,7 +14,7 @@ from pydantic import NonPositiveFloat
 from pydantic import PositiveFloat
 from pydantic import confloat
 
-from anyschema._parsers import model_to_nw_schema
+from anyschema._pydantic import model_to_nw_schema
 
 
 @given(lb=st.floats(), ub=st.floats())

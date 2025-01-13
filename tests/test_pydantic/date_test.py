@@ -12,7 +12,7 @@ from pydantic import FutureDate
 from pydantic import PastDate
 from pydantic import condate
 
-from anyschema._parsers import model_to_nw_schema
+from anyschema._pydantic import model_to_nw_schema
 
 
 def test_parse_date() -> None:

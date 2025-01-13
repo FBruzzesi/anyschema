@@ -7,7 +7,7 @@ authors = [{ name = "FBruzzesi"}]
 requires-python = ">=3.10"
 dependencies = [
     "narwhals>=1.21.1",
-    "pydantic>=2.10.5",
+    "pydantic==2.0.0",
 ]
 
 [build-system]

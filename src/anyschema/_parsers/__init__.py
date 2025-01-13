@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import date
+from datetime import datetime
 from types import NoneType
 from types import UnionType
 from typing import TYPE_CHECKING
@@ -9,6 +11,12 @@ from typing import _GenericAlias
 
 import narwhals as nw
 from narwhals.schema import Schema
+from pydantic import AwareDatetime
+from pydantic import FutureDate
+from pydantic import FutureDatetime
+from pydantic import NaiveDatetime
+from pydantic import PastDate
+from pydantic import PastDatetime
 
 from anyschema._parsers._integer import parse_integer_metadata
 
@@ -27,15 +35,39 @@ def field_to_nw_type(field_info: FieldInfo) -> DType:
     """Parse Pydantic FieldInfo into Narwhals dtype."""
     _type, _metadata = field_to_type_and_meta(field_info=field_info)
 
-    # Integer types
     if _type is int:
+        # Includes:
+        # - python int
+        # - pydantic conint
+        # - pydantic NegativeInt, NonNegativeInt, NonPositiveInt, PositiveInt
         return parse_integer_metadata(_metadata)
 
-    # Float types
     if _type is float:
+        # Includes:
+        # - python float
+        # - pydantic confloat
+        # - pydantic FiniteFloat, NegativeFloat, NonNegativeFloat, NonPositiveFloat, PositiveFloat
+
         # There is no way of differentiating between Float32 and Float64 in pydantic,
         # therefore no matter what the metadata are, we always return Float64
         return nw.Float64()
+
+    if _type is datetime:
+        # Includes:
+        # - python datetime
+        # - pydantic AwareDatetime, NaiveDatetime, PastDatetime, FutureDatetime
+
+        # As AwareDatetime does not pin-point a single timezone, and PastDatetime and FutureDatetime
+        # accept both aware and naive datetimes, here we simply return nw.Datetime without timezone info.
+        # However this means that we won't be able to convert it to a native timezone aware data type.
+        return nw.Datetime()
+
+    if _type is date:
+        # Includes:
+        # - python date
+        # - pydantic condate
+        # - pydantic PastDate, FutureDate
+        return nw.Date()
 
     raise NotImplementedError  # pragma: no cover
 
@@ -55,6 +87,12 @@ def field_to_type_and_meta(field_info: FieldInfo) -> tuple[type, tuple[Any]]:
     else:
         _type = annotation
         _metadata = tuple(field_info.metadata)
+
+    if _type in {AwareDatetime, NaiveDatetime, PastDatetime, FutureDatetime}:
+        return datetime, ()
+
+    if _type in {PastDate, FutureDate}:
+        return date, ()
 
     return _type, _metadata
 

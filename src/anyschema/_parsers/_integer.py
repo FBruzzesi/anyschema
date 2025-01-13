@@ -35,7 +35,7 @@ def parse_integer_metadata(metadata: list) -> DType:
 
             for dtype, (min_val, max_val) in INT_RANGES.items():
                 # As INT_RANGES is sorted by min_value first, and max_value second,
-                # we guarantee to fall within the smallest possible range.
+                # its guaranteed to fall within the smallest possible range.
                 if lower_bound >= min_val and upper_bound <= max_val:
                     return dtype
 

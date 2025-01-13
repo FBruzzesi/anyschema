@@ -15,13 +15,13 @@ from pydantic import conint
 from anyschema._parsers import model_to_nw_schema
 
 
-def test_parse_to_integer() -> None:
+def test_parse_integer() -> None:
     class IntegerModel(BaseModel):
         # python integer type
         py_int: int
         py_int_optional: Optional[int]  # noqa: UP007
         py_int_or_none: int | None
-        py_none_or_int: None | int
+        none_or_py_int: None | int
 
         # pydantic NonNegativeInt type
         non_negative: NonNegativeInt
@@ -53,7 +53,7 @@ def test_parse_to_integer() -> None:
         "py_int": nw.Int64(),
         "py_int_optional": nw.Int64(),
         "py_int_or_none": nw.Int64(),
-        "py_none_or_int": nw.Int64(),
+        "none_or_py_int": nw.Int64(),
         "non_negative": nw.UInt64(),
         "non_negative_optional": nw.UInt64(),
         "non_negative_or_none": nw.UInt64(),

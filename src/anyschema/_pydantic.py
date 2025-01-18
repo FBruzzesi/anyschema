@@ -8,7 +8,9 @@ from typing import TYPE_CHECKING
 from typing import Any
 from typing import Final
 from typing import GenericAlias
+from typing import Union
 from typing import _GenericAlias
+from narwhals.utils import isinstance_or_issubclass
 
 import narwhals as nw
 from annotated_types import Ge
@@ -21,13 +23,14 @@ from pydantic import FutureDatetime
 from pydantic import NaiveDatetime
 from pydantic import PastDate
 from pydantic import PastDatetime
+from pydantic.fields import FieldInfo
 
 from anyschema.exceptions import UnsupportedDTypeError
 
 if TYPE_CHECKING:
     from narwhals.dtypes import DType
     from pydantic import BaseModel
-    from pydantic.fields import FieldInfo
+    
 
 
 INT_RANGES: Final[dict[DType, tuple[int, int]]] = {
@@ -47,12 +50,46 @@ _MAX_INT: Final[int] = 18_446_744_073_709_551_615
 
 def model_to_nw_schema(model: BaseModel) -> Schema:
     """Converts Pydantic model to Narwhals Schema."""
-    return Schema({field_name: field_to_nw_type(field_info) for field_name, field_info in model.model_fields.items()})
+    return Schema(
+        {field_name: pydantic_field_to_nw_type(field_info) for field_name, field_info in model.model_fields.items()}
+    )
 
 
-def field_to_nw_type(field_info: FieldInfo) -> DType:
-    """Parse Pydantic FieldInfo into Narwhals dtype."""
-    _type, _metadata = field_to_type_and_meta(field_info=field_info)
+def pydantic_field_to_nw_type(field_info: FieldInfo) -> tuple[type, tuple[Any]]:  # noqa: C901, PLR0911, PLR0912
+    annotation = field_info.annotation
+
+    if isinstance(annotation, _GenericAlias | GenericAlias):
+        _origin = annotation.__origin__
+        _args = annotation.__args__
+
+        if _origin is Union:
+            _type, _metadata = parse_union(_args)
+            return pydantic_field_to_nw_type(FieldInfo(annotation=_type, metadata=_metadata))
+
+        elif _origin is list:
+            # List(inner...)
+            raise NotImplementedError
+
+        elif _origin is dict or isinstance_or_issubclass(_origin, BaseModel):
+            # Struct(fields...)
+            raise NotImplementedError
+
+        else:
+            raise NotImplementedError
+
+    elif isinstance(annotation, UnionType):
+        _type, _metadata = parse_union(annotation.__args__)
+
+    else:
+        _type = annotation
+        _metadata = tuple(field_info.metadata)
+
+    if _type is AwareDatetime:
+        # Pydantic AwareDatetime does not fix a single timezone, but any timezone would work.
+        # This cannot be used in nw.Datetime, therefore we raise an exception
+        # See https://github.com/pydantic/pydantic/issues/5829
+        msg = "pydantic AwareDatetime does not specify a fixed timezone."
+        raise UnsupportedDTypeError(msg)
 
     if _type is int:
         # Includes:
@@ -71,23 +108,6 @@ def field_to_nw_type(field_info: FieldInfo) -> DType:
         # therefore no matter what the metadata are, we always return Float64
         return nw.Float64()
 
-    if _type is datetime:
-        # Includes:
-        # - python datetime
-        # - pydantic AwareDatetime, NaiveDatetime, PastDatetime, FutureDatetime
-
-        # As AwareDatetime does not pin-point a single timezone, and PastDatetime and FutureDatetime
-        # accept both aware and naive datetimes, here we simply return nw.Datetime without timezone info.
-        # However this means that we won't be able to convert it to a native timezone aware data type.
-        return nw.Datetime()
-
-    if _type is date:
-        # Includes:
-        # - python date
-        # - pydantic condate
-        # - pydantic PastDate, FutureDate
-        return nw.Date()
-
     if _type is str:
         # Includes:
         # - python str
@@ -101,36 +121,24 @@ def field_to_nw_type(field_info: FieldInfo) -> DType:
         # - pydantic StrictBool
         return nw.Boolean()
 
+    if _type in {datetime, NaiveDatetime, PastDatetime, FutureDatetime}:
+        # Includes:
+        # - python datetime
+        # - pydantic AwareDatetime, NaiveDatetime, PastDatetime, FutureDatetime
+
+        # PastDatetime and FutureDatetime accept both aware and naive datetimes, here we
+        # simply return nw.Datetime without timezone info.
+        # This means that we won't be able to convert it to a timezone aware data type.
+        return nw.Datetime()
+
+    if _type in {date, PastDate, FutureDate}:
+        # Includes:
+        # - python date
+        # - pydantic condate
+        # - pydantic PastDate, FutureDate
+        return nw.Date()
+
     raise NotImplementedError  # pragma: no cover
-
-
-def field_to_type_and_meta(field_info: FieldInfo) -> tuple[type, tuple[Any]]:
-    annotation = field_info.annotation
-    if (is_union_type := isinstance(annotation, UnionType)) or isinstance(annotation, _GenericAlias | GenericAlias):
-        if is_union_type and len(annotation.__args__) != 2:  # noqa: PLR2004
-            msg = "Unsupported union with more than 2 types."
-            raise NotImplementedError(msg)
-
-        _field0, _field1 = annotation.__args__
-        _field = _field1 if _field0 is NoneType else _field0
-        _metadata = getattr(_field, "__metadata__", ())
-        _type = getattr(_field, "__args__", (_field,))[0]
-
-    else:
-        _type = annotation
-        _metadata = tuple(field_info.metadata)
-
-    if _type is AwareDatetime:
-        msg = "pydantic AwareDatetime does not specify a fixed timezone."
-        raise UnsupportedDTypeError(msg)
-
-    if _type in {AwareDatetime, NaiveDatetime, PastDatetime, FutureDatetime}:
-        return datetime, ()
-
-    if _type in {PastDate, FutureDate}:
-        return date, ()
-
-    return _type, _metadata
 
 
 def parse_integer_metadata(metadata: list) -> DType:
@@ -157,4 +165,17 @@ def parse_integer_metadata(metadata: list) -> DType:
             return nw.Int64()
 
 
-__all__ = ("field_to_nw_type", "model_to_nw_schema")
+def parse_union(union: UnionType) -> tuple[type, tuple[Any]]:
+    if len(union) != 2:  # noqa: PLR2004
+        msg = "Unsupported union with more than two types."
+        raise NotImplementedError(msg)
+
+    _field0, _field1 = union
+    _field = _field1 if _field0 is NoneType else _field0
+    _metadata = getattr(_field, "__metadata__", ())
+    _type = getattr(_field, "__args__", (_field,))[0]
+
+    return _type, _metadata
+
+
+__all__ = ("model_to_nw_schema", "pydantic_field_to_nw_type")

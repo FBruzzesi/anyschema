@@ -80,7 +80,7 @@ def pydantic_field_to_nw_type(field_info: FieldInfo) -> DType:  # noqa: C901, PL
         _type, _metadata = parse_union(annotation.__args__)
         return pydantic_field_to_nw_type(FieldInfo(annotation=_type, metadata=_metadata))
 
-    elif isinstance(annotation, BaseModel) or issubclass(annotation, BaseModel):
+    elif (isinstance(annotation, type) and issubclass(annotation, BaseModel)) or isinstance(annotation, BaseModel):
         # Includes:
         # - pydantic models
         return nw.Struct(

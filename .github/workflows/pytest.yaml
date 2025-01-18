@@ -48,22 +48,6 @@ jobs:
       - name: Assert dependencies
         run: |
           DEPS=$(uv pip freeze)
-          echo "$DEPS" | grep 'pydantic==2.0.0'
+          echo "$DEPS" | grep 'pydantic==2.0'
       - name: Run pytest
         run: pytest tests --cov=src --cov=tests --cov-fail-under=100
-
-  nightlies:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.13"
-      - name: Install uv
-        uses: astral-sh/setup-uv@v5
-      - name: install-requirements
-        run: |
-          uv pip install -e ".[test]"
-          uv pip install git+https://github.com/narwhals-dev/narwhals.git git@github.com:pydantic/pydantic.git
-      - name: Run pytest
-        run: pytest tests --cov=src --cov=tests

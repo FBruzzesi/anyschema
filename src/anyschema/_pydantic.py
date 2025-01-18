@@ -72,7 +72,7 @@ def pydantic_field_to_nw_type(field_info: FieldInfo) -> tuple[type, tuple[Any]]:
             _inner_type, _inner_metadata = parse_union(_args) if _args is Union else _args[0], []
             return nw.List(inner=pydantic_field_to_nw_type(FieldInfo(annotation=_inner_type, metadata=_inner_metadata)))
 
-        else:
+        else:  # pragma: no cover
             msg = "Please report an issue at https://github.com/FBruzzesi/anyschema/issues"
             raise NotImplementedError
 

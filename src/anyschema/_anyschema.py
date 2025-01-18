@@ -15,7 +15,31 @@ if TYPE_CHECKING:
 
 
 class AnySchema:
-    def __init__(self: Self, model: BaseModel) -> None:
+    """AnySchema class.
+
+    Example:
+        >>> from anyschema import AnySchema
+        >>> from pydantic import BaseModel
+        >>>
+        >>> class MyModel(BaseModel):
+        ...     name: str
+        ...     age: int
+        >>>
+        >>> schema = AnySchema(MyModel)
+        >>> schema.to_arrow()
+        name: string
+        age: int64
+
+        >>> schema.to_polars()
+        Schema([('name', String), ('age', Int64)])
+    """
+
+    def __init__(self: Self, model: BaseModel | type[BaseModel]) -> None:
+        """Initializes an instance of AnySchema from a pydantic BaseModel.
+
+        Arguments:
+            model: The input model to be converted into a schema.
+        """
         if (pydantic := get_pydantic()) is not None and isinstance_or_issubclass(model, pydantic.BaseModel):
             from anyschema._pydantic import model_to_nw_schema
 
@@ -29,7 +53,7 @@ class AnySchema:
         """Converts input model into pyarrow schema.
 
         Returns:
-            pyarrow Schema
+            The converted pyarrow schema.
         """
         import pyarrow as pa
         from narwhals._arrow.utils import narwhals_to_native_dtype
@@ -45,7 +69,7 @@ class AnySchema:
         """Converts input model into polars Schema.
 
         Returns:
-            polars Schema
+            The converted polars schema.
         """
         import polars as pl
         from narwhals._polars.utils import narwhals_to_native_dtype
@@ -56,12 +80,3 @@ class AnySchema:
                 for field_name, field_type in self._nw_schema.items()
             }
         )
-
-    @classmethod
-    def from_pydantic(cls: type[Self], model: BaseModel) -> Self:
-        """Instantiate AnySchema object from pydantic class.
-
-        Returns:
-            AnySchema instance
-        """
-        return AnySchema(model=model)

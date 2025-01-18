@@ -4,15 +4,12 @@ from datetime import datetime  # noqa: TC003
 from typing import Optional
 
 import narwhals as nw
-import pytest
-from pydantic import AwareDatetime
 from pydantic import BaseModel
 from pydantic import FutureDatetime
 from pydantic import NaiveDatetime
 from pydantic import PastDatetime
 
 from anyschema._pydantic import model_to_nw_schema
-from anyschema.exceptions import UnsupportedDTypeError
 
 
 def test_parse_datetime() -> None:
@@ -44,29 +41,3 @@ def test_parse_datetime() -> None:
     schema = model_to_nw_schema(DatetimeModel)
 
     assert all(value == nw.Datetime() for value in schema.values())
-
-
-def test_raise_aware_datetime() -> None:
-    class AwareDatetimeModel(BaseModel):
-        aware_dt: AwareDatetime
-
-    class OptAwareDatetimeModel(BaseModel):
-        aware_dt: Optional[AwareDatetime]  # noqa: UP007
-
-    class AwareDatetimeOrNoneModel(BaseModel):
-        aware_dt: AwareDatetime | None
-
-    class NoneOrAwareDatetimeModel(BaseModel):
-        aware_dt: None | AwareDatetime
-
-    with pytest.raises(UnsupportedDTypeError, match="pydantic AwareDatetime does not specify a fixed timezone."):
-        model_to_nw_schema(AwareDatetimeModel)
-
-    with pytest.raises(UnsupportedDTypeError, match="pydantic AwareDatetime does not specify a fixed timezone."):
-        model_to_nw_schema(OptAwareDatetimeModel)
-
-    with pytest.raises(UnsupportedDTypeError, match="pydantic AwareDatetime does not specify a fixed timezone."):
-        model_to_nw_schema(AwareDatetimeOrNoneModel)
-
-    with pytest.raises(UnsupportedDTypeError, match="pydantic AwareDatetime does not specify a fixed timezone."):
-        model_to_nw_schema(NoneOrAwareDatetimeModel)

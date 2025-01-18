@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-import narwhals as nw
 from typing import Optional
+
+import narwhals as nw
 from pydantic import BaseModel
 from pydantic import conint
 

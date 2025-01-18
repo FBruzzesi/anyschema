@@ -17,21 +17,38 @@ if TYPE_CHECKING:
 class AnySchema:
     """AnySchema class.
 
-    Example:
+    Examples:
         >>> from anyschema import AnySchema
         >>> from pydantic import BaseModel
+        >>> from pydantic import PositiveInt
         >>>
-        >>> class MyModel(BaseModel):
-        ...     name: str
-        ...     age: int
+        >>> class Student(BaseModel):
+        ...    name: str
+        ...    age: PositiveInt
+        ...    classes: list[str]
         >>>
-        >>> schema = AnySchema(MyModel)
-        >>> schema.to_arrow()
-        name: string
-        age: int64
+        >>> anyschema = AnySchema(model=Student)
 
-        >>> schema.to_polars()
-        Schema([('name', String), ('age', Int64)])
+        We can convert `anyschema` to a pyarrow schema via `to_arrow` method:
+
+        >>> pa_schema = anyschema.to_arrow()
+        >>> type(pa_schema)
+        <class 'pyarrow.lib.Schema'>
+
+        >>> pa_schema
+        name: string
+        age: uint64
+        classes: list<item: string>
+          child 0, item: string
+
+        We can convert `anyschema` to a polars schema via `to_polars` method:
+
+        >>> pl_schema = anyschema.to_polars()
+        >>> type(pl_schema)
+        <class 'polars.schema.Schema'>
+
+        >>> pl_schema
+        Schema([('name', String), ('age', UInt64), ('classes', List(String))])
     """
 
     def __init__(self: Self, model: BaseModel | type[BaseModel]) -> None:
@@ -43,7 +60,6 @@ class AnySchema:
         if (pydantic := get_pydantic()) is not None and isinstance_or_issubclass(model, pydantic.BaseModel):
             from anyschema._pydantic import model_to_nw_schema
 
-            self._type = "pydantic"
             self._nw_schema = model_to_nw_schema(model=model)
 
         else:

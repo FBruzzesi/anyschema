@@ -14,7 +14,20 @@ if TYPE_CHECKING:
 
 
 class AnySchema:
-    """AnySchema class.
+    """A utility class for converting Pydantic models into schemas compatible with `pyarrow` and `polars`.
+
+    The `AnySchema` class bridges the gap between Pydantic models and popular dataframe libraries like
+    `pyarrow` and `polars`, enabling seamless integration of model definitions into data processing pipelines.
+
+    This class takes a Pydantic `BaseModel` or its subclass as input and provides methods to generate
+    equivalent dataframe schemas.
+
+    Arguments:
+        model: The input model.
+
+    Raises:
+        NotImplementedError:
+            If the provided model is not a valid Pydantic `BaseModel`, its subclass or instance
 
     Examples:
         >>> from anyschema import AnySchema
@@ -26,11 +39,11 @@ class AnySchema:
         ...     age: PositiveInt
         ...     classes: list[str]
         >>>
-        >>> anyschema = AnySchema(model=Student)
+        >>> schema = AnySchema(model=Student)
 
-        We can convert `anyschema` to a pyarrow schema via `to_arrow` method:
+        We can now convert `schema` to a pyarrow schema via `to_arrow` method:
 
-        >>> pa_schema = anyschema.to_arrow()
+        >>> pa_schema = schema.to_arrow()
         >>> type(pa_schema)
         <class 'pyarrow.lib.Schema'>
 
@@ -40,22 +53,23 @@ class AnySchema:
         classes: list<item: string>
           child 0, item: string
 
-        We can convert `anyschema` to a polars schema via `to_polars` method:
+        Or we could convert it to a polars schema via `to_polars` method:
 
-        >>> pl_schema = anyschema.to_polars()
+        >>> pl_schema = schema.to_polars()
         >>> type(pl_schema)
         <class 'polars.schema.Schema'>
 
         >>> pl_schema
         Schema([('name', String), ('age', UInt64), ('classes', List(String))])
+
+    Methods:
+        to_arrow():
+            Converts the underlying Pydantic model schema into a `pyarrow.Schema`.
+        to_polars():
+            Converts the underlying Pydantic model schema into a `polars.Schema`.
     """
 
     def __init__(self: Self, model: BaseModel | type[BaseModel]) -> None:
-        """Initializes an instance of AnySchema from a pydantic BaseModel.
-
-        Arguments:
-            model: The input model to be converted into a schema.
-        """
         if (pydantic := get_pydantic()) is not None and (
             (isinstance(model, type) and issubclass(model, pydantic.BaseModel)) or isinstance(model, pydantic.BaseModel)
         ):

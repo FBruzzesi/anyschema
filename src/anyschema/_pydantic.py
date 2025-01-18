@@ -10,14 +10,15 @@ from typing import Final
 from typing import GenericAlias
 from typing import Union
 from typing import _GenericAlias
-from narwhals.utils import isinstance_or_issubclass
 
 import narwhals as nw
 from annotated_types import Ge
 from annotated_types import Gt
 from annotated_types import Interval
 from narwhals.schema import Schema
+from narwhals.utils import isinstance_or_issubclass
 from pydantic import AwareDatetime
+from pydantic import BaseModel
 from pydantic import FutureDate
 from pydantic import FutureDatetime
 from pydantic import NaiveDatetime
@@ -29,8 +30,6 @@ from anyschema.exceptions import UnsupportedDTypeError
 
 if TYPE_CHECKING:
     from narwhals.dtypes import DType
-    from pydantic import BaseModel
-    
 
 
 INT_RANGES: Final[dict[DType, tuple[int, int]]] = {
@@ -67,19 +66,23 @@ def pydantic_field_to_nw_type(field_info: FieldInfo) -> tuple[type, tuple[Any]]:
             return pydantic_field_to_nw_type(FieldInfo(annotation=_type, metadata=_metadata))
 
         elif _origin is list:
-            # List(inner...)
-            raise NotImplementedError
-
-        elif _origin is dict or isinstance_or_issubclass(_origin, BaseModel):
-            # Struct(fields...)
-            raise NotImplementedError
+            # Includes:
+            # - python list
+            # - pydantic conlist
+            _inner_type, _inner_metadata = parse_union(_args) if _args is Union else _args[0], []
+            return nw.List(inner=pydantic_field_to_nw_type(FieldInfo(annotation=_inner_type, metadata=_inner_metadata)))
 
         else:
+            msg = "Please report an issue at https://github.com/FBruzzesi/anyschema/issues"
             raise NotImplementedError
 
     elif isinstance(annotation, UnionType):
         _type, _metadata = parse_union(annotation.__args__)
+        return pydantic_field_to_nw_type(FieldInfo(annotation=_type, metadata=_metadata))
 
+    elif isinstance_or_issubclass(annotation, BaseModel):
+        # Struct(fields...)
+        raise NotImplementedError
     else:
         _type = annotation
         _metadata = tuple(field_info.metadata)
@@ -167,15 +170,21 @@ def parse_integer_metadata(metadata: list) -> DType:
 
 def parse_union(union: UnionType) -> tuple[type, tuple[Any]]:
     if len(union) != 2:  # noqa: PLR2004
-        msg = "Unsupported union with more than two types."
-        raise NotImplementedError(msg)
+        msg = "Union with more than two types is not supported."
+        raise UnsupportedDTypeError(msg)
 
     _field0, _field1 = union
-    _field = _field1 if _field0 is NoneType else _field0
-    _metadata = getattr(_field, "__metadata__", ())
-    _type = getattr(_field, "__args__", (_field,))[0]
 
-    return _type, _metadata
+    if _field0 is not NoneType and _field1 is not NoneType:
+        msg = "Union with both types being not None is not supported."
+        raise UnsupportedDTypeError(msg)
+
+    _field = _field1 if _field0 is NoneType else _field0
+    _origin = getattr(_field, "__origin__", None)
+    _type = getattr(_field, "__args__", (_field,))[0]
+    _metadata = getattr(_field, "__metadata__", ())
+
+    return (_field, _metadata) if _origin is not None else (_type, _metadata)
 
 
 __all__ = ("model_to_nw_schema", "pydantic_field_to_nw_type")

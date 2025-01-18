@@ -3,7 +3,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from narwhals.utils import Version
-from narwhals.utils import isinstance_or_issubclass
 
 from anyschema._dependencies import get_pydantic
 
@@ -57,7 +56,9 @@ class AnySchema:
         Arguments:
             model: The input model to be converted into a schema.
         """
-        if (pydantic := get_pydantic()) is not None and isinstance_or_issubclass(model, pydantic.BaseModel):
+        if (pydantic := get_pydantic()) is not None and (
+            (isinstance(model, type) and issubclass(model, pydantic.BaseModel)) or isinstance(model, pydantic.BaseModel)
+        ):
             from anyschema._pydantic import model_to_nw_schema
 
             self._nw_schema = model_to_nw_schema(model=model)

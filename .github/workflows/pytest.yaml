@@ -22,7 +22,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v5
       - name: install-requirements
-        run: uv pip install -e ".[test,pydantic]"
+        run: uv pip install -e ".[test, pydantic]"
       - name: show-deps
         run: uv pip freeze
       - name: Run pytest
@@ -40,7 +40,9 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v5
       - name: install-requirements
-        run: uv pip install -e ".[test,pydantic]" narwhals==1.21.0 pydantic==2.0.0
+        run: |
+          uv pip install -e ".[test]"
+          uv pip install narwhals==1.21.0 pydantic==2.0.0
       - name: show-deps
         run: uv pip freeze
       - name: Assert dependencies
@@ -60,6 +62,8 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v5
       - name: install-requirements
-        run: uv pip install -e ".[test]" git+https://github.com/narwhals-dev/narwhals.git git@github.com:pydantic/pydantic.git
+        run: |
+          uv pip install -e ".[test]"
+          uv pip install git+https://github.com/narwhals-dev/narwhals.git git@github.com:pydantic/pydantic.git
       - name: Run pytest
         run: pytest tests --cov=src --cov=tests

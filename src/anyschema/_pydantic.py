@@ -16,7 +16,6 @@ from annotated_types import Ge
 from annotated_types import Gt
 from annotated_types import Interval
 from narwhals.schema import Schema
-from narwhals.utils import isinstance_or_issubclass
 from pydantic import AwareDatetime
 from pydantic import BaseModel
 from pydantic import FutureDate
@@ -47,14 +46,14 @@ _MIN_INT: Final[int] = -9_223_372_036_854_775_808
 _MAX_INT: Final[int] = 18_446_744_073_709_551_615
 
 
-def model_to_nw_schema(model: BaseModel) -> Schema:
+def model_to_nw_schema(model: BaseModel | type[BaseModel]) -> Schema:
     """Converts Pydantic model to Narwhals Schema."""
     return Schema(
         {field_name: pydantic_field_to_nw_type(field_info) for field_name, field_info in model.model_fields.items()}
     )
 
 
-def pydantic_field_to_nw_type(field_info: FieldInfo) -> tuple[type, tuple[Any]]:  # noqa: C901, PLR0911, PLR0912
+def pydantic_field_to_nw_type(field_info: FieldInfo) -> DType:  # noqa: C901, PLR0911, PLR0912
     annotation = field_info.annotation
 
     if isinstance(annotation, _GenericAlias | GenericAlias):
@@ -69,7 +68,8 @@ def pydantic_field_to_nw_type(field_info: FieldInfo) -> tuple[type, tuple[Any]]:
             # Includes:
             # - python list
             # - pydantic conlist
-            _inner_type, _inner_metadata = parse_union(_args) if _args is Union else _args[0], []
+            _inner_metadata: tuple[Any, ...]
+            _inner_type, _inner_metadata = parse_union(_args) if _args is Union else _args[0], ()
             return nw.List(inner=pydantic_field_to_nw_type(FieldInfo(annotation=_inner_type, metadata=_inner_metadata)))
 
         else:  # pragma: no cover
@@ -80,10 +80,9 @@ def pydantic_field_to_nw_type(field_info: FieldInfo) -> tuple[type, tuple[Any]]:
         _type, _metadata = parse_union(annotation.__args__)
         return pydantic_field_to_nw_type(FieldInfo(annotation=_type, metadata=_metadata))
 
-    elif isinstance_or_issubclass(annotation, BaseModel):
+    elif isinstance(annotation, BaseModel) or issubclass(annotation, BaseModel):
         # Includes:
         # - pydantic models
-
         return nw.Struct(
             [
                 nw.Field(name=_inner_field_name, dtype=pydantic_field_to_nw_type(_inner_field_info))
@@ -152,7 +151,7 @@ def pydantic_field_to_nw_type(field_info: FieldInfo) -> tuple[type, tuple[Any]]:
     raise NotImplementedError  # pragma: no cover
 
 
-def parse_integer_metadata(metadata: list) -> DType:
+def parse_integer_metadata(metadata: tuple[Any, ...]) -> DType:
     match metadata:
         # pydantic conint(...) case: generates metadata of the form [strict, Interval, multiple_of]
         case (_, Interval(gt=gt, ge=ge, lt=lt, le=le), _):
@@ -176,7 +175,7 @@ def parse_integer_metadata(metadata: list) -> DType:
             return nw.Int64()
 
 
-def parse_union(union: UnionType) -> tuple[type, tuple[Any]]:
+def parse_union(union: tuple[type[Any], ...]) -> tuple[type[Any], tuple[Any, ...]]:
     if len(union) != 2:  # noqa: PLR2004
         msg = "Union with more than two types is not supported."
         raise UnsupportedDTypeError(msg)
@@ -188,9 +187,9 @@ def parse_union(union: UnionType) -> tuple[type, tuple[Any]]:
         raise UnsupportedDTypeError(msg)
 
     _field = _field1 if _field0 is NoneType else _field0
-    _origin = getattr(_field, "__origin__", None)
-    _type = getattr(_field, "__args__", (_field,))[0]
-    _metadata = getattr(_field, "__metadata__", ())
+    _origin: type | None = getattr(_field, "__origin__", None)
+    _type: type = getattr(_field, "__args__", (_field,))[0]
+    _metadata: tuple[Any, ...] = getattr(_field, "__metadata__", ())
 
     return (_field, _metadata) if _origin is not None else (_type, _metadata)
 

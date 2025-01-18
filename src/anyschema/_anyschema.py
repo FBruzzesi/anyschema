@@ -23,9 +23,9 @@ class AnySchema:
         >>> from pydantic import PositiveInt
         >>>
         >>> class Student(BaseModel):
-        ...    name: str
-        ...    age: PositiveInt
-        ...    classes: list[str]
+        ...     name: str
+        ...     age: PositiveInt
+        ...     classes: list[str]
         >>>
         >>> anyschema = AnySchema(model=Student)
 

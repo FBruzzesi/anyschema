@@ -1,0 +1,37 @@
+ci:
+  autoupdate_schedule: monthly
+repos:
+- repo: https://github.com/astral-sh/ruff-pre-commit
+  # Ruff version.
+  rev: 'v0.8.6'
+  hooks:
+    # Run the formatter.
+    - id: ruff-format
+    # Run the linter.
+    - id: ruff
+      args: [--fix]
+- repo: https://github.com/codespell-project/codespell
+  rev: 'v2.3.0'
+  hooks:
+    - id: codespell
+      files: \.(py|rst|md)$
+      args: [--ignore-words-list=ser]
+- repo: https://github.com/adamchainz/blacken-docs
+  rev: "1.19.1"  # replace with latest tag on GitHub
+  hooks:
+  -   id: blacken-docs
+      args: [--skip-errors]
+      additional_dependencies:
+      - black==22.12.0
+- repo: https://github.com/pre-commit/pre-commit-hooks
+  rev: v5.0.0
+  hooks:
+  -   id: trailing-whitespace
+  -   id: name-tests-test
+  -   id: end-of-file-fixer
+  -   id: requirements-txt-fixer
+  -   id: no-commit-to-branch
+  -   id: check-json
+  -   id: check-yaml
+  -   id: check-ast
+  -   id: check-added-large-files

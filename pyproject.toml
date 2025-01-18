@@ -12,19 +12,20 @@ dependencies = [
 [project.optional-dependencies]
 pydantic = ["pydantic>=2.0.0"]
 
-dev = [
+test = [
   "narwhals[polars]",
   "narwhals[pyarrow]",
-  "pyarrow-stubs",
-  "covdefaults",
-  "pre-commit",
-  "pytest",
-  "pytest-cov",
-  "pytest-randomly",
-  "pytest-env",
-  "hypothesis",
-  "typing_extensions",
+  "covdefaults>=2.3.0",
+  "pytest>=8.0.0",
+  "pytest-cov>=6.0.0",
+  "hypothesis>=6.0.0",
+  "typing_extensions>=4.0.0",
 ]
+
+dev = [
+    "pyarrow-stubs"
+]
+
 
 [build-system]
 requires = ["hatchling"]
@@ -71,7 +72,6 @@ keep-runtime-typing = true
 docstring-code-format = true
 
 [tool.mypy]
-# ignore_missing_imports = true
 disallow_untyped_defs = true
 disallow_any_unimported = true
 no_implicit_optional = true

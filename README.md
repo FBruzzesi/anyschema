@@ -13,6 +13,7 @@ class Student(BaseModel):
     age: PositiveInt
     classes: list[str]
 
+
 anyschema = AnySchema(model=Student)
 
 # Convert to pyarrow schema
@@ -38,7 +39,7 @@ pl_schema
 
 ## Why does this exist?
 
-Mostly... just because of curiousity to see if it could be done generically through Narwhals.
+Mostly... just because of curiosity to see if it could be done generically through Narwhals.
 
 I recently caught up with a Talk Python podcast episode in which the creator of LanceDB was interviewed.
 He mentioned that they need to convert from pydantic models to pyarrow schemas ([Reference](https://www.youtube.com/live/wuGirNCyTxA?t=2880s)).

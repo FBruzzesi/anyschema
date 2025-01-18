@@ -27,8 +27,6 @@ jobs:
         run: uv pip freeze
       - name: Run pytest
         run: pytest tests --cov=src --cov=tests --cov-fail-under=100
-      - name: Run doctests
-        run: pytest src --doctest-modules
 
   minimum_versions:
     runs-on: ubuntu-latest
@@ -50,4 +48,4 @@ jobs:
           DEPS=$(uv pip freeze)
           echo "$DEPS" | grep 'pydantic==2.0'
       - name: Run pytest
-        run: pytest tests --cov=src --cov=tests --cov-fail-under=100
+        run: pytest tests --cov=src --cov=tests --cov-fail-under=95

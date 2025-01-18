@@ -23,19 +23,19 @@ def test_parse_datetime() -> None:
         py_dt_or_none: datetime | None
         none_or_py_dt: None | datetime
 
-        # python NaiveDatetime type
+        # pydantic NaiveDatetime type
         naive_dt: NaiveDatetime
         naive_dt_optional: Optional[NaiveDatetime]  # noqa: UP007
         naive_dt_or_none: NaiveDatetime | None
         none_or_naive_dt: None | NaiveDatetime
 
-        # python PastDatetime type
+        # pydantic PastDatetime type
         past_dt: PastDatetime
         past_dt_optional: Optional[PastDatetime]  # noqa: UP007
         past_dt_or_none: PastDatetime | None
         none_or_past_dt: None | PastDatetime
 
-        # python FutureDatetime type
+        # pydantic FutureDatetime type
         future_dt: FutureDatetime
         future_dt_optional: Optional[FutureDatetime]  # noqa: UP007
         future_dt_or_none: FutureDatetime | None

@@ -12,6 +12,20 @@ dependencies = [
 [project.optional-dependencies]
 pydantic = ["pydantic>=2.0.0"]
 
+dev = [
+  "narwhals[polars]",
+  "narwhals[pyarrow]",
+  "pyarrow-stubs",
+  "covdefaults",
+  "pre-commit",
+  "pytest",
+  "pytest-cov",
+  "pytest-randomly",
+  "pytest-env",
+  "hypothesis",
+  "typing_extensions",
+]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"

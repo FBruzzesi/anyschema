@@ -22,6 +22,8 @@ from pydantic import NaiveDatetime
 from pydantic import PastDate
 from pydantic import PastDatetime
 
+from anyschema.exceptions import UnsupportedDTypeError
+
 if TYPE_CHECKING:
     from narwhals.dtypes import DType
     from pydantic import BaseModel
@@ -104,6 +106,10 @@ def field_to_type_and_meta(field_info: FieldInfo) -> tuple[type, tuple[Any]]:
     else:
         _type = annotation
         _metadata = tuple(field_info.metadata)
+
+    if _type is AwareDatetime:
+        msg = "pydantic AwareDatetime does not specify a fixed timezone."
+        raise UnsupportedDTypeError(msg)
 
     if _type in {AwareDatetime, NaiveDatetime, PastDatetime, FutureDatetime}:
         return datetime, ()

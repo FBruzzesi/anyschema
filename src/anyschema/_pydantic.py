@@ -81,8 +81,16 @@ def pydantic_field_to_nw_type(field_info: FieldInfo) -> tuple[type, tuple[Any]]:
         return pydantic_field_to_nw_type(FieldInfo(annotation=_type, metadata=_metadata))
 
     elif isinstance_or_issubclass(annotation, BaseModel):
-        # Struct(fields...)
-        raise NotImplementedError
+        # Includes:
+        # - pydantic models
+
+        return nw.Struct(
+            [
+                nw.Field(name=_inner_field_name, dtype=pydantic_field_to_nw_type(_inner_field_info))
+                for _inner_field_name, _inner_field_info in annotation.model_fields.items()
+            ]
+        )
+
     else:
         _type = annotation
         _metadata = tuple(field_info.metadata)

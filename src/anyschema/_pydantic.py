@@ -88,6 +88,19 @@ def field_to_nw_type(field_info: FieldInfo) -> DType:
         # - pydantic PastDate, FutureDate
         return nw.Date()
 
+    if _type is str:
+        # Includes:
+        # - python str
+        # - pydantic constr, StrictStr
+        # - pydantic Annotated[str, StringConstraints(...)]
+        return nw.String()
+
+    if _type is bool:
+        # Includes:
+        # - python bool
+        # - pydantic StrictBool
+        return nw.Boolean()
+
     raise NotImplementedError  # pragma: no cover
 
 

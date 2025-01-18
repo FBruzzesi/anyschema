@@ -23,13 +23,13 @@ def test_parse_date() -> None:
         py_dt_or_none: date | None
         none_or_py_dt: None | date
 
-        # python PastDate type
+        # pydantic PastDate type
         past_dt: PastDate
         past_dt_optional: Optional[PastDate]  # noqa: UP007
         past_dt_or_none: PastDate | None
         none_or_past_dt: None | PastDate
 
-        # python FutureDate type
+        # pydantic FutureDate type
         future_dt: FutureDate
         future_dt_optional: Optional[FutureDate]  # noqa: UP007
         future_dt_or_none: FutureDate | None

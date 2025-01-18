@@ -1,6 +1,8 @@
 # anyschema: From pydantic to any frame schema
 
-This is a simple example of how to convert a pydantic model to a frame schema.
+`anyschema` allows you to convert from a pydantic model to _any_ dataframe schema (by _"any"_ we intend those supported by Narwhals).
+
+Let's see how it works in practice with an example:
 
 ```python
 from anyschema import AnySchema
@@ -14,10 +16,10 @@ class Student(BaseModel):
     classes: list[str]
 
 
-anyschema = AnySchema(model=Student)
+schema = AnySchema(model=Student)
 
 # Convert to pyarrow schema
-pa_schema = anyschema.to_arrow()
+pa_schema = schema.to_arrow()
 
 type(pa_schema)
 # pyarrow.lib.Schema
@@ -28,7 +30,7 @@ pa_schema
 # classes: list<item: string>
 #   child 0, item: string
 
-pl_schema = anyschema.to_polars()
+pl_schema = schema.to_polars()
 
 type(pl_schema)
 # polars.schema.Schema
@@ -41,7 +43,7 @@ pl_schema
 
 Mostly... just because of curiosity to see if it could be done generically through Narwhals.
 
-I recently caught up with a Talk Python podcast episode in which the creator of LanceDB was interviewed.
-He mentioned that they need to convert from pydantic models to pyarrow schemas ([Reference](https://www.youtube.com/live/wuGirNCyTxA?t=2880s)).
+I recently caught up with a [Talk Python podcast episode](https://www.youtube.com/live/wuGirNCyTxA?t=2880s) in which the creator of LanceDB was interviewed.
+He mentioned that they need to convert from pydantic models to pyarrow schemas.
 
-This could (easily?) be generalized to many other dataframe schema by translating to Narwhals first.
+I thought that this could (easily?) be generalized to many other dataframe schema by translating to Narwhals first.

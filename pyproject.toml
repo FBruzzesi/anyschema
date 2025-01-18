@@ -26,6 +26,14 @@ dev = [
     "pyarrow-stubs"
 ]
 
+docs = [
+  "black",  # required by mkdocstrings_handlers
+  "markdown-exec[ansi]",
+  "mkdocs",
+  "mkdocs-material",
+  "mkdocstrings[python]",
+]
+
 
 [build-system]
 requires = ["hatchling"]

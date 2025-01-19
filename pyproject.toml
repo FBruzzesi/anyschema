@@ -13,8 +13,7 @@ dependencies = [
 pydantic = ["pydantic>=2.0.0"]
 
 test = [
-  "narwhals[polars]",
-  "narwhals[pyarrow]",
+  "narwhals[pandas,polars,pyarrow]",
   "covdefaults>=2.3.0",
   "pytest>=8.0.0",
   "pytest-cov>=6.0.0",

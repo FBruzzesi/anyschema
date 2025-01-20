@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+from typing import Literal
 
 from narwhals.utils import Version
 
 from anyschema._dependencies import get_pydantic
 
 if TYPE_CHECKING:
+    import pandas as pd
     import polars as pl
     import pyarrow as pa
     from pydantic import BaseModel
@@ -65,6 +67,8 @@ class AnySchema:
     Methods:
         to_arrow():
             Converts the underlying Pydantic model schema into a `pyarrow.Schema`.
+        to_pandas():
+            Converts the underlying Pydantic model schema into a `dict[str, str | pd.ArrowDtype]`.
         to_polars():
             Converts the underlying Pydantic model schema into a `polars.Schema`.
     """
@@ -95,6 +99,36 @@ class AnySchema:
                 for field_name, field_type in self._nw_schema.items()
             ]
         )
+
+    def to_pandas(
+        self: Self,
+        *,
+        dtype_backend: Literal["pyarrow-nullable", "pandas-nullable", "numpy"] = "numpy",
+    ) -> dict[str, str | pd.ArrowDtype | type]:
+        """Converts input model into mapping of {field_name: pandas_dtype}.
+
+        Arguments:
+            dtype_backend: which kind of data type backend to use.
+
+        Returns:
+            The converted pandas schema.
+        """
+        import pandas as pd
+        from narwhals._pandas_like.utils import narwhals_to_native_dtype
+        from narwhals.utils import Implementation
+        from narwhals.utils import parse_version
+
+        pd_version = parse_version(pd.__version__)
+        return {
+            field_name: narwhals_to_native_dtype(
+                field_type,
+                dtype_backend=dtype_backend,
+                implementation=Implementation.PANDAS,
+                backend_version=pd_version,
+                version=Version.MAIN,
+            )
+            for field_name, field_type in self._nw_schema.items()
+        }
 
     def to_polars(self: Self) -> pl.Schema:
         """Converts input model into polars Schema.

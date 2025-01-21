@@ -40,7 +40,7 @@ jobs:
       - name: install-requirements
         run: |
           uv pip install -e ".[test]"
-          uv pip install narwhals==1.23.0 pydantic==2.0.0
+          uv pip install narwhals==1.17.0 pydantic==2.0.0
       - name: show-deps
         run: uv pip freeze
       - name: Assert dependencies

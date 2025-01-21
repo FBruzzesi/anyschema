@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+from importlib import metadata
 from typing import TYPE_CHECKING
 from typing import Literal
 
 from narwhals.utils import Version
+from narwhals.utils import parse_version
 
 from anyschema._dependencies import get_pydantic
 
@@ -13,6 +15,9 @@ if TYPE_CHECKING:
     import pyarrow as pa
     from pydantic import BaseModel
     from typing_extensions import Self
+
+
+NARWHALS_VERSION = parse_version(metadata.version("narwhals"))
 
 
 class AnySchema:
@@ -113,6 +118,13 @@ class AnySchema:
         Returns:
             The converted pandas schema.
         """
+        if NARWHALS_VERSION < (1, 23):  # pragma: no cover
+            msg = (
+                "Converting to pandas requires narwhals>=1.23 to be installed, "
+                f"found narwhals=={NARWHALS_VERSION} instead. Please upgrade to a newer version."
+            )
+            raise NotImplementedError(msg)
+
         import pandas as pd
         from narwhals._pandas_like.utils import narwhals_to_native_dtype
         from narwhals.utils import Implementation

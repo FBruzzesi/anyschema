@@ -3,9 +3,11 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from typing import Literal
 
+import narwhals
 import pandas as pd
 import pyarrow as pa
 import pytest
+from narwhals.utils import parse_version
 
 from anyschema import AnySchema
 
@@ -15,6 +17,7 @@ if TYPE_CHECKING:
 list_type = pd.ArrowDtype(pa.list_(pa.string()))
 
 
+@pytest.mark.skipif(parse_version(narwhals.__version__) < (1, 23), reason="too old for converting to pandas")
 @pytest.mark.parametrize(
     ("dtype_backend", "expected"),
     [

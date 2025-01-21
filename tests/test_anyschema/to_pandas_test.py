@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 list_type = pd.ArrowDtype(pa.list_(pa.string()))
 
 
-@pytest.mark.skipif(parse_version(narwhals.__version__) < (2, 1), reason="too old for StringConstraints")
+@pytest.mark.skipif(parse_version(narwhals.__version__) < (1, 23), reason="too old for converting to pandas")
 @pytest.mark.parametrize(
     ("dtype_backend", "expected"),
     [

@@ -10,6 +10,8 @@ from typing import Final
 from typing import GenericAlias
 from typing import Union
 from typing import _GenericAlias
+from typing import get_args
+from typing import get_origin
 
 import narwhals as nw
 from annotated_types import Ge
@@ -57,8 +59,8 @@ def pydantic_field_to_nw_type(field_info: FieldInfo) -> DType:  # noqa: C901, PL
     annotation = field_info.annotation
 
     if isinstance(annotation, _GenericAlias | GenericAlias):
-        _origin = annotation.__origin__
-        _args = annotation.__args__
+        _origin = get_origin(annotation)
+        _args = get_args(annotation)
 
         if _origin is Union:
             _type, _metadata = parse_union(_args)
@@ -77,7 +79,7 @@ def pydantic_field_to_nw_type(field_info: FieldInfo) -> DType:  # noqa: C901, PL
             raise NotImplementedError
 
     elif isinstance(annotation, UnionType):
-        _type, _metadata = parse_union(annotation.__args__)
+        _type, _metadata = parse_union(get_args(annotation))
         return pydantic_field_to_nw_type(FieldInfo(annotation=_type, metadata=_metadata))
 
     elif (isinstance(annotation, type) and issubclass(annotation, BaseModel)) or isinstance(annotation, BaseModel):

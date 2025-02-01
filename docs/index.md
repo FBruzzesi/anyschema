@@ -50,19 +50,22 @@ schema = AnySchema(model=Student)
 
 ## Why does this exist?
 
-Mostly... just because of curiosity to see if it could be done generically through Narwhals.
+The initial motivation to start this project has originated by listening to a
+[Talk Python podcast episode](https://www.youtube.com/live/wuGirNCyTxA?t=2880s) in which the creator of
+[LanceDB](https://github.com/lancedb/lancedb) was interviewed.
 
-I recently caught up with a [Talk Python podcast episode](https://www.youtube.com/live/wuGirNCyTxA?t=2880s) in which the creator of LanceDB was interviewed.
 He mentioned that they need to convert from pydantic models to pyarrow schemas.
 
 I thought that this could (easily?) be generalized to many other dataframe schema by translating to Narwhals first.
 
+So the challenge was on!
+
 ## API Reference
 
-We are exposing a single class, `AnySchema`, which is the main entry point for all the functionalities we provide.
+We are currently exposing a single class, `AnySchema`, which is the main entry point for all the functionalities
+provided by `anyschema`.
 
 ::: src.anyschema._anyschema.AnySchema
     options:
         show_root_full_path: false
         show_root_heading: true
-

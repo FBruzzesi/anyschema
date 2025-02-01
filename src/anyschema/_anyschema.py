@@ -122,13 +122,6 @@ class AnySchema:
         Returns:
             The converted pandas schema.
         """
-        if NARWHALS_VERSION < (1, 23):  # pragma: no cover
-            msg = (
-                "Converting to pandas requires narwhals>=1.23 to be installed, "
-                f"found narwhals=={NARWHALS_VERSION} instead. Please upgrade to a newer version."
-            )
-            raise NotImplementedError(msg)
-
         import pandas as pd
         from narwhals._pandas_like.utils import narwhals_to_native_dtype
         from narwhals.utils import Implementation

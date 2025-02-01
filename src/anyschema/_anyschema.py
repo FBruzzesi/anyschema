@@ -22,20 +22,23 @@ NARWHALS_VERSION = parse_version(metadata.version("narwhals"))
 
 
 class AnySchema:
-    """A utility class for converting Pydantic models into schemas compatible with `pyarrow` and `polars`.
+    """A utility class for converting from a model-like to a native dataframe schema object.
 
-    The `AnySchema` class bridges the gap between Pydantic models and popular dataframe libraries like
-    `pyarrow` and `polars`, enabling seamless integration of model definitions into data processing pipelines.
+    The `AnySchema` class bridges the gap between Narwhals' Schemas and Pydantic Models, and popular dataframe libraries
+    such as `pandas`, `polars` and `pyarrow`, by enabling converting from the former to latter native schemas.
 
     This class takes a Pydantic `BaseModel` or its subclass as input and provides methods to generate
     equivalent dataframe schemas.
 
     Arguments:
-        model: The input model.
+        model: The input model. This can be:
+
+            - a [Narwhals Schema](https://narwhals-dev.github.io/narwhals/api-reference/schema/#narwhals.schema.Schema)
+            - a [Pydantic Model](https://docs.pydantic.dev/latest/concepts/models/) class or an instance of such
 
     Raises:
         NotImplementedError:
-            If the provided model is not a valid Pydantic `BaseModel`, its subclass or instance
+            If `model` is not a narwhals Schema or a Pydantic model.
 
     Examples:
         >>> from anyschema import AnySchema

@@ -6,7 +6,7 @@ readme = "README.md"
 authors = [{ name = "FBruzzesi"}]
 requires-python = ">=3.10"
 dependencies = [
-    "narwhals>=1.17.0",
+    "narwhals>=1.23.0",
 ]
 
 [project.optional-dependencies]

@@ -4,6 +4,7 @@ from importlib import metadata
 from typing import TYPE_CHECKING
 from typing import Literal
 
+from narwhals.schema import Schema
 from narwhals.utils import Version
 from narwhals.utils import parse_version
 
@@ -78,8 +79,11 @@ class AnySchema:
             Converts the underlying Pydantic model schema into a `polars.Schema`.
     """
 
-    def __init__(self: Self, model: BaseModel | type[BaseModel]) -> None:
-        if (pydantic := get_pydantic()) is not None and (
+    def __init__(self: Self, model: Schema | BaseModel | type[BaseModel]) -> None:
+        if isinstance(model, Schema):
+            self._nw_schema = model
+
+        elif (pydantic := get_pydantic()) is not None and (
             (isinstance(model, type) and issubclass(model, pydantic.BaseModel)) or isinstance(model, pydantic.BaseModel)
         ):
             from anyschema._pydantic import model_to_nw_schema
@@ -118,13 +122,6 @@ class AnySchema:
         Returns:
             The converted pandas schema.
         """
-        if NARWHALS_VERSION < (1, 23):  # pragma: no cover
-            msg = (
-                "Converting to pandas requires narwhals>=1.23 to be installed, "
-                f"found narwhals=={NARWHALS_VERSION} instead. Please upgrade to a newer version."
-            )
-            raise NotImplementedError(msg)
-
         import pandas as pd
         from narwhals._pandas_like.utils import narwhals_to_native_dtype
         from narwhals.utils import Implementation

@@ -1,5 +1,10 @@
 # anyschema: From pydantic to any frame schema
 
+> [!CAUTION]
+> `anyschema` is still in early development and not in pypi yet.
+> If you are keen to try it out, it is possible to install it via pip anyway:
+> `python -m pip install git+https://github.com/FBruzzesi/anyschema.git`
+
 `anyschema` allows you to convert from a pydantic model to _any_ dataframe schema (by _"any"_ we intend those supported by Narwhals).
 
 Let's see how it works in practice with an example:

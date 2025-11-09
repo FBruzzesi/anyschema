@@ -1,16 +1,9 @@
 from __future__ import annotations
 
-from typing import Optional
-
 import hypothesis.strategies as st
 import narwhals as nw
 from hypothesis import given
-from pydantic import BaseModel
-from pydantic import NegativeInt
-from pydantic import NonNegativeInt
-from pydantic import NonPositiveInt
-from pydantic import PositiveInt
-from pydantic import conint
+from pydantic import BaseModel, NegativeInt, NonNegativeInt, NonPositiveInt, PositiveInt, conint
 
 from anyschema._pydantic import model_to_nw_schema
 
@@ -19,31 +12,31 @@ def test_parse_integer() -> None:
     class IntegerModel(BaseModel):
         # python integer type
         py_int: int
-        py_int_optional: Optional[int]  # noqa: UP007
+        py_int_optional: int | None
         py_int_or_none: int | None
         none_or_py_int: None | int
 
         # pydantic NonNegativeInt type
         non_negative: NonNegativeInt
-        non_negative_optional: Optional[NonNegativeInt]  # noqa: UP007
+        non_negative_optional: NonNegativeInt | None
         non_negative_or_none: NonNegativeInt | None
         none_or_non_negative: None | NonNegativeInt
 
         # pydantic NonPositiveInt type
         non_positive: NonPositiveInt
-        non_positive_optional: Optional[NonPositiveInt]  # noqa: UP007
+        non_positive_optional: NonPositiveInt | None
         non_positive_or_none: NonPositiveInt | None
         none_or_non_positive: None | NonPositiveInt
 
         # pydantic PositiveInt type
         positive: PositiveInt
-        positive_optional: Optional[PositiveInt]  # noqa: UP007
+        positive_optional: PositiveInt | None
         positive_or_none: PositiveInt | None
         none_or_positive: None | PositiveInt
 
         # pydantic NegativeInt type
         negative: NegativeInt
-        negative_optional: Optional[NegativeInt]  # noqa: UP007
+        negative_optional: NegativeInt | None
         negative_or_none: NegativeInt | None
         none_or_negative: None | NegativeInt
 
@@ -78,7 +71,7 @@ def test_parse_integer() -> None:
 def test_parse_to_int8(lb: int, ub: int) -> None:
     class Int8Model(BaseModel):
         x: conint(gt=lb, lt=ub)
-        y: Optional[conint(ge=lb, lt=ub)]  # noqa: UP007
+        y: conint(ge=lb, lt=ub) | None
         z: conint(gt=lb, le=ub) | None
         w: None | conint(ge=lb, le=ub)
 
@@ -91,7 +84,7 @@ def test_parse_to_int8(lb: int, ub: int) -> None:
 def test_parse_to_int16(lb: int, ub: int) -> None:
     class Int16Model(BaseModel):
         x: conint(gt=lb, lt=ub)
-        y: Optional[conint(ge=lb, lt=ub)]  # noqa: UP007
+        y: conint(ge=lb, lt=ub) | None
         z: conint(gt=lb, le=ub) | None
         w: None | conint(ge=lb, le=ub)
 
@@ -104,7 +97,7 @@ def test_parse_to_int16(lb: int, ub: int) -> None:
 def test_parse_to_int32(lb: int, ub: int) -> None:
     class Int32Model(BaseModel):
         x: conint(gt=lb, lt=ub)
-        y: Optional[conint(ge=lb, lt=ub)]  # noqa: UP007
+        y: conint(ge=lb, lt=ub) | None
         z: conint(gt=lb, le=ub) | None
         w: None | conint(ge=lb, le=ub)
 
@@ -117,7 +110,7 @@ def test_parse_to_int32(lb: int, ub: int) -> None:
 def test_parse_to_int64(lb: int, ub: int) -> None:
     class Int64Model(BaseModel):
         x: conint(gt=lb, lt=ub)
-        y: Optional[conint(ge=lb, lt=ub)]  # noqa: UP007
+        y: conint(ge=lb, lt=ub) | None
         z: conint(gt=lb, le=ub) | None
         w: None | conint(ge=lb, le=ub)
 
@@ -130,7 +123,7 @@ def test_parse_to_int64(lb: int, ub: int) -> None:
 def test_parse_to_uint8(ub: int) -> None:
     class UInt8Model(BaseModel):
         x: conint(gt=0, lt=ub)
-        y: Optional[conint(ge=0, lt=ub)]  # noqa: UP007
+        y: conint(ge=0, lt=ub) | None
         z: conint(gt=0, le=ub) | None
         w: None | conint(ge=0, le=ub)
 
@@ -143,7 +136,7 @@ def test_parse_to_uint8(ub: int) -> None:
 def test_parse_to_uint16(ub: int) -> None:
     class UInt16Model(BaseModel):
         x: conint(gt=0, lt=ub)
-        y: Optional[conint(ge=0, lt=ub)]  # noqa: UP007
+        y: conint(ge=0, lt=ub) | None
         z: conint(gt=0, le=ub) | None
         w: None | conint(ge=0, le=ub)
 
@@ -156,7 +149,7 @@ def test_parse_to_uint16(ub: int) -> None:
 def test_parse_to_uint32(ub: int) -> None:
     class UInt32Model(BaseModel):
         x: conint(gt=0, lt=ub)
-        y: Optional[conint(ge=0, lt=ub)]  # noqa: UP007
+        y: conint(ge=0, lt=ub) | None
         z: conint(gt=0, le=ub) | None
         w: None | conint(ge=0, le=ub)
 
@@ -169,7 +162,7 @@ def test_parse_to_uint32(ub: int) -> None:
 def test_parse_to_uint64(ub: int) -> None:
     class UInt64Model(BaseModel):
         x: conint(gt=0, lt=ub)
-        y: Optional[conint(ge=0, lt=ub)]  # noqa: UP007
+        y: conint(ge=0, lt=ub) | None
         z: conint(gt=0, le=ub) | None
         w: None | conint(ge=0, le=ub)
 

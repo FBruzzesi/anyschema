@@ -1,10 +1,7 @@
 from __future__ import annotations
 
-from typing import Optional
-
 import narwhals as nw
-from pydantic import BaseModel
-from pydantic import conint
+from pydantic import BaseModel, conint
 
 from anyschema._pydantic import model_to_nw_schema
 
@@ -17,7 +14,7 @@ def test_parse_struct() -> None:
         x4: None | bool
 
     class StructModel(BaseModel):
-        struct: Optional[BaseStruct]  # noqa: UP007
+        struct: BaseStruct | None
 
     schema = model_to_nw_schema(StructModel)
     expected = {

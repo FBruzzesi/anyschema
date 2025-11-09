@@ -1,26 +1,24 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-from typing import Literal
 
 import narwhals as nw
 import pandas as pd
 import pyarrow as pa
 import pytest
-from narwhals.utils import parse_version
 
 from anyschema import AnySchema
 
 if TYPE_CHECKING:
+    from narwhals.typing import DTypeBackend
     from pydantic import BaseModel
 
 
-@pytest.mark.skipif(parse_version(nw.__version__) < (1, 23), reason="too old for converting to pandas")
 @pytest.mark.parametrize(
     ("dtype_backend", "expected"),
     [
         (
-            "numpy",
+            None,
             {
                 "name": str,
                 "date_of_birth": "date32[pyarrow]",
@@ -30,7 +28,7 @@ if TYPE_CHECKING:
             },
         ),
         (
-            "pandas-nullable",
+            "numpy_nullable",
             {
                 "name": "string",
                 "date_of_birth": "date32[pyarrow]",
@@ -40,7 +38,7 @@ if TYPE_CHECKING:
             },
         ),
         (
-            "pyarrow-nullable",
+            "pyarrow",
             {
                 "name": "string[pyarrow]",
                 "date_of_birth": "date32[pyarrow]",
@@ -53,7 +51,7 @@ if TYPE_CHECKING:
 )
 def test_pydantic_to_pandas(
     student_cls: type[BaseModel],
-    dtype_backend: Literal["pyarrow-nullable", "pandas-nullable", "numpy"],
+    dtype_backend: DTypeBackend,
     expected: dict[str, str | pd.ArrowDtype | type],
 ) -> None:
     anyschema = AnySchema(model=student_cls)
@@ -62,12 +60,11 @@ def test_pydantic_to_pandas(
     assert pd_schema == expected
 
 
-@pytest.mark.skipif(parse_version(nw.__version__) < (1, 23), reason="too old for converting to pandas")
 @pytest.mark.parametrize(
     ("dtype_backend", "expected"),
     [
         (
-            "numpy",
+            None,
             {
                 "boolean": "bool",
                 "categorical": "category",
@@ -97,7 +94,7 @@ def test_pydantic_to_pandas(
             },
         ),
         (
-            "pandas-nullable",
+            "numpy_nullable",
             {
                 "boolean": "boolean",
                 "categorical": "category",
@@ -127,7 +124,7 @@ def test_pydantic_to_pandas(
             },
         ),
         (
-            "pyarrow-nullable",
+            "pyarrow",
             {
                 "boolean": "boolean[pyarrow]",
                 "categorical": "category",
@@ -160,7 +157,7 @@ def test_pydantic_to_pandas(
 )
 def test_nw_schema_to_arrow(
     nw_schema: nw.Schema,
-    dtype_backend: Literal["pyarrow-nullable", "pandas-nullable", "numpy"],
+    dtype_backend: DTypeBackend,
     expected: dict[str, str | pd.ArrowDtype | type],
 ) -> None:
     unsupported_dtypes = {"array", "enum", "uint128", "int128", "decimal", "object", "unknown"}

@@ -3,8 +3,7 @@ from __future__ import annotations
 from typing import Optional
 
 import pytest
-from pydantic import AwareDatetime
-from pydantic import create_model
+from pydantic import AwareDatetime, create_model
 
 from anyschema._pydantic import model_to_nw_schema
 from anyschema.exceptions import UnsupportedDTypeError
@@ -28,7 +27,7 @@ def test_raise_parse_union(type_annotation: type, msg: str) -> None:
     "type_annotation",
     [
         AwareDatetime,
-        Optional[AwareDatetime],  # noqa: UP007
+        Optional[AwareDatetime],
         AwareDatetime | None,
         None | AwareDatetime,
     ],

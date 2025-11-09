@@ -1,34 +1,20 @@
 from __future__ import annotations
 
 from datetime import date, datetime
-from types import NoneType, UnionType
-from typing import TYPE_CHECKING, Any, Final, GenericAlias, Union, _GenericAlias, get_args, get_origin
+from types import UnionType
+from typing import TYPE_CHECKING, Any, GenericAlias, Union, _GenericAlias, get_args, get_origin
 
 import narwhals as nw
-from annotated_types import Ge, Gt, Interval
 from narwhals.schema import Schema
 from pydantic import AwareDatetime, BaseModel, FutureDate, FutureDatetime, NaiveDatetime, PastDate, PastDatetime
 from pydantic.fields import FieldInfo
 
+from anyschema._parsers import parse_integer_constraints
+from anyschema._utils import parse_union
 from anyschema.exceptions import UnsupportedDTypeError
 
 if TYPE_CHECKING:
     from narwhals.dtypes import DType
-
-
-INT_RANGES: Final[dict[DType, tuple[int, int]]] = {
-    nw.UInt8(): (0, 255),
-    nw.UInt16(): (0, 65535),
-    nw.UInt32(): (0, 4294967295),
-    nw.UInt64(): (0, 18446744073709551615),
-    nw.Int8(): (-128, 127),
-    nw.Int16(): (-32768, 32767),
-    nw.Int32(): (-2147483648, 2147483647),
-    nw.Int64(): (-9223372036854775808, 9223372036854775807),
-}
-
-_MIN_INT: Final[int] = -9_223_372_036_854_775_808
-_MAX_INT: Final[int] = 18_446_744_073_709_551_615
 
 
 def model_to_nw_schema(model: BaseModel | type[BaseModel]) -> Schema:
@@ -91,7 +77,7 @@ def pydantic_field_to_nw_type(field_info: FieldInfo) -> DType:  # noqa: C901, PL
         # - python int
         # - pydantic conint
         # - pydantic NegativeInt, NonNegativeInt, NonPositiveInt, PositiveInt
-        return parse_integer_metadata(_metadata)
+        return parse_integer_constraints(_metadata)
 
     if _type is float:
         # Includes:
@@ -134,49 +120,6 @@ def pydantic_field_to_nw_type(field_info: FieldInfo) -> DType:  # noqa: C901, PL
         return nw.Date()
 
     raise NotImplementedError  # pragma: no cover
-
-
-def parse_integer_metadata(metadata: tuple[Any, ...]) -> DType:
-    match metadata:
-        # pydantic conint(...) case: generates metadata of the form [strict, Interval, multiple_of]
-        case (_, Interval(gt=gt, ge=ge, lt=lt, le=le), _):
-            lower_bound = max((gt + 1 if gt is not None else _MIN_INT), (ge if ge is not None else _MIN_INT))
-            upper_bound = min((lt - 1 if lt is not None else _MAX_INT), (le if le is not None else _MAX_INT))
-
-            for dtype, (min_val, max_val) in INT_RANGES.items():
-                # As INT_RANGES is sorted by min_value first, and max_value second,
-                # its guaranteed to fall within the smallest possible range.
-                if lower_bound >= min_val and upper_bound <= max_val:
-                    return dtype
-
-            return nw.Int64()
-
-        # pydantic NonNegativeInt & PositiveInt cases
-        case (Gt(gt=value),) | (Ge(ge=value),):
-            return nw.UInt64() if value >= 0 else nw.Int64()
-
-        # All other cases: pure python int and pydantic remaining integer types
-        case _:
-            return nw.Int64()
-
-
-def parse_union(union: tuple[type[Any], ...]) -> tuple[type[Any], tuple[Any, ...]]:
-    if len(union) != 2:  # noqa: PLR2004
-        msg = "Union with more than two types is not supported."
-        raise UnsupportedDTypeError(msg)
-
-    _field0, _field1 = union
-
-    if _field0 is not NoneType and _field1 is not NoneType:
-        msg = "Union with both types being not None is not supported."
-        raise UnsupportedDTypeError(msg)
-
-    _field = _field1 if _field0 is NoneType else _field0
-    _origin: type | None = getattr(_field, "__origin__", None)
-    _type: type = getattr(_field, "__args__", (_field,))[0]
-    _metadata: tuple[Any, ...] = getattr(_field, "__metadata__", ())
-
-    return (_field, _metadata) if _origin is not None else (_type, _metadata)
 
 
 __all__ = ("model_to_nw_schema", "pydantic_field_to_nw_type")

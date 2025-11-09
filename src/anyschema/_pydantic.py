@@ -1,30 +1,13 @@
 from __future__ import annotations
 
-from datetime import date
-from datetime import datetime
-from types import NoneType
-from types import UnionType
-from typing import TYPE_CHECKING
-from typing import Any
-from typing import Final
-from typing import GenericAlias
-from typing import Union
-from typing import _GenericAlias
-from typing import get_args
-from typing import get_origin
+from datetime import date, datetime
+from types import NoneType, UnionType
+from typing import TYPE_CHECKING, Any, Final, GenericAlias, Union, _GenericAlias, get_args, get_origin
 
 import narwhals as nw
-from annotated_types import Ge
-from annotated_types import Gt
-from annotated_types import Interval
+from annotated_types import Ge, Gt, Interval
 from narwhals.schema import Schema
-from pydantic import AwareDatetime
-from pydantic import BaseModel
-from pydantic import FutureDate
-from pydantic import FutureDatetime
-from pydantic import NaiveDatetime
-from pydantic import PastDate
-from pydantic import PastDatetime
+from pydantic import AwareDatetime, BaseModel, FutureDate, FutureDatetime, NaiveDatetime, PastDate, PastDatetime
 from pydantic.fields import FieldInfo
 
 from anyschema.exceptions import UnsupportedDTypeError

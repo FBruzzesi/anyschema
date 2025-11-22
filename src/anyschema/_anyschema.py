@@ -1,14 +1,14 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from typing import TYPE_CHECKING, Generic
+from typing import TYPE_CHECKING
 
 from narwhals.schema import Schema
 
 from anyschema._dependencies import is_into_ordered_dict, is_pydantic_base_model
 from anyschema.adapters import into_ordered_dict_adapter, pydantic_adapter
 from anyschema.parsers import create_parser_chain
-from anyschema.typing import SpecT
+from anyschema.typing import Spec
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     from anyschema.typing import Adapter, IntoParserChain
 
 
-class AnySchema(Generic[SpecT]):
+class AnySchema:
     """A utility class for converting from a (schema) specification to a native dataframe schema object.
 
     The `AnySchema` class bridges the gap between Narwhals' Schemas and Pydantic Models, and popular dataframe libraries
@@ -57,9 +57,10 @@ class AnySchema(Generic[SpecT]):
             If `spec` type is unknown and `adapter` is not specified.
 
     Examples:
+        >>> from __future__ import annotations
+        >>>
         >>> from anyschema import AnySchema
-        >>> from pydantic import BaseModel
-        >>> from pydantic import PositiveInt
+        >>> from pydantic import BaseModel, PositiveInt
         >>>
         >>> class Student(BaseModel):
         ...     name: str
@@ -102,7 +103,7 @@ class AnySchema(Generic[SpecT]):
 
     def __init__(
         self: Self,
-        spec: SpecT,
+        spec: Spec,
         parsers: IntoParserChain = "auto",
         adapter: Adapter | None = None,
     ) -> None:
@@ -111,7 +112,7 @@ class AnySchema(Generic[SpecT]):
             return
 
         if is_into_ordered_dict(spec):
-            _parser_chain = create_parser_chain(parsers, model_type="python")
+            _parser_chain = create_parser_chain(parsers, spec_type="python")
             nw_schema = Schema(
                 {
                     name: _parser_chain.parse(input_type, metadata)
@@ -119,7 +120,7 @@ class AnySchema(Generic[SpecT]):
                 }
             )
         elif is_pydantic_base_model(spec):
-            _parser_chain = create_parser_chain(parsers, model_type="pydantic")
+            _parser_chain = create_parser_chain(parsers, spec_type="pydantic")
             nw_schema = Schema(
                 {
                     name: _parser_chain.parse(input_type, metadata)
@@ -127,7 +128,7 @@ class AnySchema(Generic[SpecT]):
                 }
             )
         elif adapter is not None:
-            _parser_chain = create_parser_chain(parsers, model_type=None)
+            _parser_chain = create_parser_chain(parsers, spec_type=None)
             nw_schema = Schema(
                 {name: _parser_chain.parse(input_type, metadata) for name, input_type, metadata in adapter(spec)}
             )

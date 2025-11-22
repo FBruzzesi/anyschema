@@ -13,7 +13,7 @@ from anyschema.parsers._union import UnionTypeParser
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from anyschema.typing import IntoParserChain, ModelType
+    from anyschema.typing import IntoParserChain, SpecType
 
 __all__ = (
     "AnnotatedParser",
@@ -27,18 +27,18 @@ __all__ = (
 
 
 @lru_cache(maxsize=16)
-def create_parser_chain(parsers: IntoParserChain = "auto", *, model_type: ModelType = None) -> ParserChain:
+def create_parser_chain(parsers: IntoParserChain = "auto", *, spec_type: SpecType = None) -> ParserChain:
     """Create a parser chain with the specified parsers.
 
     Arguments:
-        parsers: Either "auto" to automatically select parsers based on model_type,
+        parsers: Either "auto" to automatically select parsers based on spec_type,
             or a sequence of parser instances.
-        model_type: The type of model being parsed ("pydantic" or "python"). Only used when parsers="auto".
+        spec_type: The type of model being parsed ("pydantic" or "python"). Only used when parsers="auto".
 
     Returns:
         A ParserChain instance with the configured parsers.
     """
-    parsers_ = _auto_create_parsers(model_type) if parsers == "auto" else tuple(parsers)
+    parsers_ = _auto_create_parsers(spec_type) if parsers == "auto" else tuple(parsers)
     chain = ParserChain(parsers_)
 
     # Wire up the parser_chain reference for parsers that need it
@@ -49,11 +49,11 @@ def create_parser_chain(parsers: IntoParserChain = "auto", *, model_type: ModelT
     return chain
 
 
-def _auto_create_parsers(model_type: ModelType) -> Sequence[TypeParser]:
+def _auto_create_parsers(spec_type: SpecType) -> Sequence[TypeParser]:
     """Create a parser chain with automatically selected parsers.
 
     Arguments:
-        model_type: The type of model being parsed.
+        spec_type: The type of model being parsed.
 
     Returns:
         A ParserChain instance with automatically selected parsers.
@@ -71,8 +71,8 @@ def _auto_create_parsers(model_type: ModelType) -> Sequence[TypeParser]:
     # 4. AnnotatedTypesParser - refines types based on metadata (e.g., int with constraints)
     # 5. PydanticTypeParser - handles Pydantic-specific types (if pydantic model)
     # 6. PyTypeParser - handles basic Python types (fallback)
-
-    if model_type == "pydantic":
+    parsers: Sequence[TypeParser]
+    if spec_type == "pydantic":
         from anyschema.parsers.annotated_types import AnnotatedTypesParser
         from anyschema.parsers.pydantic import PydanticTypeParser
 

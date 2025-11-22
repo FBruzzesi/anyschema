@@ -57,6 +57,11 @@ class PydanticTypeParser(TypeParser):
         if isinstance(input_type, type) and issubclass(input_type, BaseModel):
             return self._parse_pydantic_model(input_type)
 
+        # TODO(FBruzzesi): It's possible to map many more types, however we would lose the information that such type
+        # would want to represent.
+        # See https://docs.pydantic.dev/latest/api/types/ for more pydantic types and
+        # https://docs.pydantic.dev/latest/api/pydantic_extra_types_* for pydantic extra types.
+
         # This parser doesn't handle this type
         return None
 
@@ -78,6 +83,3 @@ class PydanticTypeParser(TypeParser):
             fields.append(nw.Field(name=field_name, dtype=field_dtype))
 
         return nw.Struct(fields)
-
-
-__all__ = ("PydanticTypeParser",)

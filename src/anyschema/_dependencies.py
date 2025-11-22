@@ -22,9 +22,11 @@ def get_pydantic() -> ModuleType | None:  # pragma: no cover
 
 
 def is_pydantic_base_model(obj: object) -> TypeGuard[type[BaseModel]]:
+    """Check if the object is a pydantic BaseModel."""
     return (pydantic := get_pydantic()) is not None and (isinstance(obj, type) and issubclass(obj, pydantic.BaseModel))
 
 
 def is_into_ordered_dict(obj: object) -> TypeGuard[IntoOrderedDict]:
+    """Check if the object can be converted into a python OrderedDict."""
     sequence_size = 2
     return isinstance(obj, Mapping) or (isinstance(obj, Sequence) and all(len(s) == sequence_size for s in obj))

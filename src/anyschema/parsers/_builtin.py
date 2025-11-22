@@ -18,7 +18,12 @@ if TYPE_CHECKING:
 
 
 class PyTypeParser(TypeParser):
-    """Parser for standard Python types."""
+    """Parser for Python builtin types.
+
+    Handles:
+    - int, float, decimal, str, bytes, bool, date, datetime, timedelta, time, object, enum
+    - generics: list[T], Sequence[T], Iterable[T], tuple[T, ...]
+    """
 
     def parse(self, input_type: type, metadata: tuple = ()) -> DType | None:  # noqa: C901, PLR0911, PLR0912
         """Parse Python type annotations into Narwhals dtypes.
@@ -59,7 +64,6 @@ class PyTypeParser(TypeParser):
         if isinstance(input_type, (_GenericAlias, GenericAlias)):
             return self._parse_generic(input_type, metadata)
 
-        # This parser doesn't handle this type
         return None
 
     def _parse_generic(self, input_type: _GenericAlias | GenericAlias, metadata: tuple) -> DType | None:  # type: ignore[no-any-unimported]

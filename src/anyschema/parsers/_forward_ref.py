@@ -83,7 +83,6 @@ class ForwardRefParser(TypeParser):
             resolved_type = self._resolve_forward_ref(input_type)
         except (NameError, AttributeError, TypeError) as e:
             # If resolution fails, we can't handle this type
-            # Log the error or re-raise depending on strictness
             msg = f"Failed to resolve ForwardRef '{input_type.__forward_arg__}': {e}"
             raise NotImplementedError(msg) from e
 

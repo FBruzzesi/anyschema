@@ -61,11 +61,9 @@ class AnnotatedTypesParser(TypeParser):
         Returns:
             A Narwhals DType if this parser can refine the type based on metadata, None otherwise.
         """
-        # Only handle types with metadata
         if not metadata:
             return None
 
-        # Handle integer types with constraints
         if input_type is int:
             return self._parse_integer_metadata(metadata)
 
@@ -83,17 +81,9 @@ class AnnotatedTypesParser(TypeParser):
 
         Returns:
             The most appropriate integer DType based on the constraints.
-
-        Examples:
-            >>> from annotated_types import Gt, Interval
-            >>> parse_integer_constraints((Gt(0),))  # PositiveInt
-            UInt64
-            >>> parse_integer_constraints((Interval(ge=-128, le=127),))  # Int8 range
-            Int8
         """
         # Extract constraint values safely
-        lower_bound = MIN_INT
-        upper_bound = MAX_INT
+        lower_bound, upper_bound = MIN_INT, MAX_INT
 
         for item in metadata:
             if isinstance(item, Interval):
@@ -107,20 +97,16 @@ class AnnotatedTypesParser(TypeParser):
                 if item.le is not None:
                     upper_bound = min(upper_bound, int(self._extract_numeric_value(item.le)))
 
-            elif isinstance(item, Gt):
-                # Handle Gt constraint (e.g., from pydantic PositiveInt)
+            elif isinstance(item, Gt):  #  It includes pydantic PositiveInt
                 lower_bound = max(lower_bound, int(self._extract_numeric_value(item.gt)) + 1)
 
-            elif isinstance(item, Ge):
-                # Handle Ge constraint (e.g., from pydantic NonNegativeInt)
+            elif isinstance(item, Ge):  #  It includes pydantic NonNegativeInt
                 lower_bound = max(lower_bound, int(self._extract_numeric_value(item.ge)))
 
             elif isinstance(item, Lt):
-                # Handle Lt constraint
                 upper_bound = min(upper_bound, int(self._extract_numeric_value(item.lt)) - 1)
 
             elif isinstance(item, Le):
-                # Handle Le constraint
                 upper_bound = min(upper_bound, int(self._extract_numeric_value(item.le)))
 
         # Choose between signed and unsigned based on lower_bound
@@ -170,6 +156,3 @@ class AnnotatedTypesParser(TypeParser):
             except (TypeError, ValueError) as e:
                 msg = f"Cannot convert {type(value).__name__} to numeric value: {value}"
                 raise TypeError(msg) from e
-
-
-__all__ = ("AnnotatedTypesParser",)

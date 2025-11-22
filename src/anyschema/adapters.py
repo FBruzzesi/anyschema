@@ -19,16 +19,17 @@ def into_ordered_dict_adapter(spec: IntoOrderedDict) -> FieldSpecIterable:
 
     Arguments:
         spec: A mapping from field names to types, or a sequence of `(name, type)` tuples.
-            Examples: `{"age": int, "name": str}` or `[("age", int), ("name", str)]`.
 
     Yields:
         A tuple of `(field_name, field_type, metadata)` for each field.
         The metadata tuple is always empty `()` for this adapter.
 
     Examples:
-        >>> spec = {"name": str, "age": int}
-        >>> list(into_ordered_dict_adapter(spec))
+        >>> list(into_ordered_dict_adapter({"name": str, "age": int}))
         [('name', <class 'str'>, ()), ('age', <class 'int'>, ())]
+
+        >>> list(into_ordered_dict_adapter([("age", int), ("name", str)]))
+        [('age', <class 'int'>, ()), ('name', <class 'str'>, ())]
     """
     for field_name, field_type in OrderedDict(spec).items():
         yield field_name, field_type, ()
@@ -55,8 +56,8 @@ def pydantic_adapter(spec: type[BaseModel]) -> FieldSpecIterable:
         >>> class Student(BaseModel):
         ...     name: str
         ...     age: Annotated[int, Field(ge=0)]
-        >>> list(pydantic_adapter(Student))  # doctest: +ELLIPSIS
-        [('name', <class 'str'>, ()), ('age', <class 'int'>, (FieldInfo(...),))]
+        >>> list(pydantic_adapter(Student))
+        [('name', <class 'str'>, ()), ('age', ForwardRef('Annotated[int, Field(ge=0)]'), ())]
     """
     for field_name, field_info in spec.model_fields.items():
         yield field_name, field_info.annotation, tuple(field_info.metadata)  # type: ignore[misc]

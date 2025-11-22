@@ -26,23 +26,13 @@ class AnnotatedParser(TypeParser):
         Returns:
             A Narwhals DType by extracting the base type and delegating to the chain.
         """
-        # Handle Annotated types from typing module
         if isinstance(input_type, (_GenericAlias, GenericAlias)):
             origin = get_origin(input_type)
             if origin is Annotated:
                 args = get_args(input_type)
                 if args:
-                    # First arg is the actual type, rest are metadata
                     base_type = args[0]
                     extra_metadata = args[1:] if len(args) > 1 else ()
-
-                    # Combine existing metadata with extracted metadata
-                    combined_metadata = metadata + extra_metadata
-
-                    # Recursively parse the base type with combined metadata
-                    return self.parser_chain.parse(base_type, combined_metadata, strict=True)
+                    return self.parser_chain.parse(base_type, (*metadata, *extra_metadata), strict=True)
 
         return None
-
-
-__all__ = ("AnnotatedParser",)

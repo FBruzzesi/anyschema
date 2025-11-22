@@ -35,7 +35,6 @@ class UnionTypeParser(TypeParser):
                 args = get_args(input_type)
                 extracted_type, extracted_metadata = self._parse_union(args, metadata)
 
-                # Recursively parse the extracted type with combined metadata
                 return self.parser_chain.parse(extracted_type, extracted_metadata, strict=True)
 
         # Handle UnionType (PEP 604: T | U syntax)
@@ -43,7 +42,6 @@ class UnionTypeParser(TypeParser):
             args = get_args(input_type)
             extracted_type, extracted_metadata = self._parse_union(args, metadata)
 
-            # Recursively parse the extracted type with combined metadata
             return self.parser_chain.parse(extracted_type, extracted_metadata, strict=True)
 
         return None
@@ -71,15 +69,12 @@ class UnionTypeParser(TypeParser):
         field0, field1 = union
 
         if field0 is not NoneType and field1 is not NoneType:
-            msg = "Union with both types being not None is not supported."
+            msg = "Union with mixed types is not supported."
             raise UnsupportedDTypeError(msg)
 
-        # Extract the non-None type
-        # Return the type as-is and preserve the outer metadata
+        # Extract the non-None type. Return the type as-is and preserve the outer metadata
         extracted_type = field1 if field0 is NoneType else field0
-
-        # Preserve outer metadata (e.g., from Annotated[Optional[int], Gt(0)])
-        return (extracted_type, outer_metadata)
+        return extracted_type, outer_metadata
 
 
 __all__ = ("UnionTypeParser",)

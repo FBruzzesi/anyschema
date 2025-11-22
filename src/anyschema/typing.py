@@ -1,12 +1,26 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Literal, TypeAlias
+from collections.abc import Callable, Generator, Mapping, Sequence
+from typing import TYPE_CHECKING, Any, Literal, TypeAlias, TypeVar
+
+from narwhals.schema import Schema
+
+from anyschema.parsers import TypeParser
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping, Sequence
+    from pydantic import BaseModel
 
-    from anyschema.parsers import TypeParser
 
-    IntoOrderedDict: TypeAlias = Mapping[str, type] | Sequence[tuple[str, type]]
-    IntoParserChain: TypeAlias = Literal["auto"] | Sequence[TypeParser]
-    ModelType: TypeAlias = Literal["pydantic", "python"] | None
+IntoOrderedDict: TypeAlias = Mapping[str, type] | Sequence[tuple[str, type]]
+IntoParserChain: TypeAlias = Literal["auto"] | Sequence[TypeParser]
+ModelType: TypeAlias = Literal["pydantic", "python"] | None
+
+SpecT = TypeVar("SpecT", Schema, IntoOrderedDict, "type[BaseModel]")
+
+FieldName: TypeAlias = str
+FieldType: TypeAlias = type
+FieldMetadata: TypeAlias = tuple
+FieldSpec: TypeAlias = tuple[FieldName, FieldType, FieldMetadata]
+
+FieldSpecIterable: TypeAlias = Generator[FieldSpec, None, None]
+Adapter: TypeAlias = Callable[[Any], FieldSpecIterable]

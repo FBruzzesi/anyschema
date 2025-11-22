@@ -51,7 +51,7 @@ class AnnotatedTypesParser(TypeParser):
     - Type refinement based on metadata
     """
 
-    def parse(self, input_type: type, metadata: tuple = ()) -> DType | None:
+    def parse(self, input_type: Any, metadata: tuple = ()) -> DType | None:
         """Parse types with annotated metadata into refined Narwhals dtypes.
 
         Arguments:
@@ -126,7 +126,7 @@ class AnnotatedTypesParser(TypeParser):
             return nw.Int64()
 
     @staticmethod
-    def _extract_numeric_value(value: Any) -> int | float:  # noqa: ANN401
+    def _extract_numeric_value(value: Any) -> int | float:
         """Safely extract a numeric value from a constraint value.
 
         This handles the Protocol types used by annotated_types (SupportsGt, SupportsGe, etc.)

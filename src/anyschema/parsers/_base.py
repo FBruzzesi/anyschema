@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Literal, overload
+from typing import TYPE_CHECKING, Any, Literal, overload
 
 from anyschema._utils import qualified_type_name
 from anyschema.exceptions import UnavailableParseChainError
@@ -70,7 +70,7 @@ class TypeParser(ABC):
         self._parser_chain = parser_chain
 
     @abstractmethod
-    def parse(self, input_type: type, metadata: tuple = ()) -> DType | None:
+    def parse(self, input_type: Any, metadata: tuple = ()) -> DType | None:
         """Parse a type annotation into a Narwhals dtype.
 
         Arguments:
@@ -99,11 +99,11 @@ class ParserChain:
         self.parsers = tuple(parsers)
 
     @overload
-    def parse(self, input_type: type, metadata: tuple = (), *, strict: Literal[True] = True) -> DType: ...
+    def parse(self, input_type: Any, metadata: tuple = (), *, strict: Literal[True] = True) -> DType: ...
     @overload
-    def parse(self, input_type: type, metadata: tuple = (), *, strict: Literal[False]) -> DType | None: ...
+    def parse(self, input_type: Any, metadata: tuple = (), *, strict: Literal[False]) -> DType | None: ...
 
-    def parse(self, input_type: type, metadata: tuple = (), *, strict: bool = True) -> DType | None:
+    def parse(self, input_type: Any, metadata: tuple = (), *, strict: bool = True) -> DType | None:
         """Try each parser in sequence until one succeeds.
 
         Arguments:

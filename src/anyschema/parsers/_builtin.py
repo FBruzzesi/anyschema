@@ -6,7 +6,7 @@ from decimal import Decimal
 from enum import Enum
 from inspect import isclass
 from types import GenericAlias
-from typing import TYPE_CHECKING, _GenericAlias, get_args, get_origin  # type: ignore[attr-defined]
+from typing import TYPE_CHECKING, Any, _GenericAlias, get_args, get_origin  # type: ignore[attr-defined]
 
 import narwhals as nw
 
@@ -25,7 +25,7 @@ class PyTypeParser(TypeParser):
     - generics: list[T], Sequence[T], Iterable[T], tuple[T, ...]
     """
 
-    def parse(self, input_type: type, metadata: tuple = ()) -> DType | None:  # noqa: C901, PLR0911, PLR0912
+    def parse(self, input_type: Any, metadata: tuple = ()) -> DType | None:  # noqa: C901, PLR0911, PLR0912
         """Parse Python type annotations into Narwhals dtypes.
 
         Arguments:

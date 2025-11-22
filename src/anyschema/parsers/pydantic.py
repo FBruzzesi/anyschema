@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import narwhals as nw
 from pydantic import AwareDatetime, BaseModel, FutureDate, FutureDatetime, NaiveDatetime, PastDate, PastDatetime
@@ -24,7 +24,7 @@ class PydanticTypeParser(TypeParser):
     - Pydantic BaseModel (Struct types)
     """
 
-    def parse(self, input_type: type, metadata: tuple = ()) -> DType | None:  # noqa: ARG002
+    def parse(self, input_type: Any, metadata: tuple = ()) -> DType | None:  # noqa: ARG002
         """Parse Pydantic-specific types into Narwhals dtypes.
 
         Arguments:

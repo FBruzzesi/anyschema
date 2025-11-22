@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, ForwardRef
+from typing import TYPE_CHECKING, Any, ForwardRef
 
 from anyschema.parsers._base import TypeParser
 
@@ -66,7 +66,7 @@ class ForwardRefParser(TypeParser):
 
         return namespace
 
-    def parse(self, input_type: type, metadata: tuple = ()) -> DType | None:
+    def parse(self, input_type: Any, metadata: tuple = ()) -> DType | None:
         """Parse ForwardRef types by resolving them and delegating to the chain.
 
         Arguments:

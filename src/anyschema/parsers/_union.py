@@ -18,7 +18,7 @@ class UnionTypeParser(TypeParser):
     - Extracts the non-None type and its metadata for further parsing
     """
 
-    def parse(self, input_type: type, metadata: tuple = ()) -> DType | None:
+    def parse(self, input_type: Any, metadata: tuple = ()) -> DType | None:
         """Parse Union types, particularly Optional types.
 
         Arguments:

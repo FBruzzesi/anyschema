@@ -52,7 +52,7 @@ def test_parse_annotated(annotated_parser: AnnotatedParser, input_type: type, ex
 )
 def test_parse_annotated_various_metadata(annotated_parser: AnnotatedParser, metadata_items: tuple) -> None:
     """Parametrized test for Annotated with various metadata."""
-    input_type = Annotated[int, *metadata_items]
+    input_type = Annotated[int, metadata_items]
     result = annotated_parser.parse(input_type)
     assert result == nw.Int64()
 

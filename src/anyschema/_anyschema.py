@@ -91,6 +91,7 @@ class AnySchema(Generic[SpecT]):
         to_polars():
             Converts the underlying Pydantic model schema into a `polars.Schema`.
     """
+
     def __init__(
         self: Self,
         spec: SpecT,

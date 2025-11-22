@@ -21,7 +21,7 @@ class Student(BaseModel):
     classes: list[str]
 
 
-schema = AnySchema(schema=Student)
+schema = AnySchema(spec=Student)
 
 # Convert to pyarrow schema
 pa_schema = schema.to_arrow()

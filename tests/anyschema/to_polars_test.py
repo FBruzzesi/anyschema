@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 
 
 def test_pydantic_to_polars(student_cls: type[BaseModel]) -> None:
-    anyschema = AnySchema(schema=student_cls)
+    anyschema = AnySchema(spec=student_cls)
     pl_schema = anyschema.to_polars()
 
     assert isinstance(pl_schema, pl.Schema)
@@ -30,7 +30,7 @@ def test_pydantic_to_polars(student_cls: type[BaseModel]) -> None:
 def test_nw_schema_to_arrow(nw_schema: Schema) -> None:
     unsupported_dtypes = {"array", "enum", "uint128", "int128", "decimal"}
     model = Schema({k: v for k, v in nw_schema.items() if k not in unsupported_dtypes})
-    anyschema = AnySchema(schema=model)
+    anyschema = AnySchema(spec=model)
     pl_schema = anyschema.to_polars()
 
     assert isinstance(pl_schema, pl.Schema)

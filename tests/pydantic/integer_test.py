@@ -5,8 +5,8 @@ import narwhals as nw
 from hypothesis import given
 from pydantic import BaseModel, NegativeInt, NonNegativeInt, NonPositiveInt, PositiveInt, conint
 
-from anyschema._pydantic import model_to_nw_schema
 from anyschema.parsers import create_parser_chain
+from tests.pydantic.utils import model_to_nw_schema
 
 parser_chain = create_parser_chain("auto", model_type="pydantic")
 

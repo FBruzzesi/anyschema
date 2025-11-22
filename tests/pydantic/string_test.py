@@ -8,8 +8,8 @@ import pytest
 from narwhals.utils import parse_version
 from pydantic import BaseModel, StrictStr, constr
 
-from anyschema._pydantic import model_to_nw_schema
 from anyschema.parsers import create_parser_chain
+from tests.pydantic.utils import model_to_nw_schema
 
 parser_chain = create_parser_chain("auto", model_type="pydantic")
 

@@ -4,6 +4,9 @@ import narwhals as nw
 from pydantic import BaseModel, StrictBool
 
 from anyschema._pydantic import model_to_nw_schema
+from anyschema.parsers import create_parser_chain
+
+parser_chain = create_parser_chain("auto", model_type="pydantic")
 
 
 def test_parse_boolean() -> None:
@@ -20,6 +23,6 @@ def test_parse_boolean() -> None:
         strict_bool_or_none: StrictBool | None
         none_or_strict_bool: None | StrictBool
 
-    schema = model_to_nw_schema(BooleanModel)
+    schema = model_to_nw_schema(BooleanModel, parser_chain=parser_chain)
 
     assert all(value == nw.Boolean() for value in schema.values())

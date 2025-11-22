@@ -1,14 +1,15 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping, Sequence
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING
 
 from narwhals.schema import Schema
 
-from anyschema._dependencies import get_pydantic
+from anyschema._dependencies import is_pydantic_base_model
+from anyschema.parsers import create_parser_chain
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Sequence
+    from collections.abc import Iterable
 
     import pandas as pd
     import polars as pl
@@ -17,7 +18,7 @@ if TYPE_CHECKING:
     from pydantic import BaseModel
     from typing_extensions import Self
 
-    from anyschema.parsers.base import TypeParser
+    from anyschema.typing import IntoOrderedDict, IntoParserChain
 
 
 class AnySchema:
@@ -58,7 +59,7 @@ class AnySchema:
         ...     age: PositiveInt
         ...     classes: list[str]
         >>>
-        >>> schema = AnySchema(model=Student)
+        >>> schema = AnySchema(schema=Student)
 
         We can now convert `schema` to a pyarrow schema via `to_arrow` method:
 
@@ -92,24 +93,22 @@ class AnySchema:
 
     def __init__(
         self: Self,
-        model: Schema | Mapping[str, type] | type[BaseModel],
-        parsers: Literal["auto"] | Sequence[TypeParser] = "auto",
+        schema: Schema | IntoOrderedDict | type[BaseModel],
+        parsers: IntoParserChain = "auto",
     ) -> None:
-        if isinstance(model, Schema):
-            self._nw_schema = model
-        elif isinstance(model, Mapping):
+        if isinstance(schema, Schema):
+            self._nw_schema = schema
+        elif isinstance(schema, Mapping) or (isinstance(schema, Sequence) and all(len(s) == 2 for s in schema)):  # noqa: PLR2004
             from anyschema._mapping import mapping_to_nw_schema
 
-            self._nw_schema = mapping_to_nw_schema(model=model, parsers=parsers)
+            parser_chain = create_parser_chain(parsers, model_type="python")
+            self._nw_schema = mapping_to_nw_schema(schema=schema, parser_chain=parser_chain)
 
-        # TODO(FBruzzesi): Sequence[tuple[str, type]]
-
-        elif (pydantic := get_pydantic()) is not None and (
-            isinstance(model, type) and issubclass(model, pydantic.BaseModel)
-        ):
+        elif is_pydantic_base_model(schema):
             from anyschema._pydantic import model_to_nw_schema
 
-            self._nw_schema = model_to_nw_schema(model=model, parsers=parsers)
+            parser_chain = create_parser_chain(parsers, model_type="pydantic")
+            self._nw_schema = model_to_nw_schema(schema=schema, parser_chain=parser_chain)
 
         else:
             raise NotImplementedError

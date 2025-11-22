@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 
 
 def test_pydantic_to_arrow(student_cls: type[BaseModel]) -> None:
-    anyschema = AnySchema(model=student_cls)
+    anyschema = AnySchema(schema=student_cls)
     pa_schema = anyschema.to_arrow()
 
     assert isinstance(pa_schema, pa.Schema)
@@ -30,7 +30,7 @@ def test_pydantic_to_arrow(student_cls: type[BaseModel]) -> None:
 def test_nw_schema_to_arrow(nw_schema: Schema) -> None:
     unsupported_dtypes = {"array", "int128", "uint128", "decimal", "enum", "object", "unknown"}
     model = Schema({k: v for k, v in nw_schema.items() if k not in unsupported_dtypes})
-    anyschema = AnySchema(model=model)
+    anyschema = AnySchema(schema=model)
     pa_schema = anyschema.to_arrow()
 
     assert isinstance(pa_schema, pa.Schema)

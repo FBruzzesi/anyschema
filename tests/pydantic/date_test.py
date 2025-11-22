@@ -8,6 +8,9 @@ from hypothesis import assume, given
 from pydantic import BaseModel, FutureDate, PastDate, condate
 
 from anyschema._pydantic import model_to_nw_schema
+from anyschema.parsers import create_parser_chain
+
+parser_chain = create_parser_chain("auto", model_type="pydantic")
 
 
 def test_parse_date() -> None:
@@ -30,7 +33,7 @@ def test_parse_date() -> None:
         future_dt_or_none: FutureDate | None
         none_or_future_dt: None | FutureDate
 
-    schema = model_to_nw_schema(DateModel)
+    schema = model_to_nw_schema(DateModel, parser_chain=parser_chain)
 
     assert all(value == nw.Date() for value in schema.values())
 
@@ -45,6 +48,6 @@ def test_parse_condate(min_date: date, max_date: date) -> None:
         z: condate(gt=min_date, le=max_date) | None
         w: None | condate(ge=min_date, le=max_date)
 
-    schema = model_to_nw_schema(ConDateModel)
+    schema = model_to_nw_schema(ConDateModel, parser_chain=parser_chain)
 
     assert all(value == nw.Date() for value in schema.values())

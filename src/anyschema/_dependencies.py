@@ -1,21 +1,18 @@
 from __future__ import annotations
 
 import sys
-from importlib.metadata import version
-from importlib.util import find_spec
-from typing import TYPE_CHECKING
-
-from narwhals.utils import parse_version
+from typing import TYPE_CHECKING, TypeGuard
 
 if TYPE_CHECKING:
     from types import ModuleType
 
-_ANNOTATED_TYPES_AVAILABLE = find_spec("annotated_types") is not None
-
-_PYDANTIC_AVAILABLE = find_spec("pydantic") is not None
-_PYDANTIC_VERSION = parse_version(version("pydantic")) if _PYDANTIC_AVAILABLE else None
+    from pydantic import BaseModel
 
 
 def get_pydantic() -> ModuleType | None:  # pragma: no cover
     """Get pydantic module (if already imported - else return None)."""
     return sys.modules.get("pydantic", None)
+
+
+def is_pydantic_base_model(obj: object) -> TypeGuard[type[BaseModel]]:
+    return (pydantic := get_pydantic()) is not None and (isinstance(obj, type) and issubclass(obj, pydantic.BaseModel))

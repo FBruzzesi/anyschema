@@ -52,7 +52,7 @@ class PydanticTypeParser(TypeParser):
             return nw.Date()
 
         # Handle Pydantic models (Struct types)
-        if (isinstance(input_type, type) and issubclass(input_type, BaseModel)):
+        if isinstance(input_type, type) and issubclass(input_type, BaseModel):
             return self._parse_pydantic_model(input_type)
 
         # This parser doesn't handle this type

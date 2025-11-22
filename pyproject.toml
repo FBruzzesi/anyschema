@@ -51,6 +51,7 @@ fix = true
 [tool.ruff.lint]
 select = ["ALL"]
 ignore = [
+
     "PLC0415",
     "UP045",
     "COM812",

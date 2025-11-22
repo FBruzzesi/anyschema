@@ -4,6 +4,9 @@ import narwhals as nw
 from pydantic import BaseModel, conint
 
 from anyschema._pydantic import model_to_nw_schema
+from anyschema.parsers import create_parser_chain
+
+parser_chain = create_parser_chain("auto", model_type="pydantic")
 
 
 def test_parse_struct() -> None:
@@ -16,7 +19,7 @@ def test_parse_struct() -> None:
     class StructModel(BaseModel):
         struct: BaseStruct | None
 
-    schema = model_to_nw_schema(StructModel)
+    schema = model_to_nw_schema(StructModel, parser_chain=parser_chain)
     expected = {
         "struct": nw.Struct(
             [

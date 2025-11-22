@@ -12,14 +12,14 @@ from anyschema.parsers.pydantic_types import PydanticTypeParser
 from anyschema.parsers.union_types import UnionTypeParser
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from anyschema.typing import IntoParserChain, ModelType
 
 
 @lru_cache(maxsize=16)
 def create_parser_chain(
-    parsers: Literal["auto"] | Sequence[TypeParser] = "auto",
+    parsers: IntoParserChain = "auto",
     *,
-    model_type: Literal["pydantic", "python"] | None = None,
+    model_type: ModelType = None,
 ) -> ParserChain:
     """Create a parser chain with the specified parsers.
 

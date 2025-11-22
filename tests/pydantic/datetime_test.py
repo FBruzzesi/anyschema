@@ -6,6 +6,9 @@ import narwhals as nw
 from pydantic import BaseModel, FutureDatetime, NaiveDatetime, PastDatetime
 
 from anyschema._pydantic import model_to_nw_schema
+from anyschema.parsers import create_parser_chain
+
+parser_chain = create_parser_chain("auto", model_type="pydantic")
 
 
 def test_parse_datetime() -> None:
@@ -34,6 +37,6 @@ def test_parse_datetime() -> None:
         future_dt_or_none: FutureDatetime | None
         none_or_future_dt: None | FutureDatetime
 
-    schema = model_to_nw_schema(DatetimeModel)
+    schema = model_to_nw_schema(DatetimeModel, parser_chain=parser_chain)
 
     assert all(value == nw.Datetime() for value in schema.values())

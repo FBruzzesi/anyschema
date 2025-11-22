@@ -1,15 +1,14 @@
 from __future__ import annotations
 
-from importlib import metadata
-from typing import TYPE_CHECKING
+from collections.abc import Iterable, Mapping, Sequence
+from typing import TYPE_CHECKING, Literal
 
 from narwhals.schema import Schema
-from narwhals.utils import parse_version
 
 from anyschema._dependencies import get_pydantic
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from collections.abc import Iterable, Sequence
 
     import pandas as pd
     import polars as pl
@@ -18,8 +17,7 @@ if TYPE_CHECKING:
     from pydantic import BaseModel
     from typing_extensions import Self
 
-
-NARWHALS_VERSION = parse_version(metadata.version("narwhals"))
+    from anyschema.parsers.base import TypeParser
 
 
 class AnySchema:
@@ -34,8 +32,17 @@ class AnySchema:
     Arguments:
         model: The input model. This can be:
 
-            - a [Narwhals Schema](https://narwhals-dev.github.io/narwhals/api-reference/schema/#narwhals.schema.Schema)
+            - a [Narwhals Schema](https://narwhals-dev.github.io/narwhals/api-reference/schema/#narwhals.schema.Schema).
+                In this case parsing data types is a no-op.
+            - a [python mapping](https://docs.python.org/3/glossary.html#term-mapping).
             - a [Pydantic Model](https://docs.pydantic.dev/latest/concepts/models/) class or an instance of such
+
+        parsers: Control how types are parsed into Narwhals dtypes. Options:
+
+            - `"auto"` (default): Automatically select appropriate parsers based on the model type
+            - A sequence of parser instances: Use custom parsers for extensibility
+
+            This allows for custom type parsing logic and extensibility from user-defined parsers.
 
     Raises:
         NotImplementedError:
@@ -83,16 +90,26 @@ class AnySchema:
             Converts the underlying Pydantic model schema into a `polars.Schema`.
     """
 
-    def __init__(self: Self, model: Schema | BaseModel | type[BaseModel]) -> None:
+    def __init__(
+        self: Self,
+        model: Schema | Mapping[str, type] | type[BaseModel],
+        parsers: Literal["auto"] | Sequence[TypeParser] = "auto",
+    ) -> None:
         if isinstance(model, Schema):
             self._nw_schema = model
+        elif isinstance(model, Mapping):
+            from anyschema._mapping import mapping_to_nw_schema
+
+            self._nw_schema = mapping_to_nw_schema(model=model, parsers=parsers)
+
+        # TODO(FBruzzesi): Sequence[tuple[str, type]]
 
         elif (pydantic := get_pydantic()) is not None and (
-            (isinstance(model, type) and issubclass(model, pydantic.BaseModel)) or isinstance(model, pydantic.BaseModel)
+            isinstance(model, type) and issubclass(model, pydantic.BaseModel)
         ):
             from anyschema._pydantic import model_to_nw_schema
 
-            self._nw_schema = model_to_nw_schema(model=model)
+            self._nw_schema = model_to_nw_schema(model=model, parsers=parsers)
 
         else:
             raise NotImplementedError

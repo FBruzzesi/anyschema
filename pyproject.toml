@@ -58,7 +58,9 @@ ignore = [
     "D100",  # Checks for undocumented public module definitions.
     "D104",  # Checks for undocumented public package definitions.
     "D107",  # Checks for public __init__ method definitions that are missing docstrings.
-    "RET505"
+    "RET505",
+    "FIX002",
+    "TD003",
 ]
 
 [tool.ruff.lint.per-file-ignores]

@@ -10,21 +10,21 @@ from anyschema.exceptions import UnsupportedDTypeError
 
 
 @pytest.mark.parametrize(
-    ("type_annotation", "msg"),
+    ("input_type", "msg"),
     [
         (str | float | int, "Union with more than two types is not supported."),
         (str | float, "Union with both types being not None is not supported."),
     ],
 )
-def test_raise_parse_union(type_annotation: type, msg: str) -> None:
-    ExceptionModel = create_model("ExceptionModel", foo=(type_annotation, ...))  # noqa: N806
+def test_raise_parse_union(input_type: type, msg: str) -> None:
+    ExceptionModel = create_model("ExceptionModel", foo=(input_type, ...))  # noqa: N806
 
     with pytest.raises(UnsupportedDTypeError, match=msg):
         model_to_nw_schema(ExceptionModel)
 
 
 @pytest.mark.parametrize(
-    "type_annotation",
+    "input_type",
     [
         AwareDatetime,
         Optional[AwareDatetime],
@@ -32,8 +32,8 @@ def test_raise_parse_union(type_annotation: type, msg: str) -> None:
         None | AwareDatetime,
     ],
 )
-def test_raise_aware_datetime(type_annotation: type) -> None:
-    AwareDatetimeModel = create_model("AwareDatetimeModel", foo=(type_annotation, ...))  # noqa: N806
+def test_raise_aware_datetime(input_type: type) -> None:
+    AwareDatetimeModel = create_model("AwareDatetimeModel", foo=(input_type, ...))  # noqa: N806
 
     msg = "pydantic AwareDatetime does not specify a fixed timezone."
     with pytest.raises(UnsupportedDTypeError, match=msg):

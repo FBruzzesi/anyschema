@@ -46,9 +46,15 @@ class AnySchema(Generic[SpecT]):
 
             This allows for custom type parsing logic and extensibility from user-defined parsers.
 
+        adapter: A custom adapter function that converts the spec into a sequence of field specifications.
+            This function should yield tuples of `(field_name, field_type, metadata)` for each field.
+            The metadata tuple is always empty `()` for this adapter.
+
+            This allows for custom field specification logic and extensibility from user-defined adapters.
+
     Raises:
         NotImplementedError:
-            If `model` is not a narwhals Schema or a Pydantic model.
+            If `spec` type is unknown and `adapter` is not specified.
 
     Examples:
         >>> from anyschema import AnySchema

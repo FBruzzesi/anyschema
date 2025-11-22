@@ -133,7 +133,7 @@ class AnySchema(Generic[SpecT]):
             )
         else:
             msg = "`spec` type is unknown and `adapter` is not specified."
-            raise NotImplementedError(msg)
+            raise ValueError(msg)
 
         self._nw_schema = nw_schema
 

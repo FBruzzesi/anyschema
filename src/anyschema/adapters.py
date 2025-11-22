@@ -8,6 +8,8 @@ if TYPE_CHECKING:
 
     from anyschema.typing import FieldSpecIterable, IntoOrderedDict
 
+__all__ = ("into_ordered_dict_adapter", "pydantic_adapter")
+
 
 def into_ordered_dict_adapter(spec: IntoOrderedDict) -> FieldSpecIterable:
     """Adapter for Python mappings and sequences of field definitions.

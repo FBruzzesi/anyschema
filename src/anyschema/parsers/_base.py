@@ -3,6 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Literal, overload
 
+from anyschema._utils import qualified_type_name
 from anyschema.exceptions import UnavailableParseChainError
 
 if TYPE_CHECKING:
@@ -119,6 +120,9 @@ class ParserChain:
                 return result
 
         if strict:
-            msg = f"No parser in chain could handle type: {input_type}"
+            msg = (
+                f"No parser in chain could handle type: {qualified_type_name(input_type)}.\n"
+                f"Please consider reporting a feature request https://github.com/FBruzzesi/anyschema/issues"
+            )
             raise NotImplementedError(msg)
         return None

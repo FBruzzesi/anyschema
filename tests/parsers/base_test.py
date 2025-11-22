@@ -4,7 +4,7 @@ import pytest
 from narwhals.dtypes import DType
 
 from anyschema.exceptions import UnavailableParseChainError
-from anyschema.parsers.base import ParserChain, TypeParser
+from anyschema.parsers._base import ParserChain, TypeParser
 
 
 class DummyParser(TypeParser):

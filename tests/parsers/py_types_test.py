@@ -9,8 +9,8 @@ import narwhals as nw
 import pytest
 
 from anyschema.exceptions import UnsupportedDTypeError
-from anyschema.parsers.base import ParserChain
-from anyschema.parsers.py_types import PyTypeParser
+from anyschema.parsers._base import ParserChain
+from anyschema.parsers._builtin import PyTypeParser
 
 
 class Color(Enum):

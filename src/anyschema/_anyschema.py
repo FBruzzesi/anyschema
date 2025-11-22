@@ -98,6 +98,8 @@ class AnySchema(Generic[SpecT]):
             Converts the underlying Pydantic model schema into a `polars.Schema`.
     """
 
+    _nw_schema: Schema
+
     def __init__(
         self: Self,
         spec: SpecT,
@@ -110,20 +112,30 @@ class AnySchema(Generic[SpecT]):
 
         if is_into_ordered_dict(spec):
             _parser_chain = create_parser_chain(parsers, model_type="python")
-            _adapter = into_ordered_dict_adapter
+            nw_schema = Schema(
+                {
+                    name: _parser_chain.parse(input_type, metadata)
+                    for name, input_type, metadata in into_ordered_dict_adapter(spec)
+                }
+            )
         elif is_pydantic_base_model(spec):
             _parser_chain = create_parser_chain(parsers, model_type="pydantic")
-            _adapter = pydantic_adapter
+            nw_schema = Schema(
+                {
+                    name: _parser_chain.parse(input_type, metadata)
+                    for name, input_type, metadata in pydantic_adapter(spec)
+                }
+            )
         elif adapter is not None:
             _parser_chain = create_parser_chain(parsers, model_type=None)
-            _adapter = adapter
+            nw_schema = Schema(
+                {name: _parser_chain.parse(input_type, metadata) for name, input_type, metadata in adapter(spec)}
+            )
         else:
             msg = "`spec` type is unknown and `adapter` is not specified."
             raise NotImplementedError(msg)
 
-        self._nw_schema = Schema(
-            {name: _parser_chain.parse(input_type, metadata) for name, input_type, metadata in _adapter(spec)}
-        )
+        self._nw_schema = nw_schema
 
     def to_arrow(self: Self) -> pa.Schema:
         """Converts input model into pyarrow schema.

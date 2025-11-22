@@ -7,10 +7,12 @@ import narwhals as nw
 from pydantic import AwareDatetime, BaseModel, FutureDate, FutureDatetime, NaiveDatetime, PastDate, PastDatetime
 
 from anyschema.exceptions import UnsupportedDTypeError
-from anyschema.parsers.base import TypeParser
+from anyschema.parsers._base import TypeParser
 
 if TYPE_CHECKING:
     from narwhals.dtypes import DType
+
+__all__ = ("PydanticTypeParser",)
 
 
 class PydanticTypeParser(TypeParser):

@@ -57,4 +57,4 @@ def pydantic_adapter(spec: type[BaseModel]) -> FieldSpecIterable:
         [('name', <class 'str'>, ()), ('age', <class 'int'>, (FieldInfo(...),))]
     """
     for field_name, field_info in spec.model_fields.items():
-        yield field_name, field_info.annotation, tuple(field_info.metadata)  # type: ignore[arg-type]
+        yield field_name, field_info.annotation, tuple(field_info.metadata)  # type: ignore[misc]

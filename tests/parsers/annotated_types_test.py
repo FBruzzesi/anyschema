@@ -6,9 +6,9 @@ import pytest
 from annotated_types import Ge, Gt, Interval, Le, Lt
 from hypothesis import given
 
+from anyschema.parsers._base import ParserChain
+from anyschema.parsers._builtin import PyTypeParser
 from anyschema.parsers.annotated_types import AnnotatedTypesParser
-from anyschema.parsers.base import ParserChain
-from anyschema.parsers.py_types import PyTypeParser
 
 
 class TestAnnotatedTypesParserNoMetadata:

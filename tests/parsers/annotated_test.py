@@ -5,9 +5,9 @@ from typing import Annotated
 import narwhals as nw
 import pytest
 
-from anyschema.parsers.annotated import AnnotatedParser
-from anyschema.parsers.base import ParserChain
-from anyschema.parsers.py_types import PyTypeParser
+from anyschema.parsers._annotated import AnnotatedParser
+from anyschema.parsers._base import ParserChain
+from anyschema.parsers._builtin import PyTypeParser
 
 
 class TestAnnotatedParserBasicTypes:

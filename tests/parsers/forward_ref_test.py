@@ -5,9 +5,9 @@ from typing import ForwardRef, Optional
 import narwhals as nw
 import pytest
 
-from anyschema.parsers.base import ParserChain
-from anyschema.parsers.forward_ref import ForwardRefParser
-from anyschema.parsers.py_types import PyTypeParser
+from anyschema.parsers._base import ParserChain
+from anyschema.parsers._builtin import PyTypeParser
+from anyschema.parsers._forward_ref import ForwardRefParser
 
 
 class TestForwardRefParserBasicTypes:
@@ -80,12 +80,12 @@ class TestForwardRefParserGenericTypes:
     def test_parse_forward_ref_union_type(self, parser: ForwardRefParser) -> None:
         """Test parsing ForwardRef with union type."""
         # Need to use a parser chain that includes UnionTypeParser for this to work
-        from anyschema.parsers.union_types import UnionTypeParser
+        from anyschema.parsers._union import UnionTypeParser
 
         union_parser = UnionTypeParser()
         py_parser = PyTypeParser()
         forward_ref_parser = ForwardRefParser()
-        from anyschema.parsers.base import ParserChain
+        from anyschema.parsers._base import ParserChain
 
         chain = ParserChain([forward_ref_parser, union_parser, py_parser])
         forward_ref_parser.parser_chain = chain

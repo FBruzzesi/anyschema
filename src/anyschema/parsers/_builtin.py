@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, _GenericAlias, get_args, get_origin  # type: i
 import narwhals as nw
 
 from anyschema.exceptions import UnsupportedDTypeError
-from anyschema.parsers.base import TypeParser
+from anyschema.parsers._base import TypeParser
 
 if TYPE_CHECKING:
     from narwhals.dtypes import DType
@@ -62,7 +62,7 @@ class PyTypeParser(TypeParser):
         # This parser doesn't handle this type
         return None
 
-    def _parse_generic(self, input_type: type, metadata: tuple) -> DType | None:  # noqa: ARG002
+    def _parse_generic(self, input_type: _GenericAlias | GenericAlias, metadata: tuple) -> DType | None:  # type: ignore[no-any-unimported]
         """Parse generic types like list[int].
 
         Arguments:
@@ -76,7 +76,7 @@ class PyTypeParser(TypeParser):
         if (not args) and (origin in (list, tuple, Sequence, Iterable)):
             return nw.List(nw.Object())
 
-        inner_dtype = self.parser_chain.parse(args[0], strict=True)
+        inner_dtype = self.parser_chain.parse(args[0], metadata=metadata, strict=True)
         if inner_dtype is None:
             return None
 

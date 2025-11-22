@@ -9,14 +9,14 @@ from pydantic import BaseModel, PositiveInt
 
 from anyschema.parsers import (
     AnnotatedParser,
-    AnnotatedTypesParser,
     ForwardRefParser,
     ParserChain,
-    PydanticTypeParser,
     PyTypeParser,
     UnionTypeParser,
     create_parser_chain,
 )
+from anyschema.parsers.annotated_types import AnnotatedTypesParser
+from anyschema.parsers.pydantic import PydanticTypeParser
 
 
 class TestCreateParserChainAuto:

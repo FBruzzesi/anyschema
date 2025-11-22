@@ -7,9 +7,9 @@ import pytest
 from pydantic import AwareDatetime, BaseModel, FutureDate, FutureDatetime, NaiveDatetime, PastDate, PastDatetime
 
 from anyschema.exceptions import UnsupportedDTypeError
-from anyschema.parsers.base import ParserChain
-from anyschema.parsers.py_types import PyTypeParser
-from anyschema.parsers.pydantic_types import PydanticTypeParser
+from anyschema.parsers._base import ParserChain
+from anyschema.parsers._builtin import PyTypeParser
+from anyschema.parsers.pydantic import PydanticTypeParser
 
 
 @pytest.fixture

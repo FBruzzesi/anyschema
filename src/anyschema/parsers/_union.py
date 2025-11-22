@@ -4,7 +4,7 @@ from types import GenericAlias, NoneType, UnionType
 from typing import TYPE_CHECKING, Any, Union, _GenericAlias, get_args, get_origin  # type: ignore[attr-defined]
 
 from anyschema.exceptions import UnsupportedDTypeError
-from anyschema.parsers.base import TypeParser
+from anyschema.parsers._base import TypeParser
 
 if TYPE_CHECKING:
     from narwhals.dtypes import DType

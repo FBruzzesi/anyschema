@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, ForwardRef
 
-from anyschema.parsers.base import TypeParser
+from anyschema.parsers._base import TypeParser
 
 if TYPE_CHECKING:
     from narwhals.dtypes import DType
@@ -79,7 +79,6 @@ class ForwardRefParser(TypeParser):
         if not isinstance(input_type, ForwardRef):
             return None
 
-        # Resolve the ForwardRef to get the actual type
         try:
             resolved_type = self._resolve_forward_ref(input_type)
         except (NameError, AttributeError, TypeError) as e:
@@ -88,7 +87,6 @@ class ForwardRefParser(TypeParser):
             msg = f"Failed to resolve ForwardRef '{input_type.__forward_arg__}': {e}"
             raise NotImplementedError(msg) from e
 
-        # Delegate to the parser chain to parse the resolved type
         return self.parser_chain.parse(resolved_type, metadata, strict=True)
 
     def _resolve_forward_ref(self, forward_ref: ForwardRef) -> type:
@@ -107,7 +105,7 @@ class ForwardRefParser(TypeParser):
         # Try using Python 3.9+ _evaluate method
         try:
             # Python 3.11+ signature
-            return forward_ref._evaluate(  # noqa: SLF001
+            return forward_ref._evaluate(  # type: ignore[return-value]  # noqa: SLF001
                 self.globalns,
                 self.localns,
                 recursive_guard=frozenset(),
@@ -115,10 +113,10 @@ class ForwardRefParser(TypeParser):
         except TypeError:
             # Python 3.9-3.10 signature (no recursive_guard)
             try:
-                return forward_ref._evaluate(  # noqa: SLF001
+                return forward_ref._evaluate(  # type: ignore[call-arg,return-value]  # noqa: SLF001
                     self.globalns,
                     self.localns,
-                    frozenset(),
+                    frozenset(),  # type: ignore[arg-type]
                 )
             except TypeError:
                 # Fallback: try to evaluate the string directly
@@ -136,11 +134,8 @@ class ForwardRefParser(TypeParser):
         Raises:
             NameError: If the type cannot be found.
         """
-        # Combine namespaces for evaluation (already has common types from __init__)
         namespace = {**self.globalns, **self.localns}
-
-        # Evaluate the string in the namespace
-        return eval(type_string, namespace)  # noqa: S307
+        return eval(type_string, namespace)  # type: ignore[no-any-return]  # noqa: S307
 
 
 __all__ = ("ForwardRefParser",)

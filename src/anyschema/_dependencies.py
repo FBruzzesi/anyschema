@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sys
 from collections.abc import Mapping, Sequence
+from importlib.util import find_spec
 from typing import TYPE_CHECKING, TypeGuard
 
 if TYPE_CHECKING:
@@ -10,6 +11,9 @@ if TYPE_CHECKING:
     from pydantic import BaseModel
 
     from anyschema.typing import IntoOrderedDict
+
+ANNOTATED_TYPES_AVAILABLE = find_spec("annotated_types") is not None
+PYDANTIC_AVAILABLE = find_spec("pydantic") is not None
 
 
 def get_pydantic() -> ModuleType | None:  # pragma: no cover

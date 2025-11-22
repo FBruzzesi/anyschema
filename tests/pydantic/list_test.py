@@ -8,7 +8,7 @@ from pydantic import BaseModel, conint, conlist
 from anyschema.parsers import create_parser_chain
 from tests.pydantic.utils import model_to_nw_schema
 
-parser_chain = create_parser_chain("auto", model_type="pydantic")
+parser_chain = create_parser_chain("auto", spec_type="pydantic")
 
 
 def test_parse_list_optional_outer() -> None:

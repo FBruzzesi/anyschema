@@ -24,7 +24,7 @@ class TestCreateParserChainAuto:
 
     def test_create_parser_chain_auto_pydantic(self) -> None:
         """Test creating parser chain with auto mode for pydantic."""
-        chain = create_parser_chain("auto", model_type="pydantic")
+        chain = create_parser_chain("auto", spec_type="pydantic")
 
         assert isinstance(chain, ParserChain)
         assert len(chain.parsers) == 6
@@ -39,7 +39,7 @@ class TestCreateParserChainAuto:
 
     def test_create_parser_chain_auto_python(self) -> None:
         """Test creating parser chain with auto mode for python."""
-        chain = create_parser_chain("auto", model_type="python")
+        chain = create_parser_chain("auto", spec_type="python")
 
         assert isinstance(chain, ParserChain)
         assert len(chain.parsers) == 5
@@ -51,9 +51,9 @@ class TestCreateParserChainAuto:
         assert isinstance(chain.parsers[3], AnnotatedTypesParser)
         assert isinstance(chain.parsers[4], PyTypeParser)
 
-    def test_create_parser_chain_auto_none_model_type(self) -> None:
-        """Test creating parser chain with auto mode and None model_type."""
-        chain = create_parser_chain("auto", model_type=None)
+    def test_create_parser_chain_auto_none_spec_type(self) -> None:
+        """Test creating parser chain with auto mode and None spec_type."""
+        chain = create_parser_chain("auto", spec_type=None)
 
         assert isinstance(chain, ParserChain)
         assert len(chain.parsers) == 5
@@ -114,7 +114,7 @@ class TestCreateParserChainWiresReferences:
 
     def test_auto_chain_wires_references(self) -> None:
         """Test that auto chain wires parser_chain references."""
-        chain = create_parser_chain("auto", model_type="python")
+        chain = create_parser_chain("auto", spec_type="python")
 
         # All parsers should have parser_chain set
         for parser in chain.parsers:
@@ -136,16 +136,16 @@ class TestCreateParserChainCaching:
 
     def test_create_parser_chain_cached_same_params(self) -> None:
         """Test that same parameters return cached result."""
-        chain1 = create_parser_chain("auto", model_type="pydantic")
-        chain2 = create_parser_chain("auto", model_type="pydantic")
+        chain1 = create_parser_chain("auto", spec_type="pydantic")
+        chain2 = create_parser_chain("auto", spec_type="pydantic")
 
         # Due to lru_cache, should be the same object
         assert chain1 is chain2
 
     def test_create_parser_chain_cached_different_params(self) -> None:
         """Test that different parameters create different chains."""
-        chain1 = create_parser_chain("auto", model_type="pydantic")
-        chain2 = create_parser_chain("auto", model_type="python")
+        chain1 = create_parser_chain("auto", spec_type="pydantic")
+        chain2 = create_parser_chain("auto", spec_type="python")
 
         # Different parameters should create different chains
         assert chain1 is not chain2
@@ -168,25 +168,25 @@ class TestParserChainIntegrationBasic:
 
     def test_pydantic_chain_parses_int(self) -> None:
         """Test pydantic chain parses int correctly."""
-        chain = create_parser_chain("auto", model_type="pydantic")
+        chain = create_parser_chain("auto", spec_type="pydantic")
         result = chain.parse(int)
         assert result == nw.Int64()
 
     def test_pydantic_chain_parses_str(self) -> None:
         """Test pydantic chain parses str correctly."""
-        chain = create_parser_chain("auto", model_type="pydantic")
+        chain = create_parser_chain("auto", spec_type="pydantic")
         result = chain.parse(str)
         assert result == nw.String()
 
     def test_python_chain_parses_int(self) -> None:
         """Test python chain parses int correctly."""
-        chain = create_parser_chain("auto", model_type="python")
+        chain = create_parser_chain("auto", spec_type="python")
         result = chain.parse(int)
         assert result == nw.Int64()
 
     def test_python_chain_parses_list(self) -> None:
         """Test python chain parses list correctly."""
-        chain = create_parser_chain("auto", model_type="python")
+        chain = create_parser_chain("auto", spec_type="python")
         result = chain.parse(list[int])
         assert result == nw.List(nw.Int64())
 
@@ -196,19 +196,19 @@ class TestParserChainIntegrationComplex:
 
     def test_pydantic_chain_parses_optional(self) -> None:
         """Test pydantic chain parses Optional correctly."""
-        chain = create_parser_chain("auto", model_type="pydantic")
+        chain = create_parser_chain("auto", spec_type="pydantic")
         result = chain.parse(Optional[int])
         assert result == nw.Int64()
 
     def test_pydantic_chain_parses_annotated(self) -> None:
         """Test pydantic chain parses Annotated correctly."""
-        chain = create_parser_chain("auto", model_type="pydantic")
+        chain = create_parser_chain("auto", spec_type="pydantic")
         result = chain.parse(Annotated[int, "metadata"])
         assert result == nw.Int64()
 
     def test_pydantic_chain_parses_annotated_with_constraints(self) -> None:
         """Test pydantic chain parses Annotated with constraints."""
-        chain = create_parser_chain("auto", model_type="pydantic")
+        chain = create_parser_chain("auto", spec_type="pydantic")
         result = chain.parse(Annotated[int, Gt(0)])
         assert result == nw.UInt64()
 
@@ -219,7 +219,7 @@ class TestParserChainIntegrationComplex:
             name: str
             age: int
 
-        chain = create_parser_chain("auto", model_type="pydantic")
+        chain = create_parser_chain("auto", spec_type="pydantic")
         result = chain.parse(SimpleModel)
 
         expected_fields = [
@@ -231,19 +231,19 @@ class TestParserChainIntegrationComplex:
 
     def test_pydantic_chain_parses_positive_int(self) -> None:
         """Test pydantic chain parses PositiveInt correctly."""
-        chain = create_parser_chain("auto", model_type="pydantic")
+        chain = create_parser_chain("auto", spec_type="pydantic")
         result = chain.parse(PositiveInt)
         assert result == nw.UInt64()
 
     def test_python_chain_parses_optional(self) -> None:
         """Test python chain parses Optional correctly."""
-        chain = create_parser_chain("auto", model_type="python")
+        chain = create_parser_chain("auto", spec_type="python")
         result = chain.parse(Optional[str])
         assert result == nw.String()
 
     def test_python_chain_parses_nested_list(self) -> None:
         """Test python chain parses nested list correctly."""
-        chain = create_parser_chain("auto", model_type="python")
+        chain = create_parser_chain("auto", spec_type="python")
         result = chain.parse(list[list[int]])
         assert result == nw.List(nw.List(nw.Int64()))
 
@@ -253,25 +253,25 @@ class TestParserChainIntegrationNested:
 
     def test_pydantic_chain_optional_annotated_int(self) -> None:
         """Test parsing Optional[Annotated[int, constraints]]."""
-        chain = create_parser_chain("auto", model_type="pydantic")
+        chain = create_parser_chain("auto", spec_type="pydantic")
         result = chain.parse(Optional[Annotated[int, Gt(0)]])
         assert result == nw.UInt64()
 
     def test_pydantic_chain_annotated_optional_int(self) -> None:
         """Test parsing Annotated[Optional[int], metadata]."""
-        chain = create_parser_chain("auto", model_type="pydantic")
+        chain = create_parser_chain("auto", spec_type="pydantic")
         result = chain.parse(Annotated[Optional[int], "metadata"])
         assert result == nw.Int64()
 
     def test_pydantic_chain_optional_list(self) -> None:
         """Test parsing Optional[list[int]]."""
-        chain = create_parser_chain("auto", model_type="pydantic")
+        chain = create_parser_chain("auto", spec_type="pydantic")
         result = chain.parse(Optional[list[int]])
         assert result == nw.List(nw.Int64())
 
     def test_pydantic_chain_list_optional(self) -> None:
         """Test parsing list[Optional[int]]."""
-        chain = create_parser_chain("auto", model_type="pydantic")
+        chain = create_parser_chain("auto", spec_type="pydantic")
         # list[Optional[int]] is parsed as list[int] - Optional is extracted
         result = chain.parse(list[Optional[int]])
         assert result == nw.List(nw.Int64())
@@ -291,7 +291,7 @@ class TestParserChainIntegrationPydanticModels:
             name: str
             address: Address
 
-        chain = create_parser_chain("auto", model_type="pydantic")
+        chain = create_parser_chain("auto", spec_type="pydantic")
         result = chain.parse(Person)
 
         address_fields = [
@@ -312,7 +312,7 @@ class TestParserChainIntegrationPydanticModels:
             age: PositiveInt
             name: str
 
-        chain = create_parser_chain("auto", model_type="pydantic")
+        chain = create_parser_chain("auto", spec_type="pydantic")
         result = chain.parse(ConstrainedModel)
 
         expected_fields = [
@@ -329,7 +329,7 @@ class TestParserChainIntegrationPydanticModels:
             items: list[str]
             counts: list[int]
 
-        chain = create_parser_chain("auto", model_type="pydantic")
+        chain = create_parser_chain("auto", spec_type="pydantic")
         result = chain.parse(ListModel)
 
         expected_fields = [
@@ -341,21 +341,21 @@ class TestParserChainIntegrationPydanticModels:
 
 
 @pytest.mark.parametrize(
-    ("model_type", "expected_parser_count"),
+    ("spec_type", "expected_parser_count"),
     [
         ("pydantic", 6),
         ("python", 5),
         (None, 5),
     ],
 )
-def test_create_parser_chain_auto_parametrized(model_type: str | None, expected_parser_count: int) -> None:
+def test_create_parser_chain_auto_parametrized(spec_type: str | None, expected_parser_count: int) -> None:
     """Parametrized test for create_parser_chain auto mode."""
-    chain = create_parser_chain("auto", model_type=model_type)
+    chain = create_parser_chain("auto", spec_type=spec_type)
     assert len(chain.parsers) == expected_parser_count
 
 
 @pytest.mark.parametrize(
-    ("input_type", "model_type", "expected"),
+    ("input_type", "spec_type", "expected"),
     [
         (int, "pydantic", nw.Int64()),
         (str, "pydantic", nw.String()),
@@ -367,8 +367,8 @@ def test_create_parser_chain_auto_parametrized(model_type: str | None, expected_
         (Optional[float], "python", nw.Float64()),
     ],
 )
-def test_parser_chain_parse_parametrized(input_type: type, model_type: str, expected: nw.DType) -> None:
+def test_parser_chain_parse_parametrized(input_type: type, spec_type: str, expected: nw.DType) -> None:
     """Parametrized test for parser chain parsing."""
-    chain = create_parser_chain("auto", model_type=model_type)
+    chain = create_parser_chain("auto", spec_type=spec_type)
     result = chain.parse(input_type)
     assert result == expected

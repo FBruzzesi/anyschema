@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from types import GenericAlias
-from typing import TYPE_CHECKING, Annotated, _GenericAlias, get_args, get_origin
+from typing import TYPE_CHECKING, Annotated, _GenericAlias, get_args, get_origin  # type: ignore[attr-defined]
 
 from anyschema.parsers.base import TypeParser
 

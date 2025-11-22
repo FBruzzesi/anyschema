@@ -6,7 +6,7 @@ from decimal import Decimal
 from enum import Enum
 from inspect import isclass
 from types import GenericAlias
-from typing import TYPE_CHECKING, _GenericAlias, get_args, get_origin
+from typing import TYPE_CHECKING, _GenericAlias, get_args, get_origin  # type: ignore[attr-defined]
 
 import narwhals as nw
 

@@ -35,10 +35,10 @@ def model_to_nw_schema(
     # Parse each field
     schema_dict = {}
     for field_name, field_info in model.model_fields.items():
-        annotation = field_info.annotation
-        metadata = tuple(field_info.metadata)
+        annotation, metadata = field_info.annotation, tuple(field_info.metadata)
 
         # Use the parser chain to parse the field type (strict=True raises if unable to parse)
+        assert annotation is not None # noqa: S101
         dtype = parser_chain.parse(annotation, metadata, strict=True)
         schema_dict[field_name] = dtype
 

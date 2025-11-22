@@ -52,13 +52,13 @@ class PydanticTypeParser(TypeParser):
             return nw.Date()
 
         # Handle Pydantic models (Struct types)
-        if (isinstance(input_type, type) and issubclass(input_type, BaseModel)) or isinstance(input_type, BaseModel):
+        if (isinstance(input_type, type) and issubclass(input_type, BaseModel)):
             return self._parse_pydantic_model(input_type)
 
         # This parser doesn't handle this type
         return None
 
-    def _parse_pydantic_model(self, model: BaseModel | type[BaseModel]) -> DType:
+    def _parse_pydantic_model(self, model: type[BaseModel]) -> DType:
         """Parse a Pydantic model into a Struct type.
 
         Arguments:
@@ -69,9 +69,9 @@ class PydanticTypeParser(TypeParser):
         """
         fields = []
         for field_name, field_info in model.model_fields.items():
-            annotation = field_info.annotation
-            metadata = tuple(field_info.metadata)
+            annotation, metadata = field_info.annotation, tuple(field_info.metadata)
 
+            assert annotation is not None  # noqa: S101
             field_dtype = self.parser_chain.parse(annotation, metadata, strict=True)
             fields.append(nw.Field(name=field_name, dtype=field_dtype))
 

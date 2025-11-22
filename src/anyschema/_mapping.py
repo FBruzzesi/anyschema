@@ -12,16 +12,16 @@ if TYPE_CHECKING:
     from anyschema.typing import IntoOrderedDict
 
 
-def mapping_to_nw_schema(model: IntoOrderedDict, parser_chain: ParserChain) -> Schema:
+def mapping_to_nw_schema(schema: IntoOrderedDict, parser_chain: ParserChain) -> Schema:
     """Converts python Mapping or Sequence to Narwhals Schema.
 
     Arguments:
-        model: The Pydantic model class or instance to convert.
+        schema: The python Mapping or Sequence to convert.
         parser_chain: parser chain to use to convert each type from python to narwhals dtype.
 
     Returns:
         A Narwhals Schema representing the Pydantic model.
     """
     return Schema(
-        {name: parser_chain.parse(input_type, metadata=()) for name, input_type in OrderedDict(model).items()}
+        {name: parser_chain.parse(input_type, metadata=()) for name, input_type in OrderedDict(schema).items()}
     )

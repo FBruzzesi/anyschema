@@ -12,11 +12,11 @@ if TYPE_CHECKING:
     from anyschema.parsers import ParserChain
 
 
-def model_to_nw_schema(model: type[BaseModel], parser_chain: ParserChain) -> Schema:
+def model_to_nw_schema(schema: type[BaseModel], parser_chain: ParserChain) -> Schema:
     """Converts Pydantic model to Narwhals Schema.
 
     Arguments:
-        model: The Pydantic model class or instance to convert.
+        schema: The Pydantic model class to convert.
         parser_chain: parser chain to use to convert each field from pydantic to narwhals dtype.
 
     Returns:
@@ -25,6 +25,6 @@ def model_to_nw_schema(model: type[BaseModel], parser_chain: ParserChain) -> Sch
     return Schema(
         {
             field_name: parser_chain.parse(field_info.annotation, tuple(field_info.metadata))  # type: ignore[arg-type]
-            for field_name, field_info in model.model_fields.items()
+            for field_name, field_info in schema.model_fields.items()
         }
     )

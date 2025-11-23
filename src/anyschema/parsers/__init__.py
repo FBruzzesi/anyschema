@@ -62,12 +62,12 @@ def make_pipeline(steps: IntoParserPipeline = "auto", *, spec_type: SpecType = N
         steps = _auto_pipeline(spec_type)
     else:
         steps = tuple(steps)
-        if not all(are_step_types := tuple(isinstance(step, ParserStep) for step in steps)):
-            bad_steps = [
+        if any(not_step_types := tuple(not isinstance(step, ParserStep) for step in steps)):
+            bad_steps = tuple(
                 qualified_type_name(type(step))
-                for step, is_step_type in zip(steps, are_step_types, strict=False)
-                if not is_step_type
-            ]
+                for step, not_step_type in zip(steps, not_step_types, strict=False)
+                if not_step_type
+            )
             msg = f"Expected a sequence of `ParserStep` instances, found {', '.join(bad_steps)}"
             raise TypeError(msg)
 

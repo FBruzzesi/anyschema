@@ -68,14 +68,11 @@ plugins:
     handlers:
       python:
         options:
+          members_order: alphabetical
           line_length: 100
-          separate_signature: true
           show_overloads: false
           show_signature_annotations: true
           signature_crossrefs: true
-
-          members_order: alphabetical
-
 
 markdown_extensions:
 - footnotes

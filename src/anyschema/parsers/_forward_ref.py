@@ -88,7 +88,7 @@ class ForwardRefParser(TypeParser):
 
         return self.parser_chain.parse(resolved_type, metadata, strict=True)
 
-    def _resolve_forward_ref(self, forward_ref: ForwardRef) -> type:
+    def _resolve_forward_ref(self, forward_ref: ForwardRef) -> type:  # pragma: no cover
         """Resolve a ForwardRef to its actual type.
 
         Arguments:

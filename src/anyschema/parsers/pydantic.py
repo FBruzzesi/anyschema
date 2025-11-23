@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from datetime import date, datetime
 from typing import TYPE_CHECKING, Any
 
 import narwhals as nw
@@ -43,14 +42,14 @@ class PydanticTypeParser(TypeParser):
             raise UnsupportedDTypeError(msg)
 
         # Handle datetime types
-        if input_type in {datetime, NaiveDatetime, PastDatetime, FutureDatetime}:
+        if input_type in {NaiveDatetime, PastDatetime, FutureDatetime}:
             # PastDatetime and FutureDatetime accept both aware and naive datetimes, here we
             # simply return nw.Datetime without timezone info.
             # This means that we won't be able to convert it to a timezone aware data type.
             return nw.Datetime()
 
         # Handle date types
-        if input_type in {date, PastDate, FutureDate}:
+        if input_type in {PastDate, FutureDate}:
             return nw.Date()
 
         # Handle Pydantic models (Struct types)

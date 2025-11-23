@@ -8,16 +8,16 @@ import pytest
 from annotated_types import Ge, Gt, Interval, Le, Lt
 from hypothesis import given
 
-from anyschema.parsers._base import ParserPipeline
-from anyschema.parsers._builtin import PyTypeParser
-from anyschema.parsers.annotated_types import AnnotatedTypesParser
+from anyschema.parsers import ParserPipeline
+from anyschema.parsers._builtin import PyTypeStep
+from anyschema.parsers.annotated_types import AnnotatedTypesStep
 
 
 @pytest.fixture(scope="module")
-def annotated_types_parser() -> AnnotatedTypesParser:
-    """Create an AnnotatedTypesParser instance with pipeline set."""
-    annotated_types_parser = AnnotatedTypesParser()
-    py_parser = PyTypeParser()
+def annotated_types_parser() -> AnnotatedTypesStep:
+    """Create an AnnotatedTypesStep instance with pipeline set."""
+    annotated_types_parser = AnnotatedTypesStep()
+    py_parser = PyTypeStep()
     chain = ParserPipeline([annotated_types_parser, py_parser])
     annotated_types_parser.pipeline = chain
     py_parser.pipeline = chain
@@ -25,7 +25,7 @@ def annotated_types_parser() -> AnnotatedTypesParser:
 
 
 @pytest.mark.parametrize("input_type", [int, str, float, list[int]])
-def test_parse_non_annotated(annotated_types_parser: AnnotatedTypesParser, input_type: type) -> None:
+def test_parse_non_annotated(annotated_types_parser: AnnotatedTypesStep, input_type: type) -> None:
     result = annotated_types_parser.parse(input_type)
     assert result is None
 
@@ -66,7 +66,7 @@ def test_parse_non_annotated(annotated_types_parser: AnnotatedTypesParser, input
     ],
 )
 def test_int_with_constraint(
-    annotated_types_parser: AnnotatedTypesParser, metadata: tuple, expected: nw.dtypes.DType
+    annotated_types_parser: AnnotatedTypesStep, metadata: tuple, expected: nw.dtypes.DType
 ) -> None:
     result = annotated_types_parser.parse(int, metadata)
     assert result == expected
@@ -81,37 +81,37 @@ def test_int_with_constraint(
         ("3.14", 3.14),
     ],
 )
-def test_extract_value(annotated_types_parser: AnnotatedTypesParser, input_value: Any, expected: float) -> None:
+def test_extract_value(annotated_types_parser: AnnotatedTypesStep, input_value: Any, expected: float) -> None:
     result = annotated_types_parser._extract_numeric_value(input_value)
     assert result == expected
 
 
 @pytest.mark.parametrize("input_value", [None, {"key": "value"}])
-def test_extract_value_raise(annotated_types_parser: AnnotatedTypesParser, input_value: Any) -> None:
+def test_extract_value_raise(annotated_types_parser: AnnotatedTypesStep, input_value: Any) -> None:
     with pytest.raises(TypeError, match=r"Cannot .* value"):
         annotated_types_parser._extract_numeric_value(input_value)
 
 
 @given(lb=st.integers(-128, -1), ub=st.integers(1, 127))
-def test_parse_to_int8_hypothesis(annotated_types_parser: AnnotatedTypesParser, lb: int, ub: int) -> None:
+def test_parse_to_int8_hypothesis(annotated_types_parser: AnnotatedTypesStep, lb: int, ub: int) -> None:
     result = annotated_types_parser.parse(int, metadata=(Ge(lb), Le(ub)))
     assert result == nw.Int8()
 
 
 @given(ub=st.integers(1, 255))
-def test_parse_to_uint8_hypothesis(annotated_types_parser: AnnotatedTypesParser, ub: int) -> None:
+def test_parse_to_uint8_hypothesis(annotated_types_parser: AnnotatedTypesStep, ub: int) -> None:
     result = annotated_types_parser.parse(int, metadata=(Ge(0), Le(ub)))
     assert result == nw.UInt8()
 
 
 @given(lb=st.integers(-32768, -129), ub=st.integers(129, 32767))
-def test_parse_to_int16_hypothesis(annotated_types_parser: AnnotatedTypesParser, lb: int, ub: int) -> None:
+def test_parse_to_int16_hypothesis(annotated_types_parser: AnnotatedTypesStep, lb: int, ub: int) -> None:
     result = annotated_types_parser.parse(int, metadata=(Ge(lb), Le(ub)))
     assert result == nw.Int16()
 
 
 @given(ub=st.integers(257, 65535))
-def test_parse_to_uint16_hypothesis(annotated_types_parser: AnnotatedTypesParser, ub: int) -> None:
+def test_parse_to_uint16_hypothesis(annotated_types_parser: AnnotatedTypesStep, ub: int) -> None:
     result = annotated_types_parser.parse(int, metadata=(Ge(0), Le(ub)))
     assert result == nw.UInt16()
 
@@ -131,7 +131,7 @@ def test_parse_to_uint16_hypothesis(annotated_types_parser: AnnotatedTypesParser
     ],
 )
 def test_parse_integer_constraints_parametrized(
-    annotated_types_parser: AnnotatedTypesParser, metadata: tuple, expected: nw.dtypes.DType
+    annotated_types_parser: AnnotatedTypesStep, metadata: tuple, expected: nw.dtypes.DType
 ) -> None:
     result = annotated_types_parser.parse(int, metadata=metadata)
     assert result == expected

@@ -3,13 +3,13 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, ForwardRef
 
 from anyschema._dependencies import ANNOTATED_TYPES_AVAILABLE, PYDANTIC_AVAILABLE
-from anyschema.parsers._base import TypeParser
+from anyschema.parsers._base import ParserStep
 
 if TYPE_CHECKING:
     from narwhals.dtypes import DType
 
 
-class ForwardRefParser(TypeParser):
+class ForwardRefStep(ParserStep):
     """Parser for ForwardRef types (string annotations and forward references).
 
     This parser handles type annotations that are forward references (ForwardRef),

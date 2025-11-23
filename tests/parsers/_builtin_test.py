@@ -11,7 +11,7 @@ import narwhals as nw
 import pytest
 
 from anyschema.exceptions import UnsupportedDTypeError
-from anyschema.parsers import ParserPipeline, PyTypeParser, UnionTypeParser
+from anyschema.parsers import ParserPipeline, PyTypeStep, UnionTypeStep
 
 
 class Color(Enum):
@@ -34,10 +34,10 @@ class CustomClass:
 
 
 @pytest.fixture(scope="module")
-def py_type_parser() -> PyTypeParser:
-    """Create a PyTypeParser instance with pipeline set."""
-    union_parser = UnionTypeParser()
-    py_parser = PyTypeParser()
+def py_type_parser() -> PyTypeStep:
+    """Create a PyTypeStep instance with pipeline set."""
+    union_parser = UnionTypeStep()
+    py_parser = PyTypeStep()
     chain = ParserPipeline([union_parser, py_parser])
     union_parser.pipeline = chain
     py_parser.pipeline = chain
@@ -62,7 +62,7 @@ def py_type_parser() -> PyTypeParser:
         (Status, nw.Enum(Status)),
     ],
 )
-def test_parse_non_nested(py_type_parser: PyTypeParser, input_type: Any, expected: nw.dtypes.DType) -> None:
+def test_parse_non_nested(py_type_parser: PyTypeStep, input_type: Any, expected: nw.dtypes.DType) -> None:
     result = py_type_parser.parse(input_type)
     assert result == expected
 
@@ -90,24 +90,24 @@ def test_parse_non_nested(py_type_parser: PyTypeParser, input_type: Any, expecte
         (Iterable, nw.List(nw.Object())),
     ],
 )
-def test_parse_nested(py_type_parser: PyTypeParser, input_type: Any, expected: nw.dtypes.DType) -> None:
+def test_parse_nested(py_type_parser: PyTypeStep, input_type: Any, expected: nw.dtypes.DType) -> None:
     result = py_type_parser.parse(input_type)
     assert result == expected
 
 
 @pytest.mark.parametrize("input_type", [tuple[int, str], tuple[int, str, float]])
-def test_parse_heterogeneous_tuple_raises(py_type_parser: PyTypeParser, input_type: Any) -> None:
+def test_parse_heterogeneous_tuple_raises(py_type_parser: PyTypeStep, input_type: Any) -> None:
     with pytest.raises(UnsupportedDTypeError, match="Tuple with mixed types is not supported"):
         py_type_parser.parse(input_type)
 
 
 @pytest.mark.parametrize(("input_type", "expected"), [(int, nw.Int64()), (list[int], nw.List(nw.Int64()))])
-def test_parse_with_metadata(py_type_parser: PyTypeParser, input_type: Any, expected: nw.dtypes.DType) -> None:
+def test_parse_with_metadata(py_type_parser: PyTypeStep, input_type: Any, expected: nw.dtypes.DType) -> None:
     result = py_type_parser.parse(input_type, metadata=("some", "metadata"))
     assert result == expected
 
 
 @pytest.mark.parametrize("input_type", [CustomClass, NoneType, dict, set[int], frozenset])
-def test_unsupported_type(py_type_parser: PyTypeParser, input_type: Any) -> None:
+def test_unsupported_type(py_type_parser: PyTypeStep, input_type: Any) -> None:
     result = py_type_parser.parse(input_type)
     assert result is None

@@ -7,15 +7,15 @@ from pydantic import AwareDatetime, BaseModel, FutureDate, FutureDatetime, Naive
 
 from anyschema._dependencies import is_pydantic_base_model
 from anyschema.exceptions import UnsupportedDTypeError
-from anyschema.parsers._base import TypeParser
+from anyschema.parsers._base import ParserStep
 
 if TYPE_CHECKING:
     from narwhals.dtypes import DType
 
-__all__ = ("PydanticTypeParser",)
+__all__ = ("PydanticTypeStep",)
 
 
-class PydanticTypeParser(TypeParser):
+class PydanticTypeStep(ParserStep):
     """Parser for Pydantic-specific types.
 
     Handles:

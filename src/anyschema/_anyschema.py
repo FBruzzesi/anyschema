@@ -40,12 +40,13 @@ class AnySchema:
             - a [Pydantic Model](https://docs.pydantic.dev/latest/concepts/models/) class or an instance of such
                 In this case the fields are parsed using the Pydantic model's schema.
 
-        parsers: Control how types are parsed into Narwhals dtypes. Options:
+        steps: Control how types are parsed into Narwhals dtypes. Options:
 
-            - `"auto"` (default): Automatically select appropriate parsers based on the model type
-            - A sequence of parser instances: Use custom parsers for extensibility
+            - `"auto"` (default): Automatically select the appropriate parser steps based on the model type to use in
+                the `ParserPipeline`
+            - A sequence of steps to use in the pipeline. Remark that order matters!
 
-            This allows for custom type parsing logic and extensibility from user-defined parsers.
+            This allows for custom type parsing logic and extensibility from user-defined steps.
 
         adapter: A custom adapter function that converts the spec into a sequence of field specifications.
             This function should yield tuples of `(field_name, field_type, metadata)` for each field.
@@ -105,7 +106,7 @@ class AnySchema:
     def __init__(
         self: Self,
         spec: Spec,
-        parsers: IntoParserPipeline = "auto",
+        steps: IntoParserPipeline = "auto",
         adapter: Adapter | None = None,
     ) -> None:
         if isinstance(spec, Schema):
@@ -113,7 +114,7 @@ class AnySchema:
             return
 
         if is_into_ordered_dict(spec):
-            _pipeline = make_pipeline(parsers, spec_type="python")
+            _pipeline = make_pipeline(steps, spec_type="python")
             nw_schema = Schema(
                 {
                     name: _pipeline.parse(input_type, metadata)
@@ -121,12 +122,12 @@ class AnySchema:
                 }
             )
         elif is_pydantic_base_model(spec):
-            _pipeline = make_pipeline(parsers, spec_type="pydantic")
+            _pipeline = make_pipeline(steps, spec_type="pydantic")
             nw_schema = Schema(
                 {name: _pipeline.parse(input_type, metadata) for name, input_type, metadata in pydantic_adapter(spec)}
             )
         elif adapter is not None:
-            _pipeline = make_pipeline(parsers, spec_type=None)
+            _pipeline = make_pipeline(steps, spec_type=None)
             nw_schema = Schema(
                 {name: _pipeline.parse(input_type, metadata) for name, input_type, metadata in adapter(spec)}
             )

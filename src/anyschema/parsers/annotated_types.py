@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any, Final, TypeAlias
 import narwhals as nw
 from annotated_types import Ge, Gt, Interval, Le, Lt
 
-from anyschema.parsers._base import TypeParser
+from anyschema.parsers._base import ParserStep
 
 if TYPE_CHECKING:
     from narwhals.dtypes import DType
@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     Range: TypeAlias = tuple[LowerBound, UpperBound]
 
 
-__all__ = ("AnnotatedTypesParser",)
+__all__ = ("AnnotatedTypesStep",)
 
 UINT_RANGES: Final[dict[DType, Range]] = {
     nw.UInt8(): (0, 255),
@@ -43,7 +43,7 @@ MIN_INT: Final[int] = -9_223_372_036_854_775_808
 MAX_INT: Final[int] = 18_446_744_073_709_551_615
 
 
-class AnnotatedTypesParser(TypeParser):
+class AnnotatedTypesStep(ParserStep):
     """Parser for types with annotated_types metadata.
 
     Handles:

@@ -11,19 +11,19 @@ if TYPE_CHECKING:
 
     from narwhals.dtypes import DType
 
-__all__ = ("ParserPipeline", "TypeParser")
+__all__ = ("ParserPipeline", "ParserStep")
 
 
-class TypeParser(ABC):
-    """Abstract base class for type parsers that convert type annotations to Narwhals dtypes.
+class ParserStep(ABC):
+    """Abstract base class for parser steps that convert type annotations to Narwhals dtypes.
 
     This class provides a framework for parsing different types of type annotations
     and converting them into appropriate Narwhals data types. Each concrete parser
     implementation handles specific type patterns or annotation styles.
 
     Attributes:
-        _pipeline: Internal reference to the parser chain this parser belongs to.
-        pipeline: Property to access the parser chain, raises UnavailablePipelineError
+        _pipeline: Internal reference to the `ParserPipeline` this parser belongs to.
+        pipeline: Property to access the `ParserPipeline`, raises `UnavailablePipelineError`
             if not set.
 
     Raises:
@@ -48,17 +48,17 @@ class TypeParser(ABC):
                 (i.e., `_pipeline` is None).
         """
         if self._pipeline is None:
-            msg = "`pipeline` is not set yet. You can set it by `parser.pipeline = chain"
+            msg = "`pipeline` is not set yet. You can set it by `step.pipeline = pipeline`"
             raise UnavailablePipelineError(msg)
 
         return self._pipeline
 
     @pipeline.setter
     def pipeline(self, pipeline: ParserPipeline) -> None:
-        """Set the parser chain for this parser.
+        """Set the pipeline reference for this parser.
 
         Arguments:
-            pipeline: The parser chain to set. Must be an instance of ParserPipeline.
+            pipeline: The pipeline to set. Must be an instance of ParserPipeline.
 
         Raises:
             TypeError: If pipeline is not an instance of ParserPipeline.
@@ -84,20 +84,20 @@ class TypeParser(ABC):
 
 
 class ParserPipeline:
-    """A pipeline of type parsers that tries each parser in sequence.
+    """A pipeline of parser steps that tries each parser in sequence.
 
     This allows for composable parsing where multiple parsers can be tried
     until one successfully handles the type. The name follows the familiar
     pattern from scikit-learn's Pipeline for sequential processing.
     """
 
-    def __init__(self, parsers: Sequence[TypeParser]) -> None:
+    def __init__(self, steps: Sequence[ParserStep]) -> None:
         """Initialize the parser chain with a list of parsers.
 
         Arguments:
-            parsers: List of parser instances to try in order.
+            steps: List of parser instances to try in order.
         """
-        self.parsers = tuple(parsers)
+        self.steps = tuple(steps)
 
     @overload
     def parse(self, input_type: Any, metadata: tuple = (), *, strict: Literal[True] = True) -> DType: ...
@@ -115,14 +115,14 @@ class ParserPipeline:
         Returns:
             A Narwhals DType from the first successful parser, or None if no parser succeeded and `strict=False`.
         """
-        for parser in self.parsers:
-            result = parser.parse(input_type, metadata)
+        for step in self.steps:
+            result = step.parse(input_type, metadata)
             if result is not None:
                 return result
 
         if strict:
             msg = (
-                f"No parser in chain could handle type: {qualified_type_name(input_type)}.\n"
+                f"No parser in the pipeline could handle type: {qualified_type_name(input_type)}.\n"
                 f"Please consider reporting a feature request https://github.com/FBruzzesi/anyschema/issues"
             )
             raise NotImplementedError(msg)

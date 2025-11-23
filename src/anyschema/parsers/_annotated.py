@@ -3,13 +3,13 @@ from __future__ import annotations
 from types import GenericAlias
 from typing import TYPE_CHECKING, Annotated, Any, _GenericAlias, get_args, get_origin  # type: ignore[attr-defined]
 
-from anyschema.parsers._base import TypeParser
+from anyschema.parsers._base import ParserStep
 
 if TYPE_CHECKING:
     from narwhals.dtypes import DType
 
 
-class AnnotatedParser(TypeParser):
+class AnnotatedStep(ParserStep):
     """Parser for typing.Annotated types.
 
     Handles:

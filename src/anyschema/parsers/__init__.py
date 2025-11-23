@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 
 from anyschema._dependencies import ANNOTATED_TYPES_AVAILABLE
 from anyschema.parsers._annotated import AnnotatedParser
-from anyschema.parsers._base import ParserChain, TypeParser
+from anyschema.parsers._base import ParserPipeline, TypeParser
 from anyschema.parsers._builtin import PyTypeParser
 from anyschema.parsers._forward_ref import ForwardRefParser
 from anyschema.parsers._union import UnionTypeParser
@@ -13,21 +13,21 @@ from anyschema.parsers._union import UnionTypeParser
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from anyschema.typing import IntoParserChain, SpecType
+    from anyschema.typing import IntoParserPipeline, SpecType
 
 __all__ = (
     "AnnotatedParser",
     "ForwardRefParser",
-    "ParserChain",
+    "ParserPipeline",
     "PyTypeParser",
     "TypeParser",
     "UnionTypeParser",
-    "create_parser_chain",
+    "make_pipeline",
 )
 
 
 @lru_cache(maxsize=16)
-def create_parser_chain(parsers: IntoParserChain = "auto", *, spec_type: SpecType = None) -> ParserChain:
+def make_pipeline(parsers: IntoParserPipeline = "auto", *, spec_type: SpecType = None) -> ParserPipeline:
     """Create a parser chain with the specified parsers.
 
     Arguments:
@@ -36,27 +36,27 @@ def create_parser_chain(parsers: IntoParserChain = "auto", *, spec_type: SpecTyp
         spec_type: The type of model being parsed ("pydantic" or "python"). Only used when parsers="auto".
 
     Returns:
-        A ParserChain instance with the configured parsers.
+        A ParserPipeline instance with the configured parsers.
     """
-    parsers_ = _auto_create_parsers(spec_type) if parsers == "auto" else tuple(parsers)
-    chain = ParserChain(parsers_)
+    parsers_ = _auto_pipeline(spec_type) if parsers == "auto" else tuple(parsers)
+    chain = ParserPipeline(parsers_)
 
-    # Wire up the parser_chain reference for parsers that need it
+    # Wire up the pipeline reference for parsers that need it
     # TODO(FBruzzesi): Is there a better way to achieve this?
     for parser in parsers_:
-        parser.parser_chain = chain
+        parser.pipeline = chain
 
     return chain
 
 
-def _auto_create_parsers(spec_type: SpecType) -> Sequence[TypeParser]:
+def _auto_pipeline(spec_type: SpecType) -> Sequence[TypeParser]:
     """Create a parser chain with automatically selected parsers.
 
     Arguments:
         spec_type: The type of model being parsed.
 
     Returns:
-        A ParserChain instance with automatically selected parsers.
+        A ParserPipeline instance with automatically selected parsers.
     """
     # Create parser instances without chain reference (yet)
     forward_ref_parser = ForwardRefParser()

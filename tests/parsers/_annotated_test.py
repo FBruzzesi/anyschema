@@ -5,17 +5,17 @@ from typing import Annotated
 import narwhals as nw
 import pytest
 
-from anyschema.parsers import AnnotatedParser, ParserChain, PyTypeParser
+from anyschema.parsers import AnnotatedParser, ParserPipeline, PyTypeParser
 
 
 @pytest.fixture(scope="module")
 def annotated_parser() -> AnnotatedParser:
-    """Create an AnnotatedParser instance with parser_chain set."""
+    """Create an AnnotatedParser instance with pipeline set."""
     annotated_parser = AnnotatedParser()
     py_parser = PyTypeParser()
-    chain = ParserChain([annotated_parser, py_parser])
-    annotated_parser.parser_chain = chain
-    py_parser.parser_chain = chain
+    chain = ParserPipeline([annotated_parser, py_parser])
+    annotated_parser.pipeline = chain
+    py_parser.pipeline = chain
     return annotated_parser
 
 

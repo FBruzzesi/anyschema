@@ -10,11 +10,11 @@ from pydantic import BaseModel, PositiveInt
 from anyschema.parsers import (
     AnnotatedParser,
     ForwardRefParser,
-    ParserChain,
+    ParserPipeline,
     PyTypeParser,
     TypeParser,
     UnionTypeParser,
-    create_parser_chain,
+    make_pipeline,
 )
 from anyschema.parsers.annotated_types import AnnotatedTypesParser
 from anyschema.parsers.pydantic import PydanticTypeParser
@@ -53,14 +53,14 @@ class Person(BaseModel):
         (None, PYTHON_CHAIN_CLS_ORDER),
     ],
 )
-def test_create_parser_chain_auto(spec_type: SpecType, expected_parsers: tuple[type[TypeParser], ...]) -> None:
-    chain = create_parser_chain("auto", spec_type=spec_type)
-    assert isinstance(chain, ParserChain)
+def test_make_pipeline_auto(spec_type: SpecType, expected_parsers: tuple[type[TypeParser], ...]) -> None:
+    chain = make_pipeline("auto", spec_type=spec_type)
+    assert isinstance(chain, ParserPipeline)
     assert len(chain.parsers) == len(expected_parsers)
 
     for _parser, _cls in zip(chain.parsers, expected_parsers, strict=True):
         assert isinstance(_parser, _cls)
-        assert _parser.parser_chain is chain
+        assert _parser.pipeline is chain
 
 
 @pytest.mark.parametrize(
@@ -71,28 +71,28 @@ def test_create_parser_chain_auto(spec_type: SpecType, expected_parsers: tuple[t
         (UnionTypeParser(), AnnotatedParser(), PyTypeParser()),
     ],
 )
-def test_create_parser_chain_custom(parsers: tuple[TypeParser, ...]) -> None:
-    chain = create_parser_chain(parsers)
-    assert isinstance(chain, ParserChain)
+def test_make_pipeline_custom(parsers: tuple[TypeParser, ...]) -> None:
+    chain = make_pipeline(parsers)
+    assert isinstance(chain, ParserPipeline)
     assert len(chain.parsers) == len(parsers)
 
     for _chain_parser, _parser in zip(chain.parsers, parsers, strict=True):
         assert _parser is _chain_parser
-        assert _parser.parser_chain is chain
+        assert _parser.pipeline is chain
 
 
 @pytest.mark.parametrize(
     ("chain1", "chain2"),
     [
-        (create_parser_chain("auto", spec_type="pydantic"), create_parser_chain("auto", spec_type="pydantic")),
-        (create_parser_chain((PY_TYPE_PARSER,)), create_parser_chain((PY_TYPE_PARSER,))),
+        (make_pipeline("auto", spec_type="pydantic"), make_pipeline("auto", spec_type="pydantic")),
+        (make_pipeline((PY_TYPE_PARSER,)), make_pipeline((PY_TYPE_PARSER,))),
     ],
 )
-def test_caching(chain1: ParserChain, chain2: ParserChain) -> None:
+def test_caching(chain1: ParserPipeline, chain2: ParserPipeline) -> None:
     # Due to lru_cache, should be the same object
     assert chain1 is chain2
 
-    chain3 = create_parser_chain("auto", spec_type="python")
+    chain3 = make_pipeline("auto", spec_type="python")
 
     # Different parameters should create different chains
     assert chain1 is not chain3
@@ -120,7 +120,7 @@ def test_caching(chain1: ParserChain, chain2: ParserChain) -> None:
     ],
 )
 def test_non_nested_parsing(input_type: type, spec_type: str, expected: nw.dtypes.DType) -> None:
-    chain = create_parser_chain("auto", spec_type=spec_type)
+    chain = make_pipeline("auto", spec_type=spec_type)
     result = chain.parse(input_type)
     assert result == expected
 
@@ -149,6 +149,6 @@ def test_non_nested_parsing(input_type: type, spec_type: str, expected: nw.dtype
     ],
 )
 def test_nested_parsing(input_type: type, expected: nw.dtypes.DType) -> None:
-    chain = create_parser_chain("auto", spec_type="pydantic")
+    chain = make_pipeline("auto", spec_type="pydantic")
     result = chain.parse(input_type)
     assert result == expected

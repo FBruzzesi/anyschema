@@ -4,14 +4,14 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, Literal, overload
 
 from anyschema._utils import qualified_type_name
-from anyschema.exceptions import UnavailableParseChainError
+from anyschema.exceptions import UnavailablePipelineError
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from narwhals.dtypes import DType
 
-__all__ = ("ParserChain", "TypeParser")
+__all__ = ("ParserPipeline", "TypeParser")
 
 
 class TypeParser(ABC):
@@ -22,52 +22,52 @@ class TypeParser(ABC):
     implementation handles specific type patterns or annotation styles.
 
     Attributes:
-        _parser_chain: Internal reference to the parser chain this parser belongs to.
-        parser_chain: Property to access the parser chain, raises UnavailableParseChainError
+        _pipeline: Internal reference to the parser chain this parser belongs to.
+        pipeline: Property to access the parser chain, raises UnavailablePipelineError
             if not set.
 
     Raises:
-        UnavailableParseChainError: When accessing parser_chain before it's been set.
-        TypeError: When setting parser_chain with an object that's not a ParserChain instance.
+        UnavailablePipelineError: When accessing pipeline before it's been set.
+        TypeError: When setting pipeline with an object that's not a ParserPipeline instance.
 
     Note:
         Subclasses must implement the `parse` method to define their specific parsing logic.
     """
 
-    _parser_chain: ParserChain | None = None
+    _pipeline: ParserPipeline | None = None
 
     @property
-    def parser_chain(self) -> ParserChain:
+    def pipeline(self) -> ParserPipeline:
         """Property that returns the parser chain instance.
 
         Returns:
-            ParserChain: The parser chain object used for parsing operations.
+            ParserPipeline: The parser chain object used for parsing operations.
 
         Raises:
-            UnavailableParseChainError: If the parser chain has not been initialized
-                (i.e., `_parser_chain` is None).
+            UnavailablePipelineError: If the parser chain has not been initialized
+                (i.e., `_pipeline` is None).
         """
-        if self._parser_chain is None:
-            msg = "`parser_chain` is not set yet. You can set it by `parser.parser_chain = chain"
-            raise UnavailableParseChainError(msg)
+        if self._pipeline is None:
+            msg = "`pipeline` is not set yet. You can set it by `parser.pipeline = chain"
+            raise UnavailablePipelineError(msg)
 
-        return self._parser_chain
+        return self._pipeline
 
-    @parser_chain.setter
-    def parser_chain(self, parser_chain: ParserChain) -> None:
+    @pipeline.setter
+    def pipeline(self, pipeline: ParserPipeline) -> None:
         """Set the parser chain for this parser.
 
         Arguments:
-            parser_chain: The parser chain to set. Must be an instance of ParserChain.
+            pipeline: The parser chain to set. Must be an instance of ParserPipeline.
 
         Raises:
-            TypeError: If parser_chain is not an instance of ParserChain.
+            TypeError: If pipeline is not an instance of ParserPipeline.
         """
-        if not isinstance(parser_chain, ParserChain):
-            msg = f"Expected `ParserChain` object, found {type(parser_chain)}"
+        if not isinstance(pipeline, ParserPipeline):
+            msg = f"Expected `ParserPipeline` object, found {type(pipeline)}"
             raise TypeError(msg)
 
-        self._parser_chain = parser_chain
+        self._pipeline = pipeline
 
     @abstractmethod
     def parse(self, input_type: Any, metadata: tuple = ()) -> DType | None:
@@ -83,11 +83,12 @@ class TypeParser(ABC):
         ...
 
 
-class ParserChain:
-    """A chain of type parsers that tries each parser in sequence.
+class ParserPipeline:
+    """A pipeline of type parsers that tries each parser in sequence.
 
     This allows for composable parsing where multiple parsers can be tried
-    until one successfully handles the type.
+    until one successfully handles the type. The name follows the familiar
+    pattern from scikit-learn's Pipeline for sequential processing.
     """
 
     def __init__(self, parsers: Sequence[TypeParser]) -> None:

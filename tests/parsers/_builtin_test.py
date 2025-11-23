@@ -11,7 +11,7 @@ import narwhals as nw
 import pytest
 
 from anyschema.exceptions import UnsupportedDTypeError
-from anyschema.parsers import ParserChain, PyTypeParser, UnionTypeParser
+from anyschema.parsers import ParserPipeline, PyTypeParser, UnionTypeParser
 
 
 class Color(Enum):
@@ -35,12 +35,12 @@ class CustomClass:
 
 @pytest.fixture(scope="module")
 def py_type_parser() -> PyTypeParser:
-    """Create a PyTypeParser instance with parser_chain set."""
+    """Create a PyTypeParser instance with pipeline set."""
     union_parser = UnionTypeParser()
     py_parser = PyTypeParser()
-    chain = ParserChain([union_parser, py_parser])
-    union_parser.parser_chain = chain
-    py_parser.parser_chain = chain
+    chain = ParserPipeline([union_parser, py_parser])
+    union_parser.pipeline = chain
+    py_parser.pipeline = chain
     return py_parser
 
 

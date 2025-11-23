@@ -132,7 +132,7 @@ class ForwardRefParser(TypeParser):
             msg = f"Failed to resolve ForwardRef '{input_type.__forward_arg__}': {e}"
             raise NotImplementedError(msg) from e
 
-        return self.parser_chain.parse(resolved_type, metadata, strict=True)
+        return self.pipeline.parse(resolved_type, metadata, strict=True)
 
     def _resolve_forward_ref(self, forward_ref: ForwardRef) -> type:  # pragma: no cover
         """Resolve a ForwardRef to its actual type.

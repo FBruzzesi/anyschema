@@ -32,6 +32,6 @@ class AnnotatedParser(TypeParser):
             and (args := get_args(input_type)) is not None
         ):
             base_type, *extra_metadata = args
-            return self.parser_chain.parse(base_type, (*metadata, *extra_metadata), strict=True)
+            return self.pipeline.parse(base_type, (*metadata, *extra_metadata), strict=True)
 
         return None

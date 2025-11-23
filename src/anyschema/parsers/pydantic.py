@@ -79,7 +79,7 @@ class PydanticTypeParser(TypeParser):
             annotation, metadata = field_info.annotation, tuple(field_info.metadata)
 
             assert annotation is not None  # noqa: S101
-            field_dtype = self.parser_chain.parse(annotation, metadata, strict=True)
+            field_dtype = self.pipeline.parse(annotation, metadata, strict=True)
             fields.append(nw.Field(name=field_name, dtype=field_dtype))
 
         return nw.Struct(fields)

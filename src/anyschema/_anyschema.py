@@ -7,7 +7,7 @@ from narwhals.schema import Schema
 
 from anyschema._dependencies import is_into_ordered_dict, is_pydantic_base_model
 from anyschema.adapters import into_ordered_dict_adapter, pydantic_adapter
-from anyschema.parsers import create_parser_chain
+from anyschema.parsers import make_pipeline
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from narwhals.typing import DTypeBackend
     from typing_extensions import Self
 
-    from anyschema.typing import Adapter, IntoParserChain, Spec
+    from anyschema.typing import Adapter, IntoParserPipeline, Spec
 
 
 class AnySchema:
@@ -35,8 +35,10 @@ class AnySchema:
 
             - a [Narwhals Schema](https://narwhals-dev.github.io/narwhals/api-reference/schema/#narwhals.schema.Schema).
                 In this case parsing data types is a no-op.
-            - a [python mapping](https://docs.python.org/3/glossary.html#term-mapping).
+            - a python [mapping](https://docs.python.org/3/glossary.html#term-mapping) or [sequence](https://docs.python.org/3/glossary.html#term-sequence)
+                of tuples containing the field name and type.
             - a [Pydantic Model](https://docs.pydantic.dev/latest/concepts/models/) class or an instance of such
+                In this case the fields are parsed using the Pydantic model's schema.
 
         parsers: Control how types are parsed into Narwhals dtypes. Options:
 
@@ -87,7 +89,7 @@ class AnySchema:
         <class 'polars.schema.Schema'>
 
         >>> pl_schema
-        Schema([('name', String), ('age', UInt64), ('classes', List(String))])
+        Schema({'name': String, 'age': UInt64, 'classes': List(String)})
 
     Methods:
         to_arrow():
@@ -103,7 +105,7 @@ class AnySchema:
     def __init__(
         self: Self,
         spec: Spec,
-        parsers: IntoParserChain = "auto",
+        parsers: IntoParserPipeline = "auto",
         adapter: Adapter | None = None,
     ) -> None:
         if isinstance(spec, Schema):
@@ -111,25 +113,22 @@ class AnySchema:
             return
 
         if is_into_ordered_dict(spec):
-            _parser_chain = create_parser_chain(parsers, spec_type="python")
+            _pipeline = make_pipeline(parsers, spec_type="python")
             nw_schema = Schema(
                 {
-                    name: _parser_chain.parse(input_type, metadata)
+                    name: _pipeline.parse(input_type, metadata)
                     for name, input_type, metadata in into_ordered_dict_adapter(spec)
                 }
             )
         elif is_pydantic_base_model(spec):
-            _parser_chain = create_parser_chain(parsers, spec_type="pydantic")
+            _pipeline = make_pipeline(parsers, spec_type="pydantic")
             nw_schema = Schema(
-                {
-                    name: _parser_chain.parse(input_type, metadata)
-                    for name, input_type, metadata in pydantic_adapter(spec)
-                }
+                {name: _pipeline.parse(input_type, metadata) for name, input_type, metadata in pydantic_adapter(spec)}
             )
         elif adapter is not None:
-            _parser_chain = create_parser_chain(parsers, spec_type=None)
+            _pipeline = make_pipeline(parsers, spec_type=None)
             nw_schema = Schema(
-                {name: _parser_chain.parse(input_type, metadata) for name, input_type, metadata in adapter(spec)}
+                {name: _pipeline.parse(input_type, metadata) for name, input_type, metadata in adapter(spec)}
             )
         else:
             msg = "`spec` type is unknown and `adapter` is not specified."

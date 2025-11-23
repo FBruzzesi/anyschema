@@ -8,19 +8,19 @@ import pytest
 from annotated_types import Ge, Gt, Interval, Le, Lt
 from hypothesis import given
 
-from anyschema.parsers._base import ParserChain
+from anyschema.parsers._base import ParserPipeline
 from anyschema.parsers._builtin import PyTypeParser
 from anyschema.parsers.annotated_types import AnnotatedTypesParser
 
 
 @pytest.fixture(scope="module")
 def annotated_types_parser() -> AnnotatedTypesParser:
-    """Create an AnnotatedTypesParser instance with parser_chain set."""
+    """Create an AnnotatedTypesParser instance with pipeline set."""
     annotated_types_parser = AnnotatedTypesParser()
     py_parser = PyTypeParser()
-    chain = ParserChain([annotated_types_parser, py_parser])
-    annotated_types_parser.parser_chain = chain
-    py_parser.parser_chain = chain
+    chain = ParserPipeline([annotated_types_parser, py_parser])
+    annotated_types_parser.pipeline = chain
+    py_parser.pipeline = chain
     return annotated_types_parser
 
 

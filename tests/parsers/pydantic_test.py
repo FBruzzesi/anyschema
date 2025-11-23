@@ -8,19 +8,19 @@ import pytest
 from pydantic import AwareDatetime, BaseModel, FutureDate, FutureDatetime, NaiveDatetime, PastDate, PastDatetime
 
 from anyschema.exceptions import UnsupportedDTypeError
-from anyschema.parsers._base import ParserChain
+from anyschema.parsers._base import ParserPipeline
 from anyschema.parsers._builtin import PyTypeParser
 from anyschema.parsers.pydantic import PydanticTypeParser
 
 
 @pytest.fixture(scope="module")
 def pydantic_parser() -> PydanticTypeParser:
-    """Create a PydanticTypeParser instance with parser_chain set."""
+    """Create a PydanticTypeParser instance with pipeline set."""
     parser = PydanticTypeParser()
     py_parser = PyTypeParser()
-    chain = ParserChain([parser, py_parser])
-    parser.parser_chain = chain
-    py_parser.parser_chain = chain
+    chain = ParserPipeline([parser, py_parser])
+    parser.pipeline = chain
+    py_parser.pipeline = chain
     return parser
 
 

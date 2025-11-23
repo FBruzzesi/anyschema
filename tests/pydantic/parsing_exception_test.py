@@ -6,10 +6,10 @@ import pytest
 from pydantic import AwareDatetime, create_model
 
 from anyschema.exceptions import UnsupportedDTypeError
-from anyschema.parsers import create_parser_chain
+from anyschema.parsers import make_pipeline
 from tests.pydantic.utils import model_to_nw_schema
 
-parser_chain = create_parser_chain("auto", spec_type="pydantic")
+pipeline = make_pipeline("auto", spec_type="pydantic")
 
 
 @pytest.mark.parametrize(
@@ -23,7 +23,7 @@ def test_raise_parse_union(input_type: type, msg: str) -> None:
     ExceptionModel = create_model("ExceptionModel", foo=(input_type, ...))  # noqa: N806
 
     with pytest.raises(UnsupportedDTypeError, match=msg):
-        model_to_nw_schema(ExceptionModel, parser_chain=parser_chain)
+        model_to_nw_schema(ExceptionModel, pipeline=pipeline)
 
 
 @pytest.mark.parametrize(
@@ -40,4 +40,4 @@ def test_raise_aware_datetime(input_type: type) -> None:
 
     msg = "pydantic AwareDatetime does not specify a fixed timezone."
     with pytest.raises(UnsupportedDTypeError, match=msg):
-        model_to_nw_schema(AwareDatetimeModel, parser_chain=parser_chain)
+        model_to_nw_schema(AwareDatetimeModel, pipeline=pipeline)

@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 
 
 IntoOrderedDict: TypeAlias = Mapping[str, type] | Sequence[tuple[str, type]]
-IntoParserChain: TypeAlias = Literal["auto"] | Sequence[TypeParser]
+IntoParserPipeline: TypeAlias = Literal["auto"] | Sequence[TypeParser]
 
 Spec: TypeAlias = "Schema |  IntoOrderedDict | type[BaseModel]"
 SpecType: TypeAlias = Literal["pydantic", "python"] | None

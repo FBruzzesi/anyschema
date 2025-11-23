@@ -3,10 +3,10 @@ from __future__ import annotations
 import narwhals as nw
 from pydantic import BaseModel, StrictBool
 
-from anyschema.parsers import create_parser_chain
+from anyschema.parsers import make_pipeline
 from tests.pydantic.utils import model_to_nw_schema
 
-parser_chain = create_parser_chain("auto", spec_type="pydantic")
+pipeline = make_pipeline("auto", spec_type="pydantic")
 
 
 def test_parse_boolean() -> None:
@@ -23,6 +23,6 @@ def test_parse_boolean() -> None:
         strict_bool_or_none: StrictBool | None
         none_or_strict_bool: None | StrictBool
 
-    schema = model_to_nw_schema(BooleanModel, parser_chain=parser_chain)
+    schema = model_to_nw_schema(BooleanModel, pipeline=pipeline)
 
     assert all(value == nw.Boolean() for value in schema.values())

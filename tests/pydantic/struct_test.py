@@ -3,10 +3,10 @@ from __future__ import annotations
 import narwhals as nw
 from pydantic import BaseModel, conint
 
-from anyschema.parsers import create_parser_chain
+from anyschema.parsers import make_pipeline
 from tests.pydantic.utils import model_to_nw_schema
 
-parser_chain = create_parser_chain("auto", spec_type="pydantic")
+pipeline = make_pipeline("auto", spec_type="pydantic")
 
 
 def test_parse_struct() -> None:
@@ -19,7 +19,7 @@ def test_parse_struct() -> None:
     class StructModel(BaseModel):
         struct: BaseStruct | None
 
-    schema = model_to_nw_schema(StructModel, parser_chain=parser_chain)
+    schema = model_to_nw_schema(StructModel, pipeline=pipeline)
     expected = {
         "struct": nw.Struct(
             [

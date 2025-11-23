@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any, ForwardRef, Optional
 import narwhals as nw
 import pytest
 
-from anyschema.parsers import ForwardRefParser, ParserChain, PyTypeParser, UnionTypeParser
+from anyschema.parsers import ForwardRefParser, ParserPipeline, PyTypeParser, UnionTypeParser
 
 if TYPE_CHECKING:
     from contextlib import AbstractContextManager
@@ -15,16 +15,16 @@ def forward_ref_parser_builder(globalns: dict | None = None, localns: dict | Non
     forward_ref_parser = ForwardRefParser(globalns=globalns, localns=localns)
     union_parser = UnionTypeParser()
     py_parser = PyTypeParser()
-    chain = ParserChain([forward_ref_parser, union_parser, py_parser])
-    forward_ref_parser.parser_chain = chain
-    union_parser.parser_chain = chain
-    py_parser.parser_chain = chain
+    chain = ParserPipeline([forward_ref_parser, union_parser, py_parser])
+    forward_ref_parser.pipeline = chain
+    union_parser.pipeline = chain
+    py_parser.pipeline = chain
     return forward_ref_parser
 
 
 @pytest.fixture(scope="module")
 def forward_ref_parser() -> ForwardRefParser:
-    """Create a ForwardRefParser instance with parser_chain set."""
+    """Create a ForwardRefParser instance with pipeline set."""
     return forward_ref_parser_builder()
 
 

@@ -1,181 +1,121 @@
 # API Reference
 
-This page provides detailed API documentation for all public classes and functions in anyschema.
+This page provides detailed documentation for all public APIs in anyschema.
+
+For conceptual explanations, see the [Architecture](architecture.md) page. For practical examples, see [Getting Started](getting-started.md) and [Advanced Usage](advanced.md).
 
 ## Core Classes
 
 ### AnySchema
 
 ::: anyschema.AnySchema
-    options:
-        show_root_heading: true
-        show_root_full_path: false
-        heading_level: 3
-        members_order: source
-        show_signature_annotations: true
 
-## Type Parsers
+## Parser Steps
 
-Type parsers convert Python type annotations into Narwhals dtypes. All parsers inherit from the `TypeParser` base class.
+Parser steps are the building blocks of the type parsing pipeline. Each step handles specific type patterns. For more details on how these work together, see the [Parser Pipeline](architecture.md#parser-pipeline) section in the Architecture guide.
 
-### TypeParser (Base Class)
+### ParserStep (Base Class)
 
-::: anyschema.parsers.TypeParser
-    options:
-        show_root_heading: true
-        show_root_full_path: false
-        heading_level: 3
-        members_order: source
-        show_signature_annotations: true
+::: anyschema.parsers.ParserStep
 
-### ParserChain
+### ParserPipeline
 
-::: anyschema.parsers.ParserChain
-    options:
-        show_root_heading: true
-        show_root_full_path: false
-        heading_level: 3
-        members_order: source
-        show_signature_annotations: true
+::: anyschema.parsers.ParserPipeline
 
-### Built-in Parsers
+### Built-in Parser Steps
 
-#### PyTypeParser
+#### ForwardRefStep
 
-::: anyschema.parsers.PyTypeParser
-    options:
-        show_root_heading: true
-        show_root_full_path: false
-        heading_level: 4
-        members_order: source
-        show_signature_annotations: true
+::: anyschema.parsers.ForwardRefStep
 
-#### PydanticTypeParser
+#### UnionTypeStep
 
-::: anyschema.parsers.pydantic.PydanticTypeParser
-    options:
-        show_root_heading: true
-        show_root_full_path: false
-        heading_level: 4
-        members_order: source
-        show_signature_annotations: true
+::: anyschema.parsers.UnionTypeStep
 
-#### AnnotatedParser
+#### AnnotatedStep
 
-::: anyschema.parsers.AnnotatedParser
-    options:
-        show_root_heading: true
-        show_root_full_path: false
-        heading_level: 4
-        members_order: source
-        show_signature_annotations: true
+::: anyschema.parsers.AnnotatedStep
 
-#### UnionTypeParser
+#### PyTypeStep
 
-::: anyschema.parsers.UnionTypeParser
-    options:
-        show_root_heading: true
-        show_root_full_path: false
-        heading_level: 4
-        members_order: source
-        show_signature_annotations: true
+::: anyschema.parsers.PyTypeStep
 
-#### ForwardRefParser
+### Parser Pipeline Factory
 
-::: anyschema.parsers._forward_ref.ForwardRefParser
-    options:
-        show_root_heading: true
-        show_root_full_path: false
-        heading_level: 4
-        members_order: source
-        show_signature_annotations: true
+#### make_pipeline
 
-#### AnnotatedTypesParser
-
-::: anyschema.parsers.annotated_types.AnnotatedTypesParser
-    options:
-        show_root_heading: true
-        show_root_full_path: false
-        heading_level: 4
-        members_order: source
-        show_signature_annotations: true
-
-### Parser Factory
-
-#### create_parser_chain
-
-::: anyschema.parsers.create_parser_chain
-    options:
-        show_root_heading: true
-        show_root_full_path: false
-        heading_level: 3
-        show_signature_annotations: true
+::: anyschema.parsers.make_pipeline
 
 ## Spec Adapters
 
-Spec adapters convert input specifications (Pydantic models, dictionaries, etc.) into a standardized format that the parser chain can process.
+Adapters convert various input specifications into a normalized format for parsing. Learn how to create custom adapters in the [Advanced Usage](advanced.md#custom-spec-adapters) guide.
 
 ### pydantic_adapter
 
 ::: anyschema.adapters.pydantic_adapter
-    options:
-        show_root_heading: true
-        show_root_full_path: false
-        heading_level: 3
-        show_signature_annotations: true
 
 ### into_ordered_dict_adapter
 
 ::: anyschema.adapters.into_ordered_dict_adapter
-    options:
-        show_root_heading: true
-        show_root_full_path: false
-        heading_level: 3
-        show_signature_annotations: true
 
 ## Exceptions
 
-### UnavailableParseChainError
+### UnavailablePipelineError
 
-::: anyschema.exceptions.UnavailableParseChainError
-    options:
-        show_root_heading: true
-        show_root_full_path: false
-        heading_level: 3
+::: anyschema.exceptions.UnavailablePipelineError
 
 ### UnsupportedDTypeError
 
 ::: anyschema.exceptions.UnsupportedDTypeError
-    options:
-        show_root_heading: true
-        show_root_full_path: false
-        heading_level: 3
 
 ## Type Aliases
 
-anyschema defines several type aliases for better type hints:
+The following type aliases are used throughout the anyschema codebase:
 
-### Spec Types
+### Spec
 
-- **`Spec`**: `Schema | IntoOrderedDict | type[BaseModel]` - Valid input specifications
-- **`IntoOrderedDict`**: `Mapping[str, type] | Sequence[tuple[str, type]]` - Python mapping-based specs
-- **`SpecType`**: `Literal["pydantic", "python"] | None` - Type of spec being parsed
+The `Spec` type represents valid input specifications:
 
-### Parser Types
+```python
+Spec = Union[
+    Schema,  # Narwhals Schema
+    type[BaseModel],  # Pydantic model class
+    Mapping[str, type],  # Dict of field_name -> type
+    Sequence[tuple[str, type]],  # List of (field_name, type) tuples
+]
+```
 
-- **`IntoParserChain`**: `Literal["auto"] | Sequence[TypeParser]` - Parser chain configuration
+### IntoParserPipeline
 
-### Field Types
+The `IntoParserPipeline` type represents valid parser pipeline specifications:
 
-- **`FieldName`**: `str` - Name of a field
-- **`FieldType`**: `type` - Type annotation of a field
-- **`FieldMetadata`**: `tuple` - Metadata tuple associated with a field
-- **`FieldSpec`**: `tuple[FieldName, FieldType, FieldMetadata]` - Complete field specification
+```python
+IntoParserPipeline = Union[
+    Literal["auto"],  # Automatic parser selection
+    Sequence[ParserStep],  # Custom sequence of parser steps
+]
+```
 
-### Adapter Types
+### Adapter
 
-- **`FieldSpecIterable`**: `Generator[FieldSpec, None, None]` - Iterator of field specifications
-- **`Adapter`**: `Callable[[Any], FieldSpecIterable]` - Adapter function signature
+The `Adapter` type represents a function that adapts a spec into field specifications:
+
+```python
+Adapter = Callable[[Any], Iterator[tuple[str, type, tuple]]]
+```
+
+Each adapter yields tuples of:
+- `field_name` (str): The name of the field
+- `field_type` (type): The type annotation of the field
+- `metadata` (tuple): Metadata associated with the field
+
+### FieldSpecIterable
+
+The `FieldSpecIterable` type represents the output of an adapter:
+
+```python
+FieldSpecIterable = Iterator[tuple[str, type, tuple]]
+```
 
 ## Usage Examples
 
@@ -183,57 +123,65 @@ anyschema defines several type aliases for better type hints:
 
 ```python
 from anyschema import AnySchema
-from pydantic import BaseModel, PositiveInt
+from pydantic import BaseModel
 
 
-class Student(BaseModel):
+class User(BaseModel):
+    id: int
     name: str
-    age: PositiveInt
-    classes: list[str]
 
 
-schema = AnySchema(spec=Student)
+schema = AnySchema(spec=User)
 
 # Convert to different formats
-pa_schema = schema.to_arrow()
-pl_schema = schema.to_polars()
-pd_schema = schema.to_pandas()
+arrow_schema = schema.to_arrow()
+polars_schema = schema.to_polars()
+pandas_schema = schema.to_pandas()
 ```
 
-### Custom Parser
+### Using Custom Parser Steps
 
 ```python
-from anyschema.parsers import TypeParser, create_parser_chain
+from anyschema import AnySchema
+from anyschema.parsers import ParserStep, PyTypeStep, make_pipeline
 import narwhals as nw
 
 
-class MyCustomParser(TypeParser):
+class MyCustomStep(ParserStep):
     def parse(self, input_type, metadata=()):
         if input_type is MyCustomType:
             return nw.String()
         return None
 
 
-parsers = create_parser_chain([MyCustomParser(), ...])
-schema = AnySchema(spec=my_spec, parsers=parsers)
+# Create custom pipeline
+custom_pipeline = make_pipeline([MyCustomStep(), PyTypeStep()])
+
+schema = AnySchema(
+    spec={"field": MyCustomType},
+    steps=custom_pipeline.steps,
+)
 ```
 
-### Custom Adapter
+### Using Custom Adapters
 
 ```python
 from anyschema import AnySchema
 
 
 def my_adapter(spec):
-    for field_name, field_type in spec.items():
-        yield field_name, field_type, ()
+    for field in spec.fields:
+        yield field.name, field.type, ()
 
 
-schema = AnySchema(spec=my_spec, adapter=my_adapter)
+schema = AnySchema(
+    spec=my_custom_spec,
+    adapter=my_adapter,
+)
 ```
 
 ## See Also
 
-- [Getting Started](getting-started.md) - Learn the basics
-- [Architecture](architecture.md) - Understand the design
-- [Advanced Usage](advanced.md) - Custom parsers and adapters
+- **[Getting Started](getting-started.md)**: Learn the basics with practical examples
+- **[Architecture](architecture.md)**: Understand the internal design and parser pipeline
+- **[Advanced Usage](advanced.md)**: Create custom parser steps and adapters

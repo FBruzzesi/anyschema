@@ -1,275 +1,310 @@
 # Architecture
 
-This document explains how anyschema works under the hood and describes its modular design based on **Type Parsers** and **Spec Adapters**.
+This page provides a deep dive into anyschema's internal design and architecture. Understanding these concepts will help you extend anyschema and troubleshoot issues.
 
 ## Overview
 
-anyschema uses a composable parser chain architecture to convert type specifications into dataframe schemas. The design provides:
+anyschema follows a pipeline architecture with two main components:
 
-- **Modularity**: Each parser handles a specific type concern
-- **Composability**: Parsers can be combined in different orders
-- **Extensibility**: New parsers can be added without modifying existing code
-- **Recursion simplification**: Union/Optional types are unwrapped once, ForwardRefs resolved first
-- **Metadata preservation**: Constraints flow through the parsing chain correctly
+1. **Spec Adapters**: Convert input specifications into a normalized format
+2. **Parser Pipeline**: Chain of parser steps that convert types to Narwhals dtypes
 
-## Architecture Diagram
+```mermaid
+flowchart TD
+    A[Input Spec<br/>Pydantic Model, dict, list] --> B[Spec Adapter]
+    B -->|pydantic_adapter<br/>into_ordered_dict_adapter| C[field_name, type, metadata]
+    C --> D[Parser Pipeline]
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                         AnySchema                           │
-│                     (Main Entry Point)                      │
-└─────────────────────────┬───────────────────────────────────┘
-                          │
-                          ▼
-          ┌───────────────────────────────┐
-          │      Spec Adapter             │
-          │  (pydantic_adapter or         │
-          │   into_ordered_dict_adapter)  │
-          └───────────────┬───────────────┘
-                          │
-                          │ Yields (name, type, metadata)
-                          ▼
-          ┌───────────────────────────────┐
-          │       Parser Chain            │
-          │   (Tries parsers in order)    │
-          └───────────────┬───────────────┘
-                          │
-                          │ Delegates to parsers in order:
-                          │
-      ┌───────────────────┼───────────────────┐
-      │                   │                   │
-      ▼                   ▼                   ▼
-┌─────────────┐   ┌─────────────┐   ┌─────────────┐
-│  Forward    │   │   Union     │   │  Annotated  │
-│    Ref      │   │   Type      │   │   Parser    │
-│   Parser    │   │   Parser    │   │             │
-└─────────────┘   └─────────────┘   └─────────────┘
-      │                   │                   │
-      └───────────────────┼───────────────────┘
-                          │
-      ┌───────────────────┼───────────────────┐
-      │                   │                   │
-      ▼                   ▼                   ▼
-┌─────────────┐   ┌─────────────┐   ┌─────────────┐
-│ Annotated   │   │  Pydantic   │   │   Python    │
-│   Types     │   │    Type     │   │    Type     │
-│   Parser    │   │   Parser    │   │   Parser    │
-└─────────────┘   └─────────────┘   └─────────────┘
-      │                   │                   │
-      └───────────────────┴───────────────────┘
-                          │
-                          ▼
-                  Narwhals DType
-                          │
-                          ▼
-          ┌───────────────────────────────┐
-          │       Narwhals Schema         │
-          └───────────────┬───────────────┘
-                          │
-      ┌───────────────────┼───────────────────┐
-      │                   │                   │
-      ▼                   ▼                   ▼
-┌─────────────┐   ┌─────────────┐   ┌─────────────┐
-│  PyArrow    │   │   Polars    │   │   Pandas    │
-│   Schema    │   │   Schema    │   │   Schema    │
-└─────────────┘   └─────────────┘   └─────────────┘
+    D --> E[ForwardRefStep]
+    E --> F[UnionTypeStep]
+    F --> G[AnnotatedStep]
+    G --> H[AnnotatedTypesStep]
+    H --> I[PydanticTypeStep]
+    I --> J[PyTypeStep]
+
+    J --> K[Narwhals DType]
+    K --> L[Narwhals Schema]
+    L --> M[Output Format<br/>PyArrow, Polars, Pandas]
+
+    style A fill:#e1f5ff
+    style B fill:#fff4e6
+    style D fill:#f3e5f5
+    style L fill:#e8f5e9
+    style M fill:#e1f5ff
 ```
 
 ## Core Components
 
-### 1. Spec Adapters
+### Spec Adapters
 
-**Spec Adapters** convert input specifications into a standardized format that the parser chain can process. They yield tuples of `(field_name, field_type, metadata)` for each field.
+Spec adapters are functions that convert various input formats into a unified representation: an iterable of `(field_name, field_type, metadata)` tuples. See the [API Reference](api-reference.md#spec-adapters) for detailed documentation.
 
-#### Built-in Adapters
-
-##### `pydantic_adapter`
+#### `pydantic_adapter`
 
 Extracts field information from Pydantic models:
 
 ```python
 from pydantic import BaseModel, Field
+from typing import Annotated
 from anyschema.adapters import pydantic_adapter
 
 
-class Student(BaseModel):
-    name: str
-    age: int = Field(ge=0)
+class User(BaseModel):
+    id: int
+    name: Annotated[str, Field(max_length=100)]
 
 
-for field_name, field_type, metadata in pydantic_adapter(Student):
+for field_name, field_type, metadata in pydantic_adapter(User):
     print(f"{field_name}: {field_type}, metadata={metadata}")
-# name: <class 'str'>, metadata=()
-# age: <class 'int'>, metadata=(Ge(ge=0),)
+
+# Output:
+# id: <class 'int'>, metadata=()
+# name: typing.Annotated[str, Field(max_length=100)], metadata=(FieldInfo(...),)
 ```
 
-Key features:
-- Extracts field annotations
-- Preserves Pydantic field metadata
-- Works with both `Field()` constraints and `Annotated` types
+**Key responsibilities:**
+- Extract field names from `model_fields`
+- Extract field type annotations
+- Extract metadata from Pydantic's `Field` constraints
 
-##### `into_ordered_dict_adapter`
+#### `into_ordered_dict_adapter`
 
-Converts Python mappings or sequences to field specifications:
+Handles Python dicts and lists of tuples:
 
 ```python
 from anyschema.adapters import into_ordered_dict_adapter
 
-# From dictionary
-spec = {"name": str, "age": int}
+# From dict
+spec = {"id": int, "name": str}
 for field_name, field_type, metadata in into_ordered_dict_adapter(spec):
     print(f"{field_name}: {field_type}")
 
 # From list of tuples
-spec = [("name", str), ("age", int)]
+spec = [("id", int), ("name", str)]
 for field_name, field_type, metadata in into_ordered_dict_adapter(spec):
     print(f"{field_name}: {field_type}")
 ```
 
-Key features:
-- Accepts `dict` or `list[tuple[str, type]]`
-- Preserves order (using OrderedDict internally)
-- No metadata (always returns empty tuple)
+**Key responsibilities:**
+- Convert dict/list to OrderedDict (preserves field order)
+- Yield `(field_name, field_type, empty_metadata)` tuples
 
-### 2. Type Parsers
+### Parser Pipeline
 
-**Type Parsers** are responsible for converting type annotations into Narwhals dtypes. Each parser handles specific type patterns.
-
-#### TypeParser ABC
-
-All parsers inherit from the `TypeParser` abstract base class:
+The `ParserPipeline` orchestrates multiple parser steps, trying each in sequence until one successfully handles the type. See the [API Reference](api-reference.md#parserpipeline) for detailed documentation.
 
 ```python
-from abc import ABC, abstractmethod
-from narwhals.dtypes import DType
+from anyschema.parsers import ParserPipeline, PyTypeStep
 
+# Create a simple pipeline
+pipeline = ParserPipeline(steps=[PyTypeStep()])
 
-class TypeParser(ABC):
-    """Abstract base class for type parsers."""
-
-    _parser_chain: ParserChain | None = None
-
-    @property
-    def parser_chain(self) -> ParserChain:
-        """Access the parser chain for recursive parsing."""
-        ...
-
-    @abstractmethod
-    def parse(self, input_type: type, metadata: tuple = ()) -> DType | None:
-        """Parse a type annotation into a Narwhals dtype.
-
-        Returns:
-            A Narwhals DType if this parser can handle the type, None otherwise.
-        """
-        ...
+# Parse a type
+dtype = pipeline.parse(int)
+print(dtype)  # Int64
 ```
 
-Key concepts:
-- Returns `DType` if the parser can handle the type
-- Returns `None` if it cannot (allows next parser to try)
-- Has access to `parser_chain` for recursive parsing of nested types
-- Receives `metadata` tuple with constraints/annotations
+**Key methods:**
+- `parse(input_type, metadata=(), strict=True)`: Try each parser until one succeeds
 
-#### Built-in Parsers
+### Parser Steps
 
-##### 1. ForwardRefParser
+Each parser step is responsible for handling specific type patterns. Steps implement the `ParserStep` abstract base class.
 
-**Purpose**: Resolve `ForwardRef` to actual types
+#### 1. ForwardRefStep
 
-**Handles**: `ForwardRef('int')`, `ForwardRef('Optional[int]')`, etc.
+**Purpose**: Resolves forward references to actual types.
 
-**Order**: **First** (must resolve before other parsers can work)
+**Handles**: `ForwardRef('ClassName')`
+
+**Why it exists**: Forward references need to be resolved before any type inspection can happen.
 
 ```python
 from typing import ForwardRef
-from anyschema.parsers import ForwardRefParser
+from anyschema.parsers import ForwardRefStep, ParserPipeline, PyTypeStep
 
-parser = ForwardRefParser()
-result = parser.parse(ForwardRef("int"))
-# Result: Int64
+forward_ref_step = ForwardRefStep()
+python_step = PyTypeStep()
+pipeline = ParserPipeline([forward_ref_step, python_step])
+
+forward_ref_step.pipeline = pipeline
+python_step.pipeline = pipeline
+
+# ForwardRef to int
+ref = ForwardRef("int")
+dtype = forward_ref_step.parse(ref)
+print(dtype)  # Int64
 ```
 
-**Why first?**: `ForwardRef('Optional[int]')` must become `Optional[int]` before `UnionTypeParser` can extract `int`.
+**Order**: Must be first! Forward references must be resolved before any other parsing.
 
-##### 2. UnionTypeParser
+#### 2. UnionTypeStep
 
-**Purpose**: Extract non-None type from Union/Optional types
-
-**Handles**: `Union[T, None]`, `T | None`, `Optional[T]`
-
-**Order**: Second (unwraps optionals before other parsers see them)
-
-```python
-from anyschema.parsers import UnionTypeParser
-
-parser = UnionTypeParser()
-result = parser.parse(int | None)
-# Recursively parses `int`, returns its dtype
-```
-
-**Metadata preservation**: When unwrapping `Annotated[Optional[int], Gt(0)]`, the `Gt(0)` metadata is preserved and passed to the next parser.
-
-##### 3. AnnotatedParser
-
-**Purpose**: Extract base type and metadata from `typing.Annotated`
-
-**Handles**: `Annotated[T, metadata...]`
-
-**Order**: Third (unwraps annotations before type checking)
-
-```python
-from typing import Annotated
-from annotated_types import Gt
-from anyschema.parsers import AnnotatedParser
-
-parser = AnnotatedParser()
-result = parser.parse(Annotated[int, Gt(0)])
-# Extracts `int` and metadata `(Gt(0),)`, then recursively parses
-```
-
-##### 4. AnnotatedTypesParser
-
-**Purpose**: Refine types based on `annotated_types` metadata
-
-**Handles**: Integer constraints (Gt, Ge, Lt, Le, Interval)
-
-**Order**: Fourth (refines types after unwrapping)
-
-**Intelligence**:
-- Determines smallest integer dtype that fits constraints
-- Chooses unsigned (UInt) vs signed (Int) based on lower bound
-
-```python
-from typing import Annotated
-from annotated_types import Gt, Interval
-from anyschema.parsers import AnnotatedTypesParser
-
-parser = AnnotatedTypesParser()
-
-# Positive values → UInt64
-result = parser.parse(int, metadata=(Gt(0),))
-
-# Fits in 8 bits unsigned → UInt8
-result = parser.parse(int, metadata=(Interval(ge=0, le=255),))
-
-# Fits in 8 bits signed → Int8
-result = parser.parse(int, metadata=(Interval(ge=-128, le=127),))
-```
-
-##### 5. PydanticTypeParser
-
-**Purpose**: Handle Pydantic-specific types
+**Purpose**: Handles Union types, particularly `Optional[T]` (which is `Union[T, None]`).
 
 **Handles**:
-- Datetime types: `NaiveDatetime`, `PastDatetime`, `FutureDatetime`
-- Date types: `PastDate`, `FutureDate`
-- `BaseModel`: Converted to `Struct` with recursive field parsing
+- `Union[T, None]`
+- `T | None` (PEP 604 syntax)
+- `Optional[T]`
 
-**Order**: Fifth (before fallback to Python types)
+**Why it exists**: Dataframe libraries typically don't have Union types. We extract the non-None type and let subsequent parsers handle it. The nullable information is preserved in the schema.
 
 ```python
-from pydantic import BaseModel, PositiveInt
-from anyschema.parsers import PydanticTypeParser
+from anyschema.parsers import UnionTypeStep, ParserPipeline, PyTypeStep
+
+union_step = UnionTypeStep()
+python_step = PyTypeStep()
+pipeline = ParserPipeline([union_step, python_step])
+
+union_step.pipeline = pipeline
+python_step.pipeline = pipeline
+
+# Parse Optional[int]
+dtype = union_step.parse(int | None)
+print(dtype)  # Int64 (nullable)
+```
+
+**Order**: Should be early in the pipeline. Extracting the real type early simplifies downstream parsers.
+
+#### 3. AnnotatedStep
+
+**Purpose**: Extracts types and metadata from `typing.Annotated`.
+
+**Handles**: `Annotated[T, metadata1, metadata2, ...]`
+
+**Why it exists**: Separates the base type from its constraints/metadata, allowing other parsers to process them independently.
+
+```python
+from typing import Annotated
+from anyschema.parsers import AnnotatedStep, ParserPipeline, PyTypeStep
+
+annotated_step = AnnotatedStep()
+python_step = PyTypeStep()
+pipeline = ParserPipeline([annotated_step, python_step])
+
+annotated_step.pipeline = pipeline
+python_step.pipeline = pipeline
+
+# Parse Annotated[int, "some metadata"]
+dtype = annotated_step.parse(Annotated[int, "some metadata"])
+print(dtype)  # Int64
+```
+
+**Order**: Should come after UnionTypeStep but before type-specific parsers. This ensures metadata is extracted before type refinement.
+
+#### 4. AnnotatedTypesStep
+
+**Purpose**: Refines types based on constraint metadata (e.g., positive integers).
+
+**Handles**: Types with `annotated_types` or Pydantic constraint metadata
+
+**Why it exists**: Constraints like "positive integer" should map to unsigned integer types for better performance and correctness.
+
+```python
+from pydantic import PositiveInt
+from anyschema import AnySchema
+
+
+class Data(BaseModel):
+    count: PositiveInt  # Becomes UInt64, not Int64
+
+
+schema = AnySchema(spec=Data)
+print(schema.to_arrow())
+# count: uint64
+```
+
+**Order**: Must come after AnnotatedStep (to receive extracted metadata) but before PydanticTypeStep and PyTypeStep.
+
+#### 5. PydanticTypeStep
+
+**Purpose**: Handles Pydantic-specific types that don't have direct Python equivalents.
+
+**Handles**: Pydantic types like `Json`, custom Pydantic types
+
+**Why it exists**: Some Pydantic types need special handling that pure Python type inspection can't provide.
+
+**Order**: Should come after metadata extraction but before the fallback PyTypeStep.
+
+#### 6. PyTypeStep
+
+**Purpose**: Handles basic Python types (the fallback parser).
+
+**Handles**:
+- Basic types: `int`, `float`, `str`, `bool`, `bytes`
+- Temporal types: `date`, `datetime`, `time`, `timedelta`
+- Container types: `list[T]`, `tuple[T, ...]`, `Sequence[T]`, `Iterable[T]`
+- Other types: `Decimal`, `Enum`, `object`
+
+**Why it exists**: This is the fundamental parser that handles all standard Python types.
+
+```python
+from anyschema.parsers import PyTypeStep
+
+python_step = PyTypeStep()
+
+print(python_step.parse(int))  # Int64
+print(python_step.parse(str))  # String
+print(python_step.parse(list[int]))  # List(Int64)
+```
+
+**Order**: Should be last! This is the fallback parser that handles standard types after all specialized parsers have had a chance.
+
+## Parser Order and Rationale
+
+The order of parsers is critical:
+
+```python
+steps = (
+    ForwardRefStep(),  # 1. Resolve forward references first
+    UnionTypeStep(),  # 2. Extract non-None types from Optional/Union
+    AnnotatedStep(),  # 3. Extract metadata from Annotated
+    AnnotatedTypesStep(),  # 4. Refine types based on metadata
+    PydanticTypeStep(),  # 5. Handle Pydantic-specific types
+    PyTypeStep(),  # 6. Fallback to basic Python types
+)
+```
+
+**Why this order?**
+
+1. **ForwardRefStep first**: Forward references must be resolved before any type inspection
+2. **UnionTypeStep early**: Extracting the real type simplifies all downstream parsers
+3. **AnnotatedStep early**: Metadata extraction should happen before type-specific logic
+4. **AnnotatedTypesStep**: Refine types based on the extracted metadata
+5. **PydanticTypeStep**: Handle Pydantic-specific types before falling back to Python types
+6. **PyTypeStep last**: The catch-all fallback for standard Python types
+
+## Metadata Preservation
+
+Metadata flows through the pipeline:
+
+```python
+from typing import Annotated
+from pydantic import BaseModel, Field, PositiveInt
+
+
+class Product(BaseModel):
+    # Pydantic adds metadata through Field
+    price: Annotated[float, Field(gt=0)]
+
+    # PositiveInt is itself an Annotated type with constraints
+    quantity: PositiveInt
+
+
+# The pipeline processes this as:
+# 1. pydantic_adapter extracts: ("price", Annotated[float, Field(gt=0)], (FieldInfo,))
+# 2. AnnotatedStep extracts: float with metadata (Field(gt=0), FieldInfo)
+# 3. AnnotatedTypesStep refines based on constraints
+# 4. PyTypeStep converts float to Float64
+```
+
+## Recursion and Nested Types
+
+Parser steps can recursively call the pipeline for nested types:
+
+```python
+from anyschema import AnySchema
+from pydantic import BaseModel
 
 
 class Address(BaseModel):
@@ -277,141 +312,18 @@ class Address(BaseModel):
     city: str
 
 
-parser = PydanticTypeParser()
-result = parser.parse(Address)
-# Result: Struct with fields [Field("street", String), Field("city", String)]
+class Person(BaseModel):
+    name: str
+    addresses: list[Address]  # Nested type!
+
+
+# Processing flow:
+# 1. pydantic_adapter yields: ("addresses", list[Address], ())
+# 2. PyTypeStep sees list[T] and recursively calls:
+#    pipeline.parse(Address, metadata=())
+# 3. The pipeline handles Address as a Pydantic model
+# 4. Result: List(Struct([('street', String), ('city', String)]))
 ```
-
-**Raises error for**: `AwareDatetime` (no fixed timezone)
-
-##### 6. PyTypeParser
-
-**Purpose**: Handle standard Python types (fallback)
-
-**Handles**:
-- Primitives: `int`, `str`, `float`, `bool`
-- Temporal: `datetime`, `date`, `time`, `timedelta`
-- Containers: `list[T]`, `tuple[T, ...]`, `Sequence[T]`, `Iterable[T]`
-- Other: `Decimal`, `bytes`, `Enum`
-
-**Order**: Last (fallback for basic types)
-
-```python
-from anyschema.parsers import PyTypeParser
-
-parser = PyTypeParser()
-
-# Basic types
-result = parser.parse(int)  # → Int64
-result = parser.parse(str)  # → String
-result = parser.parse(bool)  # → Boolean
-
-# Container types (recursive)
-result = parser.parse(list[int])  # → List(Int64)
-result = parser.parse(list[list[str]])  # → List(List(String))
-```
-
-### 3. ParserChain
-
-The `ParserChain` orchestrates multiple parsers and tries each one in sequence:
-
-```python
-from anyschema.parsers import ParserChain, PyTypeParser, PydanticTypeParser
-
-chain = ParserChain([parser1, parser2, parser3])
-
-# Strict mode (default) - raises if no parser succeeds
-dtype = chain.parse(some_type, strict=True)
-
-# Non-strict mode - returns None if no parser succeeds
-dtype = chain.parse(some_type, strict=False)
-```
-
-**Key features**:
-- Tries each parser in order until one returns a non-None result
-- Automatically wires itself to each parser's `parser_chain` property
-- Supports both strict and non-strict modes
-
-## Parser Order
-
-The order of parsers is crucial for correct behavior:
-
-```
-1. ForwardRefParser      → Resolve ForwardRef('T') to T
-2. UnionTypeParser       → Unwrap Optional[T] to T (preserving metadata)
-3. AnnotatedParser       → Extract Annotated[T, ...] to T with metadata
-4. AnnotatedTypesParser  → Refine T based on metadata (e.g., int + Gt(0) → UInt64)
-5. PydanticTypeParser    → Handle Pydantic-specific types
-6. PyTypeParser          → Handle basic Python types (fallback)
-```
-
-### Why This Order?
-
-**Example: `Annotated[Optional[int], Gt(0)]`**
-
-1. **AnnotatedParser**: Extracts `Optional[int]` with metadata `(Gt(0),)`
-2. **UnionTypeParser**: Extracts `int` and **preserves** metadata `(Gt(0),)`
-3. **AnnotatedTypesParser**: Receives `int` with metadata `(Gt(0),)` and refines to `UInt64`
-
-✅ **Result**: `UInt64` (constraint properly applied)
-
-Without this order, the constraint would be lost and we'd get `Int64` instead.
-
-## Metadata Preservation
-
-A key feature of the architecture is proper metadata preservation through the parsing chain.
-
-### Example Flow
-
-For `Annotated[int | None, Gt(0)]`:
-
-```
-Input: Annotated[int | None, Gt(0)]
-                    │
-                    ▼
-       ┌─────────────────────────┐
-       │   AnnotatedParser       │  Extracts: int | None
-       │   metadata=(Gt(0),)     │  Passes metadata down
-       └───────────┬─────────────┘
-                   │
-                   ▼
-       ┌─────────────────────────┐
-       │   UnionTypeParser       │  Extracts: int
-       │   Preserves: (Gt(0),)   │  Keeps metadata!
-       └───────────┬─────────────┘
-                   │
-                   ▼
-       ┌─────────────────────────┐
-       │  AnnotatedTypesParser   │  Receives: int, (Gt(0),)
-       │  Refines: UInt64        │  Applies constraint
-       └───────────┬─────────────┘
-                   │
-                   ▼
-              Result: UInt64
-```
-
-Without metadata preservation, `Gt(0)` would be lost during Union unwrapping!
-
-## Recursion
-
-Parsers can recursively call the chain for nested types via the `parser_chain` property:
-
-```python
-class PyTypeParser(TypeParser):
-    def parse(self, input_type, metadata=()):
-        if is_list_type(input_type):
-            inner_type = get_inner_type(input_type)
-            # Recursively parse inner type using the full chain
-            inner_dtype = self.parser_chain.parse(inner_type, strict=True)
-            return nw.List(inner=inner_dtype)
-        ...
-```
-
-This allows parsing of complex nested structures:
-- Nested lists: `list[list[int]]`
-- Optional nested types: `list[int | None]`
-- Complex structures: `list[BaseModel]`
-- Forward refs in nested types: `list[ForwardRef('int')]`
 
 ## Complete Flow Example
 
@@ -425,149 +337,119 @@ from anyschema import AnySchema
 class Student(BaseModel):
     name: str
     age: PositiveInt
-    classes: list[str]
+    classes: list[str] | None
 
 
 schema = AnySchema(spec=Student)
 ```
 
-### Step-by-Step Flow
+**Step-by-step processing:**
 
-1. **AnySchema.__init__**
-   - Detects `Student` is a Pydantic model
-   - Calls `pydantic_adapter(Student)`
+1. **Spec Adapter** (`pydantic_adapter`):
+   - Extracts: `("name", str, ())`
+   - Extracts: `("age", PositiveInt, ())`
+   - Extracts: `("classes", list[str] | None, ())`
 
-2. **pydantic_adapter**
-   - Yields: `("name", str, ())`
-   - Yields: `("age", PositiveInt, ())`
-   - Yields: `("classes", list[str], ())`
+2. **Parse `name: str`**:
+   - ForwardRefStep: Not a ForwardRef → returns None
+   - UnionTypeStep: Not a Union → returns None
+   - AnnotatedStep: Not Annotated → returns None
+   - AnnotatedTypesStep: No metadata → returns None
+   - PydanticTypeStep: Not a Pydantic type → returns None
+   - PyTypeStep: `str` → returns `String()`
+   - **Result**: `String()`
 
-3. **Parser Chain processes "name: str"**
-   - ForwardRefParser: Not a ForwardRef → returns None
-   - UnionTypeParser: Not a Union → returns None
-   - AnnotatedParser: Not Annotated → returns None
-   - AnnotatedTypesParser: No metadata → returns None
-   - PydanticTypeParser: Not Pydantic type → returns None
-   - PyTypeParser: Matches `str` → **returns String()**
+3. **Parse `age: PositiveInt`**:
+   - ForwardRefStep: Not a ForwardRef → returns None
+   - UnionTypeStep: Not a Union → returns None
+   - AnnotatedStep: `PositiveInt` is `Annotated[int, ...]` → extracts `int` with metadata
+   - Recursively parse `int` with metadata:
+     - AnnotatedTypesStep: Metadata indicates positive constraint → returns `UInt64()`
+   - **Result**: `UInt64()`
 
-4. **Parser Chain processes "age: PositiveInt"**
-   - ForwardRefParser: Not a ForwardRef → returns None
-   - UnionTypeParser: Not a Union → returns None
-   - AnnotatedParser: Extracts `int` with metadata `(Gt(0),)` → recurses
-     - PyTypeParser would return Int64, but...
-   - AnnotatedTypesParser: Sees `int` + `Gt(0)` → **returns UInt64()**
+4. **Parse `classes: list[str] | None`**:
+   - ForwardRefStep: Not a ForwardRef → returns None
+   - UnionTypeStep: Is a Union! Extracts `list[str]` (non-None type)
+   - Recursively parse `list[str]`:
+     - AnnotatedStep: Not Annotated → returns None
+     - AnnotatedTypesStep: No metadata → returns None
+     - PydanticTypeStep: Not a Pydantic type → returns None
+     - PyTypeStep: `list[str]` → recursively parse `str` → returns `List(String())`
+   - **Result**: `List(String())` (nullable)
 
-5. **Parser Chain processes "classes: list[str]"**
-   - ForwardRefParser: Not a ForwardRef → returns None
-   - UnionTypeParser: Not a Union → returns None
-   - AnnotatedParser: Not Annotated → returns None
-   - AnnotatedTypesParser: No metadata → returns None
-   - PydanticTypeParser: Not Pydantic type → returns None
-   - PyTypeParser: Matches `list[T]` → recurses on `str`
-     - Inner: `str` → String()
-   - **Returns List(String())**
-
-6. **Narwhals Schema Creation**
+5. **Final Schema**:
    ```python
-   Schema({"name": String(), "age": UInt64(), "classes": List(String())})
+   Schema({"name": String(), "age": UInt64(), "classes": List(String())})  # nullable
    ```
-
-7. **to_arrow() / to_polars() / to_pandas()**
-   - Delegates to Narwhals for backend conversion
 
 ## Creating Custom Components
 
-### Custom Parser
+Learn how to extend anyschema with custom functionality. For more detailed examples, see the [Advanced Usage](advanced.md) guide.
 
-To create a custom parser, inherit from `TypeParser`:
+### Custom Parser Steps
+
+To create a custom parser step, implement the `ParserStep` protocol:
 
 ```python
-from anyschema.parsers import TypeParser
+from typing import Any
+from narwhals.dtypes import DType
+from anyschema.parsers import ParserStep
 import narwhals as nw
 
 
-class MyCustomParser(TypeParser):
-    def parse(self, input_type: type, metadata: tuple = ()) -> nw.DType | None:
+class MyCustomStep(ParserStep):
+    """Handles my custom types."""
+
+    def parse(self, input_type: Any, metadata: tuple = ()) -> DType | None:
+        """Parse custom types.
+
+        Returns:
+            A Narwhals DType if this parser handles the type, None otherwise.
+        """
         if input_type is MyCustomType:
             return nw.String()
 
-        # For nested types, use the parser chain
-        if is_container_of_my_type(input_type):
-            inner = extract_inner_type(input_type)
-            inner_dtype = self.parser_chain.parse(inner, strict=True)
-            return nw.List(inner_dtype)
-
-        return None  # This parser doesn't handle this type
+        # Return None if we can't handle this type
+        return None
 ```
 
-### Custom Adapter
+### Custom Adapters
 
-To create a custom adapter, create a function that yields field specifications:
+To create a custom adapter, implement a function that yields `(field_name, field_type, metadata)` tuples:
 
 ```python
-from typing import Generator
+from typing import Any, Iterator
 
 
-def my_custom_adapter(
-    spec: MySpecType,
-) -> Generator[tuple[str, type, tuple], None, None]:
-    """Convert MySpecType to field specifications."""
+def my_custom_adapter(spec: Any) -> Iterator[tuple[str, type, tuple]]:
+    """Convert custom spec format to field specifications.
+
+    Yields:
+        Tuples of (field_name, field_type, metadata)
+    """
     for field in spec.get_fields():
-        field_name = field.name
-        field_type = field.type
-        field_metadata = tuple(field.constraints)
-        yield field_name, field_type, field_metadata
-```
-
-Then use it:
-
-```python
-from anyschema import AnySchema
-
-schema = AnySchema(spec=my_spec, adapter=my_custom_adapter)
+        yield field.name, field.type, ()
 ```
 
 ## Benefits of This Architecture
 
-### 1. Modularity
-Each parser has a single responsibility:
-- Easy to understand and maintain
-- Clear separation of concerns
-- Testable in isolation
-- Each parser is ~50-100 lines of focused code
-
-### 2. Composability
-Parsers can be mixed and matched:
-- Use only the parsers you need
-- Add custom parsers to the chain
-- Reorder parsers for different behavior
-
-### 3. Extensibility
-Support new type systems without modifying existing code:
-- Inherit from `TypeParser` ABC
-- Implement the `parse` method
-- Add to a parser chain
-
-### 4. Recursion Simplified
-Complex type unwrapping is centralized:
-- `ForwardRef` resolution in one place
-- `Optional[T]` unwrapping in one place
-- Subsequent parsers only see unwrapped types
-
-### 5. Metadata Preservation
-Constraints flow correctly through the chain:
-- `Annotated[Optional[int], Gt(0)]` correctly becomes `UInt64`
-- Metadata is preserved through Optional unwrapping
-- Type refinement works regardless of Optional nesting
+1. **Modularity**: Each parser has a single, well-defined responsibility
+2. **Composability**: Parsers can be mixed, matched, and reordered
+3. **Extensibility**: New parsers can be added without modifying existing code
+4. **Testability**: Each parser can be tested independently
+5. **Recursion Simplification**: Union/Optional extraction happens once, simplifying other parsers
+6. **Metadata Flow**: Metadata is preserved and passed through the pipeline
+7. **Clear Separation**: Input adaptation is separate from type parsing
 
 ## Performance Considerations
 
-1. **Parser Chain Caching**: The `create_parser_chain` function uses `@lru_cache` to avoid recreating chains
-2. **Immutable Parsers**: Parser instances are reused across calls
-3. **Early Return**: Parsers return `None` quickly if they don't handle a type
-4. **Lazy Evaluation**: ForwardRef resolution only happens when needed
+- **Caching**: The `make_pipeline` function uses `@lru_cache` to avoid recreating pipelines
+- **Early Returns**: Parsers return as soon as they find a match
+- **Lazy Evaluation**: Adapters use generators for memory efficiency
+- **Order Optimization**: More common types are checked earlier in the pipeline
 
 ## Next Steps
 
-- See [Advanced Usage](advanced.md) for creating custom parsers and adapters
-- Browse the [API Reference](api-reference.md) for detailed documentation
+- Learn how to create [Custom Parser Steps and Adapters](advanced.md) with detailed examples
+- Check the [API Reference](api-reference.md) for complete API documentation
+- See [Getting Started](getting-started.md) for basic usage examples

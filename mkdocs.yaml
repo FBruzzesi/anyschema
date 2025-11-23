@@ -61,7 +61,7 @@ plugins:
 - mkdocstrings:
     handlers:
       python:
-        import:
+        inventories:
         - https://docs.python.org/3/objects.inv
         - https://narwhals-dev.github.io/narwhals/objects.inv
         - https://docs.pydantic.dev/latest/objects.inv
@@ -110,6 +110,9 @@ markdown_extensions:
       class: python
       validator: !!python/name:markdown_exec.validator
       format: !!python/name:markdown_exec.formatter
+    - name: mermaid
+      class: mermaid
+      format: !!python/name:pymdownx.superfences.fence_code_format
 - pymdownx.highlight:
     anchor_linenums: true
     line_spans: __span
@@ -118,9 +121,6 @@ markdown_extensions:
 - pymdownx.snippets
 - pymdownx.arithmatex:
     generic: true
-- pymdownx.emoji:
-    emoji_index: !!python/name:material.extensions.emoji.twemoji
-    emoji_generator: !!python/name:material.extensions.emoji.to_svg
 
 extra_javascript:
   - javascripts/extra.js

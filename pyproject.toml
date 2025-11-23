@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "anyschema"
-version = "0.1.0"
+version = "0.0.1"
 description = "From pydantic to any frame schema"
 readme = "README.md"
 authors = [{ name = "FBruzzesi"}]

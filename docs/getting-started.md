@@ -1,378 +1,388 @@
 # Getting Started
 
-This guide will walk you through the basics of using anyschema to convert type specifications to dataframe schemas.
+This guide will help you get started with **anyschema** and explore its core functionality.
 
 ## Installation
 
-!!! note "Development Status"
-    `anyschema` is still in early development and not on PyPI yet. You can install it directly from GitHub:
+!!! caution "Development Status"
+    `anyschema` is currently in early development and not yet published on PyPI.
+
+Install directly from GitHub:
 
 ```bash
-pip install git+https://github.com/FBruzzesi/anyschema.git
+python -m pip install git+https://github.com/FBruzzesi/anyschema.git
 ```
 
-For Pydantic support (recommended):
+For Pydantic support (recommended), install with the `pydantic` extra:
 
 ```bash
-pip install "anyschema[pydantic] @ git+https://github.com/FBruzzesi/anyschema.git"
+python -m pip install "git+https://github.com/FBruzzesi/anyschema.git[pydantic]"
 ```
 
 ## Basic Usage
 
-### Using Pydantic Models
+### With Pydantic Models
 
 The most common way to use anyschema is with Pydantic models:
 
 ```python
 from anyschema import AnySchema
-from pydantic import BaseModel, PositiveInt, Field
-from datetime import datetime
+from pydantic import BaseModel
 
 
-class Student(BaseModel):
-    name: str
-    age: PositiveInt
+class User(BaseModel):
+    id: int
+    username: str
     email: str
-    enrollment_date: datetime
-    gpa: float = Field(ge=0.0, le=4.0)
-    classes: list[str]
+    is_active: bool
 
 
-# Create an AnySchema instance
-schema = AnySchema(spec=Student)
+schema = AnySchema(spec=User)
 
-# Convert to different dataframe schemas
-pa_schema = schema.to_arrow()  # PyArrow schema
-pl_schema = schema.to_polars()  # Polars schema
-pd_schema = schema.to_pandas()  # Pandas dtype mapping
+# Convert to different schema formats
+arrow_schema = schema.to_arrow()
+polars_schema = schema.to_polars()
+pandas_schema = schema.to_pandas()
 ```
 
-### Using Python Dictionaries
+### With Python Dictionaries
 
-You can also use simple Python dictionaries:
+You can also use plain Python dictionaries:
 
 ```python
 from anyschema import AnySchema
 
 spec = {
-    "name": str,
-    "age": int,
-    "score": float,
-    "active": bool,
+    "id": int,
+    "username": str,
+    "email": str,
+    "is_active": bool,
 }
 
 schema = AnySchema(spec=spec)
-print(schema.to_arrow())
-# name: string
-# age: int64
-# score: double
-# active: bool
+arrow_schema = schema.to_arrow()
 ```
 
-### Using Ordered Lists
+### With Lists of Tuples
 
-For cases where order matters, use a list of tuples:
+Or use a list of `(name, type)` tuples:
 
 ```python
 from anyschema import AnySchema
 
 spec = [
     ("id", int),
-    ("name", str),
-    ("created", datetime),
+    ("username", str),
+    ("email", str),
+    ("is_active", bool),
 ]
 
 schema = AnySchema(spec=spec)
+polars_schema = schema.to_polars()
 ```
 
 ## Type Mappings
 
-anyschema automatically maps Python and Pydantic types to appropriate dataframe dtypes:
+anyschema converts Python type annotations to Narwhals dtypes, which are then converted to the target dataframe library's native types. For more details on how this process works, see the [Architecture](architecture.md) page.
 
-### Basic Types
+### Basic Python Types
 
-| Python Type | Narwhals/PyArrow Type |
-|-------------|----------------------|
-| `int` | `Int64` |
-| `float` | `Float64` |
-| `str` | `String` |
-| `bool` | `Boolean` |
-| `bytes` | `Binary` |
-| `object` | `Object` |
+anyschema supports a wide range of Python types:
+
+| Python Type | Narwhals DType | PyArrow Type | Polars Type |
+|------------|----------------|--------------|-------------|
+| `int` | `Int64` | `int64` | `Int64` |
+| `float` | `Float64` | `double` | `Float64` |
+| `str` | `String` | `string` | `String` |
+| `bool` | `Boolean` | `bool` | `Boolean` |
+| `bytes` | `Binary` | `binary` | `Binary` |
+| `object` | `Object` | `pyobject` | `Object` |
+| `Decimal` | `Decimal` | `decimal128` | `Decimal` |
 
 ### Temporal Types
 
-| Python Type | Narwhals/PyArrow Type |
-|-------------|----------------------|
-| `datetime` | `Datetime(time_unit='us')` |
-| `date` | `Date` |
-| `time` | `Time` |
-| `timedelta` | `Duration` |
+| Python Type | Narwhals DType | PyArrow Type | Polars Type |
+|------------|----------------|--------------|-------------|
+| `date` | `Date` | `date32` | `Date` |
+| `datetime` | `Datetime("us")` | `timestamp[us]` | `Datetime("us")` |
+| `time` | `Time` | `time64[ns]` | `Time` |
+| `timedelta` | `Duration` | `duration[us]` | `Duration("us")` |
 
 ### Pydantic Types
 
-| Pydantic Type | Narwhals/PyArrow Type |
-|---------------|----------------------|
-| `PositiveInt` | `UInt64` |
-| `NegativeInt` | `Int64` |
-| `PositiveFloat` | `Float64` |
-| `NaiveDatetime` | `Datetime` |
-| `PastDate` | `Date` |
-| `FutureDate` | `Date` |
-| `PastDatetime` | `Datetime` |
-| `FutureDatetime` | `Datetime` |
+When using Pydantic models, specialized types are automatically handled. These types are processed by the [PydanticTypeStep](architecture.md#5-pydantictypestep) parser:
+
+| Pydantic Type | Narwhals DType | Description |
+|--------------|----------------|-------------|
+| `PositiveInt` | `UInt64` | Unsigned integer (positive only) |
+| `NegativeInt` | `Int64` | Signed integer (negative only) |
+| `NonNegativeInt` | `UInt64` | Unsigned integer (zero or positive) |
+| `NonPositiveInt` | `Int64` | Signed integer (zero or negative) |
+| `PositiveFloat` | `Float64` | Positive float |
+| `NegativeFloat` | `Float64` | Negative float |
 
 ### Container Types
 
-| Python Type | Narwhals/PyArrow Type |
-|-------------|----------------------|
-| `list[T]` | `List(T)` |
-| `tuple[T, ...]` | `List(T)` |
-| `tuple[T1, T2, T3]` | `Array(T, shape=3)` (if all same type) |
-| `Sequence[T]` | `List(T)` |
-| `Iterable[T]` | `List(T)` |
+anyschema supports nested and container types:
+
+| Python Type | Narwhals DType | PyArrow Type | Polars Type |
+|------------|----------------|--------------|-------------|
+| `list[T]` | `List(T)` | `list<T>` | `List(T)` |
+| `Sequence[T]` | `List(T)` | `list<T>` | `List(T)` |
+| `Iterable[T]` | `List(T)` | `list<T>` | `List(T)` |
+| `tuple[T, ...]` | `List(T)` | `list<T>` | `List(T)` |
+| `tuple[T, T, T]` | `Array(T, 3)` | `fixed_size_list<T>[3]` | `Array(T, 3)` |
 
 ### Complex Types
 
 ```python
-from pydantic import BaseModel
 from anyschema import AnySchema
+from pydantic import BaseModel
 
 
-# Nested models become Struct types
 class Address(BaseModel):
     street: str
     city: str
-    zipcode: str
+    country: str
 
 
 class Person(BaseModel):
     name: str
     age: int
-    address: Address  # This becomes a Struct
+    addresses: list[Address]
+    metadata: dict
 
 
 schema = AnySchema(spec=Person)
-print(schema.to_arrow())
-# name: string
-# age: int64
-# address: struct<street: string, city: string, zipcode: string>
-#   child 0, street: string
-#   child 1, city: string
-#   child 2, zipcode: string
 ```
+
+In this example:
+- `addresses: list[Address]` becomes `List(Struct)`
+- `metadata: dict` becomes `Struct`
 
 ## Working with Constraints
 
-anyschema intelligently handles Pydantic field constraints:
+Constraints are processed by the [AnnotatedTypesStep](architecture.md#4-annotatedtypesstep) parser, which refines types based on metadata.
 
 ### Integer Constraints
 
+Pydantic's constrained integer types are automatically converted to appropriate unsigned or signed integers:
+
 ```python
-from pydantic import BaseModel, Field
 from anyschema import AnySchema
+from pydantic import BaseModel, PositiveInt, NonNegativeInt
 
 
-class DataModel(BaseModel):
-    # Positive integers become unsigned types
-    positive: int = Field(gt=0)  # → UInt64
-
-    # Small range integers get optimized types
-    small_positive: int = Field(ge=0, le=255)  # → UInt8
-    small_signed: int = Field(ge=-128, le=127)  # → Int8
-
-    # Regular integers
-    regular: int  # → Int64
+class Metrics(BaseModel):
+    count: PositiveInt  # -> UInt64 (always positive)
+    offset: NonNegativeInt  # -> UInt64 (zero or positive)
+    delta: int  # -> Int64 (can be negative)
 
 
-schema = AnySchema(spec=DataModel)
-pl_schema = schema.to_polars()
-print(pl_schema)
-# Schema([
-#     ('positive', UInt64),
-#     ('small_positive', UInt8),
-#     ('small_signed', Int8),
-#     ('regular', Int64)
-# ])
+schema = AnySchema(spec=Metrics)
+arrow_schema = schema.to_arrow()
+print(arrow_schema)
+# count: uint64
+# offset: uint64
+# delta: int64
 ```
 
-### Annotated Types
+### Using Annotated Types
+
+You can also use `typing.Annotated` with constraint metadata:
 
 ```python
 from typing import Annotated
-from annotated_types import Gt, Ge, Lt, Le, Interval
 from anyschema import AnySchema
+from pydantic import BaseModel, Field
 
 
-spec = {
-    "positive": Annotated[int, Gt(0)],  # → UInt64
-    "byte": Annotated[int, Interval(ge=0, le=255)],  # → UInt8
-    "percentage": Annotated[int, Ge(0), Le(100)],  # → UInt8
-}
+class Product(BaseModel):
+    name: str
+    price: Annotated[float, Field(gt=0)]  # Price must be positive
+    quantity: Annotated[int, Field(ge=0)]  # Quantity must be non-negative
 
-schema = AnySchema(spec=spec)
-print(schema.to_arrow())
+
+schema = AnySchema(spec=Product)
 ```
 
 ## Optional Types
 
-Optional types are automatically handled - the `None` option is extracted and the underlying type is used:
+anyschema automatically handles optional (nullable) types. These are processed by the [UnionTypeStep](architecture.md#2-uniontypestep) parser, which extracts the non-None type:
 
 ```python
-from pydantic import BaseModel
 from anyschema import AnySchema
+from pydantic import BaseModel
 
 
-class OptionalFields(BaseModel):
-    required_name: str
-    optional_age: int | None  # → Int64 (None is stripped)
-    optional_email: str | None  # → String (None is stripped)
+class Article(BaseModel):
+    title: str
+    subtitle: str | None  # Optional field
+    author: str
 
 
-schema = AnySchema(spec=OptionalFields)
-print(schema.to_polars())
-# Schema([
-#     ('required_name', String),
-#     ('optional_age', Int64),      # No "nullable" in dtype
-#     ('optional_email', String)     # No "nullable" in dtype
-# ])
+schema = AnySchema(spec=Article)
+arrow_schema = schema.to_arrow()
+print(arrow_schema)
+# title: string not null
+# subtitle: string
+# author: string not null
 ```
 
-!!! note "Note on Nullability"
-    anyschema extracts the non-None type from Optional/Union types. The nullability information is not encoded in the Narwhals dtype itself, but is typically handled at the dataframe level when creating actual data.
+Note that PyArrow schemas mark nullable fields automatically, while the underlying type remains the same.
 
-## Using with Narwhals
+## Using Narwhals Directly
 
-Since anyschema uses Narwhals internally, you can also work directly with Narwhals schemas:
+You can also work with Narwhals schemas directly:
 
 ```python
 from narwhals.schema import Schema
 import narwhals as nw
 from anyschema import AnySchema
 
-# Create a Narwhals schema directly
+# Create a Narwhals schema
 nw_schema = Schema(
     {
+        "id": nw.Int64(),
         "name": nw.String(),
-        "age": nw.Int64(),
         "scores": nw.List(nw.Float64()),
     }
 )
 
-# Pass it to AnySchema (it's a no-op internally)
+# Pass it to AnySchema (this is a no-op internally)
 schema = AnySchema(spec=nw_schema)
 
-# Convert to any backend
-pa_schema = schema.to_arrow()
-pl_schema = schema.to_polars()
+# Convert to target format
+arrow_schema = schema.to_arrow()
+polars_schema = schema.to_polars()
 ```
 
 ## Output Formats
 
-### PyArrow Schema
+### PyArrow
 
 ```python
 pa_schema = schema.to_arrow()
 # Returns: pyarrow.Schema
-# Use with: PyArrow tables, Parquet files, DuckDB, etc.
 ```
 
-### Polars Schema
+Use this for:
+- Writing Parquet files
+- Working with Apache Arrow
+- Interoperability with other Arrow-based tools
+
+### Polars
 
 ```python
 pl_schema = schema.to_polars()
 # Returns: polars.Schema
-# Use with: Polars DataFrames, LazyFrames
 ```
 
-### Pandas Schema
+Use this for:
+- Creating Polars DataFrames with specific schemas
+- Data validation with Polars
+- High-performance data processing
+
+### Pandas
 
 ```python
 pd_schema = schema.to_pandas()
-# Returns: dict[str, pd.ArrowDtype | str | type]
-# Use with: pandas DataFrame dtypes parameter
-
-import pandas as pd
-
-df = pd.DataFrame(data, dtype=pd_schema)
+# Returns: dict[str, str | pd.ArrowDtype | type]
 ```
 
-You can also specify the dtype backend:
+Use this for:
+- Creating Pandas DataFrames with specific dtypes
+- Data analysis with Pandas
+- Integration with existing Pandas workflows
+
+You can optionally specify a `dtype_backend`:
 
 ```python
-# Use PyArrow backend
+# Using PyArrow backend
 pd_schema = schema.to_pandas(dtype_backend="pyarrow")
 
-# Use numpy backend
+# Using NumPy backend
 pd_schema = schema.to_pandas(dtype_backend="numpy")
 ```
 
 ## Complete Example
 
-Here's a complete example that shows the full workflow:
+Here's a complete example demonstrating various features:
 
 ```python
 from datetime import datetime
-from pydantic import BaseModel, PositiveInt, Field, EmailStr
 from anyschema import AnySchema
-import polars as pl
+from pydantic import BaseModel, PositiveInt, Field
+from typing import Annotated
 
 
-# Define your data model
-class Transaction(BaseModel):
-    transaction_id: int
-    user_id: PositiveInt
-    amount: float = Field(ge=0)
-    timestamp: datetime
-    status: str
-    tags: list[str]
+class Category(BaseModel):
+    id: PositiveInt
+    name: str
 
 
-# Create schema converter
-schema = AnySchema(spec=Transaction)
+class Product(BaseModel):
+    id: PositiveInt
+    name: str
+    description: str | None
+    price: Annotated[float, Field(gt=0)]
+    quantity: Annotated[int, Field(ge=0)]
+    categories: list[Category]
+    created_at: datetime
+    metadata: dict
 
-# Get Polars schema
-pl_schema = schema.to_polars()
-print("Polars Schema:")
-print(pl_schema)
 
-# Create a Polars DataFrame with the schema
-data = {
-    "transaction_id": [1, 2, 3],
-    "user_id": [101, 102, 103],
-    "amount": [99.99, 149.99, 49.99],
-    "timestamp": [datetime.now()] * 3,
-    "status": ["completed", "pending", "completed"],
-    "tags": [["online", "sale"], ["in-store"], ["online"]],
-}
+# Create the schema
+schema = AnySchema(spec=Product)
 
-df = pl.DataFrame(data, schema=pl_schema)
-print("\nDataFrame:")
-print(df)
+# Convert to PyArrow (useful for Parquet files)
+arrow_schema = schema.to_arrow()
+print("PyArrow Schema:")
+print(arrow_schema)
+
+# Convert to Polars (useful for Polars DataFrames)
+polars_schema = schema.to_polars()
+print("\nPolars Schema:")
+print(polars_schema)
+
+# Convert to Pandas (useful for Pandas DataFrames)
+pandas_schema = schema.to_pandas(dtype_backend="pyarrow")
+print("\nPandas Schema:")
+for field, dtype in pandas_schema.items():
+    print(f"  {field}: {dtype}")
 ```
 
 ## Error Handling
 
-anyschema will raise errors for unsupported types:
+anyschema will raise exceptions for unsupported types:
 
 ```python
-from pydantic import AwareDatetime
 from anyschema import AnySchema
 
+try:
+    # This will fail - set is not supported
+    schema = AnySchema(spec={"invalid": set})
+    arrow_schema = schema.to_arrow()
+except NotImplementedError as e:
+    print(f"Error: {e}")
+    # Error: No parser in the pipeline could handle type: builtins.set
+```
 
-class Model(BaseModel):
-    timestamp: AwareDatetime  # Unsupported!
+For Union types with more than two members (excluding None), an error is raised:
 
+```python
+from anyschema import AnySchema
+from anyschema.exceptions import UnsupportedDTypeError
 
 try:
-    schema = AnySchema(spec=Model)
-except Exception as e:
+    # Union[int, str, float] is not supported
+    schema = AnySchema(spec={"field": int | str | float})
+except UnsupportedDTypeError as e:
     print(f"Error: {e}")
-    # Error: pydantic AwareDatetime does not specify a fixed timezone.
 ```
 
 ## Next Steps
 
-- Learn about [Architecture](architecture.md) to understand how anyschema works
-- Check out [Advanced Usage](advanced.md) for custom parsers and adapters
-- Browse the [API Reference](api-reference.md) for detailed documentation
+- **[Architecture](architecture.md)**: Understand how anyschema works internally with detailed explanations of the parser pipeline
+- **[Advanced Usage](advanced.md)**: Create custom parsers and adapters to extend anyschema for your needs
+- **[API Reference](api-reference.md)**: Complete API documentation with detailed docstrings

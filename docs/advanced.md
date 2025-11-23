@@ -1,763 +1,737 @@
 # Advanced Usage
 
-This guide covers advanced topics including creating custom type parsers and spec adapters to extend anyschema's functionality.
+This guide covers advanced topics including custom parser steps, custom spec adapters, and extending anyschema for your specific use cases.
 
-## Custom Type Parsers
+Before diving into advanced topics, make sure you understand the [Architecture](architecture.md) and have gone through the [Getting Started](getting-started.md) guide.
 
-Custom parsers allow you to handle types that aren't supported out of the box. This is useful for:
-- Third-party library types
-- Domain-specific types
-- Custom business logic for type mapping
+## Custom Parser Steps
+
+Creating custom parser steps allows you to add support for new type systems or handle special types in your own way. Parser steps implement the [ParserStep](api-reference.md#parserstep-base-class) interface described in the API reference.
 
 ### Basic Custom Parser
 
-Here's a simple custom parser that handles a custom type:
+Here's a simple custom parser for a hypothetical custom type:
 
 ```python
-from anyschema.parsers import TypeParser
-import narwhals as nw
 from typing import Any
 from narwhals.dtypes import DType
+import narwhals as nw
+from anyschema.parsers import ParserStep, ParserPipeline, PyTypeStep
 
 
-class PercentageType:
-    """Custom type representing a percentage."""
+class Color:
+    """A custom type representing a color."""
 
     pass
 
 
-class PercentageParser(TypeParser):
-    """Parser that converts PercentageType to Float64."""
+class ColorStep(ParserStep):
+    """Parser for Color types."""
 
     def parse(self, input_type: Any, metadata: tuple = ()) -> DType | None:
-        if input_type is PercentageType:
-            # Store percentages as float
-            return nw.Float64()
+        """Parse Color to String dtype.
 
-        # This parser doesn't handle this type
+        Arguments:
+            input_type: The type to parse.
+            metadata: Optional metadata associated with the type.
+
+        Returns:
+            String dtype for Color types, None otherwise.
+        """
+        if input_type is Color:
+            return nw.String()
         return None
 
 
-# Use the custom parser
-from anyschema.parsers import create_parser_chain, PyTypeParser
-from anyschema import AnySchema
+# Create a pipeline with the custom parser
+color_step = ColorStep()
+python_step = PyTypeStep()
+pipeline = ParserPipeline(steps=[color_step, python_step])
 
-parsers = [
-    PercentageParser(),
-    PyTypeParser(),
-]
+# Wire up pipeline references
+color_step.pipeline = pipeline
+python_step.pipeline = pipeline
 
-chain = create_parser_chain(parsers)
-
-# Test the parser
-spec = {
-    "name": str,
-    "score": PercentageType,
-}
-
-schema = AnySchema(spec=spec, parsers=parsers)
-print(schema.to_arrow())
-# name: string
-# score: double
+# Test it
+result = pipeline.parse(Color)
+print(result)  # String
 ```
 
-### Parser with Nested Types
+### Custom Parser with Nested Types
 
-For parsers that handle container types, you need to recursively call the parser chain:
+This example shows how to handle a custom generic type. Note how we use `self.pipeline.parse()` for recursion, as explained in the [Architecture](architecture.md#recursion-and-nested-types) page:
 
 ```python
 from typing import Any, get_args, get_origin
-import narwhals as nw
 from narwhals.dtypes import DType
-from anyschema.parsers import TypeParser
+import narwhals as nw
+from anyschema.parsers import ParserStep
 
 
-class SpecialList:
-    """Custom list type that we want to handle specially."""
+class MyList:
+    """A custom list-like type."""
 
     pass
 
 
-class SpecialListParser(TypeParser):
-    """Parser that handles SpecialList[T] types."""
+class MyListStep(ParserStep):
+    """Parser for MyList[T] generic types."""
 
     def parse(self, input_type: Any, metadata: tuple = ()) -> DType | None:
+        """Parse MyList[T] to List dtype.
+
+        This parser handles custom generic types by recursively parsing
+        the inner type through the pipeline.
+        """
         origin = get_origin(input_type)
 
-        # Check if this is SpecialList[T]
-        if origin is SpecialList:
+        if origin is MyList:
+            # Get the inner type (e.g., T in MyList[T])
             args = get_args(input_type)
             if args:
+                inner_type = args[0]
                 # Recursively parse the inner type
-                inner_dtype = self.parser_chain.parse(args[0], metadata, strict=True)
-                # For this example, just return a regular List
+                inner_dtype = self.pipeline.parse(inner_type, metadata=metadata)
                 return nw.List(inner_dtype)
+            else:
+                # MyList without type parameter
+                return nw.List(nw.Object())
 
         return None
-
-
-# Example usage
-from anyschema.parsers import create_parser_chain, PyTypeParser
-
-parsers = [
-    SpecialListParser(),
-    PyTypeParser(),
-]
-
-chain = create_parser_chain(parsers)
-
-# Note: Using SpecialList[int] would require proper __class_getitem__ implementation
-# This is just to demonstrate the concept
 ```
 
-### Parser with Metadata Handling
+### Custom Parser with Metadata Handling
 
-You can create parsers that respond to custom metadata:
+This example shows how to use metadata to refine type parsing. For more on metadata flow, see the [Architecture](architecture.md#metadata-preservation) section:
 
 ```python
-from dataclasses import dataclass
-from typing import Any
-import narwhals as nw
+from typing import Any, Annotated
 from narwhals.dtypes import DType
-from anyschema.parsers import TypeParser
+import narwhals as nw
+from anyschema.parsers import ParserStep
 
 
-@dataclass
-class Precision:
-    """Custom metadata to specify float precision."""
+class SmallInt:
+    """Marker for small integers."""
 
-    decimals: int
+    pass
 
 
-class PrecisionAwareParser(TypeParser):
-    """Parser that handles float types with precision metadata."""
+class BigInt:
+    """Marker for big integers."""
+
+    pass
+
+
+class CustomConstraintStep(ParserStep):
+    """Parser that uses metadata to choose integer size."""
 
     def parse(self, input_type: Any, metadata: tuple = ()) -> DType | None:
-        if input_type is float:
-            # Check for Precision metadata
+        """Parse integers with size constraints.
+
+        Uses metadata to determine whether to use Int32 or Int64.
+        """
+        if input_type is int and metadata:
             for item in metadata:
-                if isinstance(item, Precision):
-                    if item.decimals <= 7:  # Single precision
-                        return nw.Float32()
-                    else:  # Double precision
-                        return nw.Float64()
-
-            # Default float handling
-            return nw.Float64()
+                if item is SmallInt:
+                    return nw.Int32()
+                elif item is BigInt:
+                    return nw.Int64()
 
         return None
 
 
-# Usage with Annotated types
-from typing import Annotated
-from anyschema import AnySchema
-from anyschema.parsers import create_parser_chain, PyTypeParser
-
-spec = {
-    "low_precision": Annotated[float, Precision(decimals=4)],
-    "high_precision": Annotated[float, Precision(decimals=10)],
-    "regular": float,
-}
-
-parsers = [PrecisionAwareParser(), PyTypeParser()]
-schema = AnySchema(spec=spec, parsers=parsers)
-
-pl_schema = schema.to_polars()
-print(pl_schema)
-# Schema([
-#     ('low_precision', Float32),
-#     ('high_precision', Float64),
-#     ('regular', Float64)
-# ])
+# Usage with typing.Annotated
+SmallInteger = Annotated[int, SmallInt]
+BigInteger = Annotated[int, BigInt]
 ```
 
-### Parser for Third-Party Types
+### Custom Parser for Third-Party Types
 
-Here's an example of handling types from a third-party library:
+Integrate third-party libraries with anyschema:
 
 ```python
-import narwhals as nw
-from narwhals.dtypes import DType
-from anyschema.parsers import TypeParser
 from typing import Any
+from narwhals.dtypes import DType
+import narwhals as nw
+from anyschema.parsers import ParserStep
 
 
-# Imagine these are from a third-party library
-class IPv4Address:
-    pass
-
-
-class IPv6Address:
-    pass
-
-
-class EmailAddress:
-    pass
-
-
-class NetworkTypesParser(TypeParser):
-    """Parser for network-related custom types."""
+class PandasCategoricalStep(ParserStep):
+    """Parser for pandas Categorical types."""
 
     def parse(self, input_type: Any, metadata: tuple = ()) -> DType | None:
-        # Map all to String for storage
-        if input_type in {IPv4Address, IPv6Address, EmailAddress}:
-            return nw.String()
+        """Parse pd.CategoricalDtype to Categorical dtype.
+
+        This allows using pandas types in your schemas.
+        """
+        try:
+            import pandas as pd
+
+            if isinstance(input_type, type) and issubclass(
+                input_type, pd.CategoricalDtype
+            ):
+                # Note: Narwhals Categorical dtype doesn't take categories
+                return nw.Categorical()
+        except ImportError:
+            pass
 
         return None
-
-
-# Usage
-from anyschema import AnySchema
-from anyschema.parsers import create_parser_chain, PyTypeParser
-
-parsers = [
-    NetworkTypesParser(),
-    PyTypeParser(),
-]
-
-spec = {
-    "id": int,
-    "email": EmailAddress,
-    "ipv4": IPv4Address,
-    "ipv6": IPv6Address,
-}
-
-schema = AnySchema(spec=spec, parsers=parsers)
-print(schema.to_arrow())
-# id: int64
-# email: string
-# ipv4: string
-# ipv6: string
 ```
 
 ### Combining Multiple Custom Parsers
 
-You can compose multiple custom parsers for different purposes:
+Here's how to combine multiple custom parsers:
 
 ```python
+from anyschema import AnySchema
 from anyschema.parsers import (
-    create_parser_chain,
-    ForwardRefParser,
-    UnionTypeParser,
-    AnnotatedParser,
-    PyTypeParser,
+    ParserPipeline,
+    ForwardRefStep,
+    UnionTypeStep,
+    AnnotatedStep,
+    PyTypeStep,
 )
 
-# Create a custom parser chain
-parsers = [
-    ForwardRefParser(),  # Resolve forward references
-    UnionTypeParser(),  # Handle Optional/Union
-    AnnotatedParser(),  # Extract Annotated types
-    NetworkTypesParser(),  # Your custom network types
-    PercentageParser(),  # Your custom percentage type
-    PrecisionAwareParser(),  # Your custom precision handling
-    PyTypeParser(),  # Fallback to standard types
-]
 
-chain = create_parser_chain(parsers)
+# Create all parsers
+forward_ref_step = ForwardRefStep()
+union_step = UnionTypeStep()
+annotated_step = AnnotatedStep()
+color_step = ColorStep()
+my_list_step = MyListStep()
+python_step = PyTypeStep()
 
-# Now use with AnySchema
-from anyschema import AnySchema
+# Create pipeline with custom parsers
+custom_pipeline = ParserPipeline(
+    steps=[
+        forward_ref_step,
+        union_step,
+        annotated_step,
+        color_step,  # Our custom parsers
+        my_list_step,  # before the fallback
+        python_step,  # Fallback
+    ]
+)
 
-spec = {
-    "email": EmailAddress | None,  # Union handling + custom type
-    "score": PercentageType,  # Custom type
-    "value": Annotated[float, Precision(decimals=4)],  # Metadata handling
-}
+# Wire up pipeline references
+for step in custom_pipeline.steps:
+    step.pipeline = custom_pipeline
 
-schema = AnySchema(spec=spec, parsers=parsers)
+# Use the custom pipeline
+schema = AnySchema(
+    spec={"color": Color, "items": MyList[int]},
+    steps=custom_pipeline.steps,
+)
 ```
 
 ## Custom Spec Adapters
 
-Custom adapters allow you to extract field information from any specification format.
+Custom adapters allow you to convert from any specification format to anyschema's internal format. Adapters follow the [Adapter](api-reference.md#adapter) signature described in the API reference.
 
 ### Basic Custom Adapter
 
-An adapter is simply a function that yields `(field_name, field_type, metadata)` tuples:
+Here's a simple adapter for a custom schema format:
 
 ```python
-from typing import Generator
+from typing import Iterator
+from anyschema import AnySchema
 
 
-class MyCustomModel:
-    """Custom model class from hypothetical library."""
+class SimpleSchema:
+    """A simple schema format."""
 
-    def __init__(self):
-        self._fields = {
-            "id": (int, {}),
-            "name": (str, {}),
-            "age": (int, {"min": 0, "max": 150}),
-        }
-
-    def get_fields(self):
-        return self._fields
+    def __init__(self, fields):
+        self.fields = fields
 
 
-def my_custom_adapter(
-    spec: MyCustomModel,
-) -> Generator[tuple[str, type, tuple], None, None]:
-    """Adapter for MyCustomModel."""
-    for field_name, (field_type, constraints) in spec.get_fields().items():
-        # Convert constraints dict to metadata tuple
-        metadata = tuple(constraints.items()) if constraints else ()
-        yield field_name, field_type, metadata
+def simple_schema_adapter(spec: SimpleSchema) -> Iterator[tuple[str, type, tuple]]:
+    """Adapter for SimpleSchema format.
+
+    Arguments:
+        spec: A SimpleSchema instance.
+
+    Yields:
+        Tuples of (field_name, field_type, metadata).
+    """
+    for field in spec.fields:
+        yield field["name"], field["type"], ()
 
 
 # Usage
-from anyschema import AnySchema
+schema_spec = SimpleSchema(
+    fields=[
+        {"name": "id", "type": int},
+        {"name": "name", "type": str},
+    ]
+)
 
-my_model = MyCustomModel()
-schema = AnySchema(spec=my_model, adapter=my_custom_adapter)
-
+schema = AnySchema(spec=schema_spec, adapter=simple_schema_adapter)
 print(schema.to_arrow())
-# id: int64
-# name: string
-# age: int64
 ```
 
 ### Adapter with Metadata Conversion
 
-Convert custom metadata formats to `annotated_types` constraints:
+This example shows how to convert schema metadata to anyschema metadata:
 
 ```python
-from typing import Generator
-from annotated_types import Ge, Le
+from typing import Iterator, Annotated
+from anyschema import AnySchema
+
+
+class FieldWithConstraints:
+    """A field with type and constraints."""
+
+    def __init__(self, name: str, type_: type, min_val=None, max_val=None):
+        self.name = name
+        self.type = type_
+        self.min_val = min_val
+        self.max_val = max_val
 
 
 class SchemaWithConstraints:
-    """Custom schema format with constraints."""
+    """A schema format that includes constraints."""
 
-    fields = [
-        {"name": "id", "type": int},
-        {"name": "age", "type": int, "min": 0, "max": 150},
-        {"name": "score", "type": float, "min": 0.0, "max": 100.0},
-    ]
+    def __init__(self, fields):
+        self.fields = fields
 
 
-def constraints_adapter(
+def constrained_adapter(
     spec: SchemaWithConstraints,
-) -> Generator[tuple[str, type, tuple], None, None]:
-    """Adapter that converts min/max constraints to annotated_types."""
+) -> Iterator[tuple[str, type, tuple]]:
+    """Adapter that converts constraints to metadata.
+
+    Arguments:
+        spec: A SchemaWithConstraints instance.
+
+    Yields:
+        Tuples of (field_name, field_type, metadata).
+    """
     for field in spec.fields:
-        field_name = field["name"]
-        field_type = field["type"]
-
-        # Build metadata from constraints
         metadata = []
-        if "min" in field:
-            metadata.append(Ge(field["min"]))
-        if "max" in field:
-            metadata.append(Le(field["max"]))
 
-        yield field_name, field_type, tuple(metadata)
+        if field.min_val is not None:
+            metadata.append(("min", field.min_val))
+        if field.max_val is not None:
+            metadata.append(("max", field.max_val))
+
+        yield field.name, field.type, tuple(metadata)
 
 
 # Usage
-from anyschema import AnySchema
-from anyschema.parsers import create_parser_chain
+schema_spec = SchemaWithConstraints(
+    fields=[
+        FieldWithConstraints("age", int, min_val=0, max_val=120),
+        FieldWithConstraints("name", str),
+    ]
+)
 
-schema_spec = SchemaWithConstraints()
-parsers = create_parser_chain("auto", spec_type="python")
-schema = AnySchema(spec=schema_spec, adapter=constraints_adapter, parsers=parsers)
-
-pl_schema = schema.to_polars()
-print(pl_schema)
-# Schema([
-#     ('id', Int64),
-#     ('age', UInt8),      # Optimized based on constraints!
-#     ('score', Float64)
-# ])
+schema = AnySchema(spec=schema_spec, adapter=constrained_adapter)
 ```
 
 ### Adapter for Nested Structures
 
-Handle nested or complex structures:
+Handle nested schemas with a recursive adapter:
 
 ```python
-from typing import Generator, Any
+from typing import Iterator, Any
+from anyschema import AnySchema
 
 
 class NestedSchema:
-    """Schema format with nested structures."""
+    """A schema that can contain nested schemas."""
 
-    def __init__(self):
-        self.fields = {
-            "user": {
-                "type": "struct",
-                "fields": {
-                    "name": str,
-                    "age": int,
-                },
-            },
-            "scores": {
-                "type": "list",
-                "element_type": float,
-            },
-            "active": bool,
-        }
+    def __init__(self, fields):
+        self.fields = fields
 
 
-def nested_adapter(
-    spec: NestedSchema,
-) -> Generator[tuple[str, type, tuple], None, None]:
-    """Adapter that handles nested structures."""
+def nested_adapter(spec: NestedSchema) -> Iterator[tuple[str, type, tuple]]:
+    """Adapter for nested schema structures.
 
-    def resolve_type(field_def: Any) -> type:
-        """Resolve nested type definitions."""
-        if isinstance(field_def, dict):
-            if field_def.get("type") == "struct":
-                # For structs, we'd need to create a nested model
-                # For simplicity, just return dict
-                return dict
-            elif field_def.get("type") == "list":
-                element_type = field_def.get("element_type")
-                return list[element_type]
-            else:
-                return object
+    Arguments:
+        spec: A NestedSchema instance.
+
+    Yields:
+        Tuples of (field_name, field_type, metadata).
+    """
+    for field_name, field_value in spec.fields.items():
+        if isinstance(field_value, NestedSchema):
+            # For nested schemas, convert them to dict representation
+            # that anyschema can handle
+            nested_dict = {
+                name: type_ for name, type_, _ in nested_adapter(field_value)
+            }
+            yield field_name, dict, ()  # Or handle as struct
         else:
-            return field_def
-
-    for field_name, field_def in spec.fields.items():
-        field_type = resolve_type(field_def)
-        yield field_name, field_type, ()
-
-
-# Usage
-from anyschema import AnySchema
-
-nested_spec = NestedSchema()
-schema = AnySchema(spec=nested_spec, adapter=nested_adapter)
-
-print(schema.to_arrow())
-# user: map
-# scores: list<item: double>
-# active: bool
+            yield field_name, field_value, ()
 ```
 
-### Adapter for DataClass-like Structures
+### Adapter for Dataclass-like Structures
 
-Here's an adapter for Python dataclasses (as an alternative approach):
+Convert from dataclass-like structures:
 
 ```python
-from dataclasses import dataclass, fields
-from typing import Generator, Any
+from typing import Iterator
+from dataclasses import dataclass, fields as dc_fields
+from anyschema import AnySchema
 
 
 @dataclass
-class Product:
+class DataclassSpec:
+    """A dataclass used as a schema specification."""
+
     id: int
     name: str
-    price: float
-    in_stock: bool
+    active: bool
 
 
-def dataclass_adapter(spec: type) -> Generator[tuple[str, type, tuple], None, None]:
-    """Adapter for Python dataclasses."""
-    if not hasattr(spec, "__dataclass_fields__"):
-        raise ValueError(f"{spec} is not a dataclass")
+def dataclass_adapter(spec: type) -> Iterator[tuple[str, type, tuple]]:
+    """Adapter for dataclass specifications.
 
-    for field in fields(spec):
-        field_name = field.name
-        field_type = field.type
-        # Could extract metadata from field.metadata if present
-        metadata = tuple(field.metadata.values()) if field.metadata else ()
+    Arguments:
+        spec: A dataclass class.
 
-        yield field_name, field_type, metadata
+    Yields:
+        Tuples of (field_name, field_type, metadata).
+    """
+    for field in dc_fields(spec):
+        yield field.name, field.type, ()
 
 
 # Usage
-from anyschema import AnySchema
-
-schema = AnySchema(spec=Product, adapter=dataclass_adapter)
+schema = AnySchema(spec=DataclassSpec, adapter=dataclass_adapter)
 print(schema.to_arrow())
-# id: int64
-# name: string
-# price: double
-# in_stock: bool
 ```
 
 ## Complete Custom Example
 
-Here's a complete example combining custom parsers and adapters:
+Here's a complete example combining custom parsers, adapters, and business logic:
 
 ```python
-from typing import Any, Generator
-from dataclasses import dataclass
-import narwhals as nw
+from typing import Any, Iterator
 from narwhals.dtypes import DType
-from anyschema.parsers import TypeParser, create_parser_chain, PyTypeParser
+import narwhals as nw
 from anyschema import AnySchema
+from anyschema.parsers import (
+    ParserStep,
+    ParserPipeline,
+    ForwardRefStep,
+    UnionTypeStep,
+    AnnotatedStep,
+    PyTypeStep,
+)
 
 
-# 1. Define custom types
-class CurrencyType:
-    """Represents a monetary value."""
+# 1. Define custom business types
+class Email:
+    """Email address type."""
 
     pass
 
 
-class PhoneNumberType:
-    """Represents a phone number."""
+class PhoneNumber:
+    """Phone number type."""
 
     pass
 
 
-# 2. Create custom parser
-class BusinessTypesParser(TypeParser):
-    """Parser for business domain types."""
+class Currency:
+    """Monetary value type."""
+
+    pass
+
+
+# 2. Create custom parser for business types
+class BusinessTypeStep(ParserStep):
+    """Parser for custom business types."""
 
     def parse(self, input_type: Any, metadata: tuple = ()) -> DType | None:
-        if input_type is CurrencyType:
-            # Store currency as Decimal for precision
-            return nw.Decimal()
-
-        if input_type is PhoneNumberType:
-            # Store phone numbers as strings
+        if input_type is Email:
             return nw.String()
-
+        elif input_type is PhoneNumber:
+            return nw.String()
+        elif input_type is Currency:
+            return nw.Decimal()
         return None
 
 
-# 3. Create custom spec format
-@dataclass
-class BusinessField:
-    name: str
-    type: type
-    required: bool = True
-
-
+# 3. Define custom schema format
 class BusinessSchema:
     """Custom schema format for business applications."""
 
-    def __init__(self, name: str, fields: list[BusinessField]):
-        self.name = name
+    def __init__(self, entity_name: str, fields: list[dict]):
+        self.entity_name = entity_name
         self.fields = fields
 
 
-# 4. Create custom adapter
-def business_adapter(
-    spec: BusinessSchema,
-) -> Generator[tuple[str, type, tuple], None, None]:
+# 4. Create adapter for the custom format
+def business_schema_adapter(spec: BusinessSchema) -> Iterator[tuple[str, type, tuple]]:
     """Adapter for BusinessSchema format."""
     for field in spec.fields:
-        # Could use field.required to determine nullability in the future
-        yield field.name, field.type, ()
+        field_name = field["name"]
+        field_type = field["type"]
+        required = field.get("required", True)
+
+        # Convert required=False to Optional
+        if not required:
+            field_type = field_type | None
+
+        yield field_name, field_type, ()
 
 
-# 5. Use everything together
-# Define a business schema
-product_schema = BusinessSchema(
-    name="Product",
+# 5. Create pipeline with custom parser
+forward_ref_step = ForwardRefStep()
+union_step = UnionTypeStep()
+annotated_step = AnnotatedStep()
+business_step = BusinessTypeStep()
+python_step = PyTypeStep()
+
+pipeline = ParserPipeline(
+    steps=[
+        forward_ref_step,
+        union_step,
+        annotated_step,
+        business_step,
+        python_step,
+    ]
+)
+
+# Wire up references
+for step in pipeline.steps:
+    step.pipeline = pipeline
+
+
+# 6. Use everything together
+customer_schema = BusinessSchema(
+    entity_name="Customer",
     fields=[
-        BusinessField("id", int),
-        BusinessField("name", str),
-        BusinessField("price", CurrencyType),
-        BusinessField("phone", PhoneNumberType),
-        BusinessField("in_stock", bool),
+        {"name": "id", "type": int, "required": True},
+        {"name": "name", "type": str, "required": True},
+        {"name": "email", "type": Email, "required": True},
+        {"name": "phone", "type": PhoneNumber, "required": False},
+        {"name": "balance", "type": Currency, "required": True},
     ],
 )
 
-# Create custom parser chain
-parsers = [
-    BusinessTypesParser(),
-    PyTypeParser(),
-]
-
-# Create AnySchema with custom adapter and parsers
 schema = AnySchema(
-    spec=product_schema,
-    adapter=business_adapter,
-    parsers=parsers,
+    spec=customer_schema,
+    steps=pipeline.steps,
+    adapter=business_schema_adapter,
 )
 
-# Convert to different formats
 print("PyArrow Schema:")
 print(schema.to_arrow())
-# id: int64
-# name: string
-# price: decimal128(38, 9)
-# phone: string
-# in_stock: bool
 
 print("\nPolars Schema:")
 print(schema.to_polars())
-# Schema([('id', Int64), ('name', String), ('price', Decimal), ('phone', String), ('in_stock', Boolean)])
 ```
 
 ## Best Practices
 
 ### For Custom Parsers
 
-1. **Return None Early**: If you don't handle a type, return `None` immediately
-   ```python
-   def parse(self, input_type, metadata=()):
-       if input_type is not MyType:
-           return None
-       # ... handle MyType
-   ```
+1. **Return None when you can't handle a type**: Let other parsers in the chain try
+2. **Use `self.pipeline.parse()` for recursion**: Handle nested types by delegating to the pipeline
+3. **Preserve metadata**: Pass metadata through when recursively parsing
+4. **Order matters**: Place specialized parsers before general ones
+5. **Handle errors gracefully**: Return None instead of raising exceptions when possible
+6. **Document what types you handle**: Make it clear in docstrings
 
-2. **Use Strict Mode for Recursion**: Always use `strict=True` when calling the chain recursively
-   ```python
-   inner_dtype = self.parser_chain.parse(inner_type, metadata, strict=True)
-   ```
+```python
+class GoodParserStep(ParserStep):
+    """Parser for CustomType.
 
-3. **Preserve Metadata**: If unwrapping a type, pass metadata through
-   ```python
-   return self.parser_chain.parse(unwrapped_type, metadata, strict=True)
-   ```
+    Handles:
+    - CustomType: converts to String
+    - CustomList[T]: converts to List(T)
+    """
 
-4. **Handle Edge Cases**: Consider empty metadata, invalid types, etc.
+    def parse(self, input_type: Any, metadata: tuple = ()) -> DType | None:
+        # Check if we can handle this type
+        if input_type is CustomType:
+            return nw.String()
 
-5. **Document Behavior**: Clearly document what types your parser handles in the docstring
+        # Handle generic version
+        if get_origin(input_type) is CustomList:
+            inner = get_args(input_type)[0]
+            # Delegate to pipeline for recursion
+            inner_dtype = self.pipeline.parse(inner, metadata=metadata)
+            return nw.List(inner_dtype)
+
+        # Return None if we can't handle it
+        return None
+```
 
 ### For Custom Adapters
 
-1. **Validate Input**: Check that the spec is the expected type
-   ```python
-   def my_adapter(spec):
-       if not isinstance(spec, MySpecType):
-           raise TypeError(f"Expected MySpecType, got {type(spec)}")
-       # ...
-   ```
+1. **Use generators**: Yield instead of returning a list for memory efficiency
+2. **Preserve field order**: Use OrderedDict if needed
+3. **Handle nested structures**: Recursively convert nested schemas
+4. **Validate input**: Check that the spec is the expected format
+5. **Convert metadata consistently**: Have a clear mapping from your format to anyschema metadata
+6. **Document the expected input format**: Make it clear what spec format you accept
 
-2. **Preserve Order**: Use OrderedDict or maintain field order
-   ```python
-   from collections import OrderedDict
+```python
+def good_adapter(spec: MySchemaType) -> Iterator[tuple[str, type, tuple]]:
+    """Adapter for MySchemaType.
 
-   fields = OrderedDict(spec.fields)
-   ```
+    Arguments:
+        spec: A MySchemaType instance with fields attribute.
 
-3. **Convert Metadata**: Convert custom constraint formats to standard ones
-   ```python
-   from annotated_types import Ge, Le
+    Yields:
+        Tuples of (field_name, field_type, metadata).
 
-   if "min" in constraints:
-       metadata.append(Ge(constraints["min"]))
-   ```
+    Raises:
+        TypeError: If spec is not a MySchemaType instance.
+    """
+    if not isinstance(spec, MySchemaType):
+        raise TypeError(f"Expected MySchemaType, got {type(spec)}")
 
-4. **Handle Missing Data**: Provide sensible defaults
-   ```python
-   field_type = field.get("type", object)
-   metadata = field.get("constraints", ())
-   ```
+    for field in spec.fields:
+        # Convert your metadata format to anyschema format
+        metadata = tuple(field.get("constraints", []))
+        yield field.name, field.type, metadata
+```
 
 ## Testing Custom Components
 
 ### Testing Custom Parsers
 
 ```python
-import narwhals as nw
-from anyschema.parsers import ParserChain
+import pytest
+from anyschema.parsers import ParserPipeline, PyTypeStep
 
 
-def test_custom_parser():
-    parser = MyCustomParser()
-    chain = ParserChain([parser])
-    parser.parser_chain = chain
+def test_color_step():
+    """Test that ColorStep handles Color types."""
+    color_step = ColorStep()
+    python_step = PyTypeStep()
+    pipeline = ParserPipeline([color_step, python_step])
 
-    # Test successful parsing
-    result = parser.parse(MyCustomType)
+    color_step.pipeline = pipeline
+    python_step.pipeline = pipeline
+
+    # Test that it handles Color
+    result = color_step.parse(Color)
     assert result == nw.String()
 
-    # Test unsupported type
-    result = parser.parse(UnsupportedType)
+    # Test that it ignores other types
+    result = color_step.parse(int)
     assert result is None
-
-
-def test_custom_parser_with_metadata():
-    parser = MyCustomParser()
-    chain = ParserChain([parser])
-    parser.parser_chain = chain
-
-    result = parser.parse(MyCustomType, metadata=(MyConstraint(),))
-    assert isinstance(result, nw.DType)
 ```
 
 ### Testing Custom Adapters
 
 ```python
-def test_custom_adapter():
-    spec = MyCustomModel()
+def test_simple_schema_adapter():
+    """Test that simple_schema_adapter works correctly."""
+    spec = SimpleSchema(
+        fields=[
+            {"name": "id", "type": int},
+            {"name": "name", "type": str},
+        ]
+    )
 
-    results = list(my_custom_adapter(spec))
+    result = list(simple_schema_adapter(spec))
 
-    assert len(results) == 3
-    assert results[0] == ("field1", str, ())
-    assert results[1] == ("field2", int, ())
+    assert len(result) == 2
+    assert result[0] == ("id", int, ())
+    assert result[1] == ("name", str, ())
+```
 
+### Integration Testing
 
-def test_adapter_with_anyschema():
-    from anyschema import AnySchema
+```python
+def test_custom_components_integration():
+    """Test custom parser and adapter together."""
+    # Create schema with custom components
+    schema_spec = SimpleSchema(
+        fields=[
+            {"name": "color", "type": Color},
+            {"name": "name", "type": str},
+        ]
+    )
 
-    spec = MyCustomModel()
-    schema = AnySchema(spec=spec, adapter=my_custom_adapter)
+    schema = AnySchema(
+        spec=schema_spec,
+        steps=[ColorStep(), PyTypeStep()],
+        adapter=simple_schema_adapter,
+    )
 
-    pa_schema = schema.to_arrow()
-    assert len(pa_schema) == 3
-    assert pa_schema.field("field1").type == pa.string()
+    # Verify the conversion works
+    arrow_schema = schema.to_arrow()
+    assert "color" in arrow_schema.names
+    assert "name" in arrow_schema.names
 ```
 
 ## Real-World Example: JSON Schema Adapter
 
-Here's a practical example of an adapter for JSON Schema:
+Here's a practical example of adapting from JSON Schema:
 
 ```python
-from typing import Generator, Any
+from typing import Iterator, Any
+from anyschema import AnySchema
 
 
-def json_schema_adapter(spec: dict) -> Generator[tuple[str, type, tuple], None, None]:
-    """Adapter for JSON Schema format."""
+def json_schema_adapter(spec: dict) -> Iterator[tuple[str, type, tuple]]:
+    """Adapter for JSON Schema format.
 
-    # Mapping from JSON Schema types to Python types
-    TYPE_MAP = {
+    Arguments:
+        spec: A JSON Schema dict with "type": "object" and "properties".
+
+    Yields:
+        Tuples of (field_name, field_type, metadata).
+    """
+    if spec.get("type") != "object":
+        raise ValueError("Only object types supported")
+
+    properties = spec.get("properties", {})
+    required = set(spec.get("required", []))
+
+    type_mapping = {
         "string": str,
-        "number": float,
         "integer": int,
+        "number": float,
         "boolean": bool,
         "array": list,
         "object": dict,
     }
 
-    if spec.get("type") != "object":
-        raise ValueError("Only object-type JSON schemas are supported")
+    for field_name, field_spec in properties.items():
+        json_type = field_spec.get("type")
+        python_type = type_mapping.get(json_type, object)
 
-    properties = spec.get("properties", {})
-
-    for field_name, field_schema in properties.items():
-        json_type = field_schema.get("type", "string")
-        python_type = TYPE_MAP.get(json_type, object)
+        # Handle optional fields
+        if field_name not in required:
+            python_type = python_type | None
 
         # Handle array types
-        if json_type == "array" and "items" in field_schema:
-            item_type = field_schema["items"].get("type", "string")
-            item_python_type = TYPE_MAP.get(item_type, object)
-            python_type = list[item_python_type]
+        if json_type == "array" and "items" in field_spec:
+            item_type = type_mapping.get(field_spec["items"].get("type"), object)
+            python_type = list[item_type]
 
         yield field_name, python_type, ()
 
 
 # Usage
-from anyschema import AnySchema
-
 json_schema = {
     "type": "object",
     "properties": {
+        "id": {"type": "integer"},
         "name": {"type": "string"},
-        "age": {"type": "integer"},
-        "scores": {"type": "array", "items": {"type": "number"}},
+        "tags": {"type": "array", "items": {"type": "string"}},
+        "email": {"type": "string"},
     },
+    "required": ["id", "name"],
 }
 
 schema = AnySchema(spec=json_schema, adapter=json_schema_adapter)
 print(schema.to_arrow())
-# name: string
-# age: int64
-# scores: list<item: double>
 ```
 
 ## Next Steps
 
-- See [Architecture](architecture.md) to understand how the parsers and adapters fit together
-- Browse the [API Reference](api-reference.md) for detailed API documentation
-- Check out the examples in the repository for more inspiration
+- **[API Reference](api-reference.md)**: Complete API documentation with detailed docstrings
+- **[Architecture](architecture.md)**: Deep dive into the internal design and parser pipeline
+- **[Getting Started](getting-started.md)**: Review basic usage examples
+- **Repository Tests**: Look at the test files in the [GitHub repository](https://github.com/FBruzzesi/anyschema) for more examples

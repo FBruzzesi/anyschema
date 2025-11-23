@@ -24,43 +24,52 @@ if TYPE_CHECKING:
 class AnySchema:
     """A utility class for converting from a (schema) specification to a native dataframe schema object.
 
-    The `AnySchema` class bridges the gap between Narwhals' Schemas and Pydantic Models, and popular dataframe libraries
-    such as `pandas`, `polars` and `pyarrow`, by enabling converting from the former to latter native schemas.
+    The `AnySchema` class bridges the gap between type specifications (like Pydantic Models) and popular
+    dataframe libraries such as `pandas`, `polars` and `pyarrow`, by converting type annotations to
+    native schema objects through Narwhals as an intermediate representation.
 
-    This class takes a Pydantic `BaseModel` or its subclass as input and provides methods to generate
-    equivalent dataframe schemas.
+    This class provides a unified interface for generating dataframe schemas from various input formats,
+    with extensible type parsing through a modular pipeline architecture.
 
     Arguments:
-        spec: The input model. This can be:
+        spec: The input specification. This can be:
 
-            - a [Narwhals Schema](https://narwhals-dev.github.io/narwhals/api-reference/schema/#narwhals.schema.Schema).
-                In this case parsing data types is a no-op.
-            - a python [mapping](https://docs.python.org/3/glossary.html#term-mapping) or [sequence](https://docs.python.org/3/glossary.html#term-sequence)
-                of tuples containing the field name and type.
-            - a [Pydantic Model](https://docs.pydantic.dev/latest/concepts/models/) class or an instance of such
-                In this case the fields are parsed using the Pydantic model's schema.
+            - A [Narwhals Schema](https://narwhals-dev.github.io/narwhals/api-reference/schema/#narwhals.schema.Schema).
+                In this case parsing data types is a no-op and the schema is used directly.
+            - A python [mapping](https://docs.python.org/3/glossary.html#term-mapping) (like `dict`) or
+                [sequence](https://docs.python.org/3/glossary.html#term-sequence) of tuples containing
+                the field name and type (e.g., `{"name": str, "age": int}` or `[("name", str), ("age", int)]`).
+            - A [Pydantic Model](https://docs.pydantic.dev/latest/concepts/models/) class (not an instance).
+                The fields are extracted using Pydantic's schema introspection.
 
         steps: Control how types are parsed into Narwhals dtypes. Options:
 
-            - `"auto"` (default): Automatically select the appropriate parser steps based on the model type to use in
-                the `ParserPipeline`
-            - A sequence of steps to use in the pipeline. Remark that order matters!
+            - `"auto"` (default): Automatically select the appropriate parser steps based on the spec type.
+                For Pydantic models, includes all available parsers (ForwardRef, Union, Annotated, AnnotatedTypes,
+                Pydantic, and Python type parsers). For plain Python types, uses a minimal set.
+            - A sequence of `ParserStep` instances to use in the pipeline. **Order matters!** More specific
+                parsers should come before general ones.
 
-            This allows for custom type parsing logic and extensibility from user-defined steps.
+            This allows for custom type parsing logic and extensibility through user-defined parser steps.
 
         adapter: A custom adapter function that converts the spec into a sequence of field specifications.
-            This function should yield tuples of `(field_name, field_type, metadata)` for each field.
-            The metadata tuple is always empty `()` for this adapter.
+            The function should yield tuples of `(field_name, field_type, metadata)` for each field in the spec.
+
+            - `field_name` (str): The name of the field
+            - `field_type` (type): The type annotation of the field
+            - `metadata` (tuple): Metadata associated with the field (e.g., constraints from `Annotated`)
 
             This allows for custom field specification logic and extensibility from user-defined adapters.
+            If provided, it overrides the default adapter selection.
 
     Raises:
-        NotImplementedError:
-            If `spec` type is unknown and `adapter` is not specified.
+        ValueError: If `spec` type is unknown and `adapter` is not specified.
+        NotImplementedError: If a type in the spec cannot be parsed by any parser in the pipeline.
+        UnsupportedDTypeError: If a type is explicitly unsupported (e.g., Union with mixed types).
 
     Examples:
-        >>> from __future__ import annotations
-        >>>
+        Basic usage with a Pydantic model:
+
         >>> from anyschema import AnySchema
         >>> from pydantic import BaseModel, PositiveInt
         >>>
@@ -71,34 +80,41 @@ class AnySchema:
         >>>
         >>> schema = AnySchema(spec=Student)
 
-        We can now convert `schema` to a pyarrow schema via `to_arrow` method:
+        Convert to PyArrow schema:
 
         >>> pa_schema = schema.to_arrow()
-        >>> type(pa_schema)
-        <class 'pyarrow.lib.Schema'>
-
-        >>> pa_schema
+        >>> print(pa_schema)
         name: string
         age: uint64
         classes: list<item: string>
           child 0, item: string
 
-        Or we could convert it to a polars schema via `to_polars` method:
+        Convert to Polars schema:
 
         >>> pl_schema = schema.to_polars()
-        >>> type(pl_schema)
-        <class 'polars.schema.Schema'>
+        >>> print(pl_schema)
+        Schema([('name', String), ('age', UInt64), ('classes', List(String))])
 
-        >>> pl_schema
-        Schema({'name': String, 'age': UInt64, 'classes': List(String)})
+        Convert to Pandas schema:
 
-    Methods:
-        to_arrow():
-            Converts the underlying Pydantic model schema into a `pyarrow.Schema`.
-        to_pandas():
-            Converts the underlying Pydantic model schema into a `dict[str, str | pd.ArrowDtype]`.
-        to_polars():
-            Converts the underlying Pydantic model schema into a `polars.Schema`.
+        >>> pd_schema = schema.to_pandas()
+        >>> print(pd_schema)
+        {'name': ArrowDtype(string), 'age': ArrowDtype(uint64), 'classes': ArrowDtype(list<item: string>)}
+
+        Using a plain Python dict:
+
+        >>> schema = AnySchema(spec={"id": int, "name": str, "active": bool})
+        >>> print(schema.to_arrow())
+        id: int64
+        name: string
+        active: bool
+
+    See Also:
+        - [ParserStep][anyschema.parsers.ParserStep]: Base class for custom parser steps
+        - [ParserPipeline][anyschema.parsers.ParserPipeline]: Pipeline for chaining parser steps
+        - [make_pipeline][anyschema.parsers.make_pipeline]: Factory function for creating parser pipelines
+        - [pydantic_adapter][anyschema.adapters.pydantic_adapter]: Adapter for Pydantic models
+        - [into_ordered_dict_adapter][anyschema.adapters.into_ordered_dict_adapter]: Adapter for dicts and lists
     """
 
     _nw_schema: Schema

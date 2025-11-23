@@ -14,6 +14,7 @@ from anyschema.parsers import (
     ParserStep,
     PyTypeStep,
     UnionTypeStep,
+    _auto_pipeline,
     make_pipeline,
 )
 from anyschema.parsers.annotated_types import AnnotatedTypesStep
@@ -84,15 +85,14 @@ def test_make_pipeline_custom(steps: tuple[ParserStep, ...]) -> None:
 @pytest.mark.parametrize(
     ("pipeline1", "pipeline2"),
     [
-        (make_pipeline("auto", spec_type="pydantic"), make_pipeline("auto", spec_type="pydantic")),
-        (make_pipeline((PY_TYPE_STEP,)), make_pipeline((PY_TYPE_STEP,))),
+        (_auto_pipeline(spec_type="pydantic"), _auto_pipeline(spec_type="pydantic")),
     ],
 )
 def test_caching(pipeline1: ParserPipeline, pipeline2: ParserPipeline) -> None:
     # Due to lru_cache, should be the same object
     assert pipeline1 is pipeline2
 
-    pipeline3 = make_pipeline("auto", spec_type="python")
+    pipeline3 = _auto_pipeline(spec_type="python")
 
     # Different parameters should create different pipelines
     assert pipeline1 is not pipeline3
@@ -119,7 +119,7 @@ def test_caching(pipeline1: ParserPipeline, pipeline2: ParserPipeline) -> None:
         (list[Optional[int]], "pydantic", nw.List(nw.Int64())),
     ],
 )
-def test_non_nested_parsing(input_type: type, spec_type: str, expected: nw.dtypes.DType) -> None:
+def test_non_nested_parsing(input_type: type, spec_type: SpecType, expected: nw.dtypes.DType) -> None:
     pipeline = make_pipeline("auto", spec_type=spec_type)
     result = pipeline.parse(input_type)
     assert result == expected

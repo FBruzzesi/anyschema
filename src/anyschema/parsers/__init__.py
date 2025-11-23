@@ -26,13 +26,12 @@ __all__ = (
 )
 
 
-@lru_cache(maxsize=16)
 def make_pipeline(steps: IntoParserPipeline = "auto", *, spec_type: SpecType = None) -> ParserPipeline:
     """Create a parser pipeline with the specified steps.
 
     Arguments:
         steps: steps to use in the ParserPipeline. If "auto" then the sequence is automatically populated based on
-            the spec_type
+            the spec_type.
         spec_type: The type of model being parsed ("pydantic" or "python"). Only used when parsers="auto".
 
     Returns:
@@ -49,6 +48,7 @@ def make_pipeline(steps: IntoParserPipeline = "auto", *, spec_type: SpecType = N
     return pipeline
 
 
+@lru_cache(maxsize=16)
 def _auto_pipeline(spec_type: SpecType) -> Sequence[ParserStep]:
     """Create a parser chain with automatically selected parsers.
 

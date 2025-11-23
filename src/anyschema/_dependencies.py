@@ -32,5 +32,7 @@ def is_pydantic_base_model(obj: object) -> TypeGuard[type[BaseModel]]:
 
 def is_into_ordered_dict(obj: object) -> TypeGuard[IntoOrderedDict]:
     """Check if the object can be converted into a python OrderedDict."""
-    sequence_size = 2
-    return isinstance(obj, Mapping) or (isinstance(obj, Sequence) and all(len(s) == sequence_size for s in obj))
+    tpl_size = 2
+    return isinstance(obj, Mapping) or (
+        isinstance(obj, Sequence) and all(isinstance(s, tuple) and len(s) == tpl_size for s in obj)
+    )

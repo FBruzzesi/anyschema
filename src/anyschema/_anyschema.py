@@ -24,9 +24,8 @@ if TYPE_CHECKING:
 class AnySchema:
     """A utility class for converting from a (schema) specification to a native dataframe schema object.
 
-    The `AnySchema` class bridges the gap between type specifications (like Pydantic Models) and popular
-    dataframe libraries such as `pandas`, `polars` and `pyarrow`, by converting type annotations to
-    native schema objects through Narwhals as an intermediate representation.
+    The `AnySchema` class enables to convert from type specifications (such as Pydantic models) to native dataframe
+    schemas (such as `pandas`, `polars` and `pyarrow`).
 
     This class provides a unified interface for generating dataframe schemas from various input formats,
     with extensible type parsing through a modular pipeline architecture.
@@ -45,22 +44,20 @@ class AnySchema:
         steps: Control how types are parsed into Narwhals dtypes. Options:
 
             - `"auto"` (default): Automatically select the appropriate parser steps based on the spec type.
-                For Pydantic models, includes all available parsers (ForwardRef, Union, Annotated, AnnotatedTypes,
-                Pydantic, and Python type parsers). For plain Python types, uses a minimal set.
-            - A sequence of `ParserStep` instances to use in the pipeline. **Order matters!** More specific
-                parsers should come before general ones.
+            - A sequence of `ParserStep` instances to use in the pipeline.
+
+                **Warning**: Order matters! More specific parsers should come before general ones.
 
             This allows for custom type parsing logic and extensibility through user-defined parser steps.
 
-        adapter: A custom adapter function that converts the spec into a sequence of field specifications.
-            The function should yield tuples of `(field_name, field_type, metadata)` for each field in the spec.
+        adapter: A custom adapter callable that converts the spec into a sequence of field specifications.
+            The callable should yield tuples of `(field_name, field_type, metadata)` for each field in the spec.
 
             - `field_name` (str): The name of the field
             - `field_type` (type): The type annotation of the field
             - `metadata` (tuple): Metadata associated with the field (e.g., constraints from `Annotated`)
 
             This allows for custom field specification logic and extensibility from user-defined adapters.
-            If provided, it overrides the default adapter selection.
 
     Raises:
         ValueError: If `spec` type is unknown and `adapter` is not specified.

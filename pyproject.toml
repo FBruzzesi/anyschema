@@ -6,9 +6,10 @@ build-backend = "hatchling.build"
 [project]
 name = "anyschema"
 version = "0.0.1"
-description = "From pydantic to any frame schema"
+description = "From type specifications to any dataframe schema"
 readme = "README.md"
-authors = [{ name = "FBruzzesi"}]
+license = {file = "LICENSE.md"}
+authors = [{ name = "Francesco Bruzzesi"}]
 requires-python = ">=3.10"
 dependencies = [
     "narwhals>=2.0.0",
@@ -105,3 +106,9 @@ fail_under = 95
 omit = [
     "src/anyschema/typing.py",
 ]
+
+
+[tool.rumdl]
+line-length = 120
+include = ["docs/*.md", "README.md"]
+disable = ["MD052"]

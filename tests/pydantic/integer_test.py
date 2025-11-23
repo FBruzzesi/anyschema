@@ -5,7 +5,10 @@ import narwhals as nw
 from hypothesis import given
 from pydantic import BaseModel, NegativeInt, NonNegativeInt, NonPositiveInt, PositiveInt, conint
 
-from anyschema._pydantic import model_to_nw_schema
+from anyschema.parsers import create_parser_chain
+from tests.pydantic.utils import model_to_nw_schema
+
+parser_chain = create_parser_chain("auto", spec_type="pydantic")
 
 
 def test_parse_integer() -> None:
@@ -40,7 +43,7 @@ def test_parse_integer() -> None:
         negative_or_none: NegativeInt | None
         none_or_negative: None | NegativeInt
 
-    schema = model_to_nw_schema(IntegerModel)
+    schema = model_to_nw_schema(IntegerModel, parser_chain=parser_chain)
 
     expected = {
         "py_int": nw.Int64(),
@@ -75,7 +78,7 @@ def test_parse_to_int8(lb: int, ub: int) -> None:
         z: conint(gt=lb, le=ub) | None
         w: None | conint(ge=lb, le=ub)
 
-    schema = model_to_nw_schema(Int8Model)
+    schema = model_to_nw_schema(Int8Model, parser_chain=parser_chain)
 
     assert schema == {"x": nw.Int8(), "y": nw.Int8(), "z": nw.Int8(), "w": nw.Int8()}
 
@@ -88,7 +91,7 @@ def test_parse_to_int16(lb: int, ub: int) -> None:
         z: conint(gt=lb, le=ub) | None
         w: None | conint(ge=lb, le=ub)
 
-    schema = model_to_nw_schema(Int16Model)
+    schema = model_to_nw_schema(Int16Model, parser_chain=parser_chain)
 
     assert schema == {"x": nw.Int16(), "y": nw.Int16(), "z": nw.Int16(), "w": nw.Int16()}
 
@@ -101,7 +104,7 @@ def test_parse_to_int32(lb: int, ub: int) -> None:
         z: conint(gt=lb, le=ub) | None
         w: None | conint(ge=lb, le=ub)
 
-    schema = model_to_nw_schema(Int32Model)
+    schema = model_to_nw_schema(Int32Model, parser_chain=parser_chain)
 
     assert schema == {"x": nw.Int32(), "y": nw.Int32(), "z": nw.Int32(), "w": nw.Int32()}
 
@@ -114,7 +117,7 @@ def test_parse_to_int64(lb: int, ub: int) -> None:
         z: conint(gt=lb, le=ub) | None
         w: None | conint(ge=lb, le=ub)
 
-    schema = model_to_nw_schema(Int64Model)
+    schema = model_to_nw_schema(Int64Model, parser_chain=parser_chain)
 
     assert schema == {"x": nw.Int64(), "y": nw.Int64(), "z": nw.Int64(), "w": nw.Int64()}
 
@@ -127,7 +130,7 @@ def test_parse_to_uint8(ub: int) -> None:
         z: conint(gt=0, le=ub) | None
         w: None | conint(ge=0, le=ub)
 
-    schema = model_to_nw_schema(UInt8Model)
+    schema = model_to_nw_schema(UInt8Model, parser_chain=parser_chain)
 
     assert schema == {"x": nw.UInt8(), "y": nw.UInt8(), "z": nw.UInt8(), "w": nw.UInt8()}
 
@@ -140,7 +143,7 @@ def test_parse_to_uint16(ub: int) -> None:
         z: conint(gt=0, le=ub) | None
         w: None | conint(ge=0, le=ub)
 
-    schema = model_to_nw_schema(UInt16Model)
+    schema = model_to_nw_schema(UInt16Model, parser_chain=parser_chain)
 
     assert schema == {"x": nw.UInt16(), "y": nw.UInt16(), "z": nw.UInt16(), "w": nw.UInt16()}
 
@@ -153,7 +156,7 @@ def test_parse_to_uint32(ub: int) -> None:
         z: conint(gt=0, le=ub) | None
         w: None | conint(ge=0, le=ub)
 
-    schema = model_to_nw_schema(UInt32Model)
+    schema = model_to_nw_schema(UInt32Model, parser_chain=parser_chain)
 
     assert schema == {"x": nw.UInt32(), "y": nw.UInt32(), "z": nw.UInt32(), "w": nw.UInt32()}
 
@@ -166,7 +169,7 @@ def test_parse_to_uint64(ub: int) -> None:
         z: conint(gt=0, le=ub) | None
         w: None | conint(ge=0, le=ub)
 
-    schema = model_to_nw_schema(UInt64Model)
+    schema = model_to_nw_schema(UInt64Model, parser_chain=parser_chain)
 
     assert schema == {"x": nw.UInt64(), "y": nw.UInt64(), "z": nw.UInt64(), "w": nw.UInt64()}
 
@@ -176,6 +179,6 @@ def test_parse_to_int64_from_unbounded(value: int) -> None:
     class UnboundedModel(BaseModel):
         x: conint(lt=value)
 
-    schema = model_to_nw_schema(UnboundedModel)
+    schema = model_to_nw_schema(UnboundedModel, parser_chain=parser_chain)
 
     assert schema == {"x": nw.Int64()}

@@ -18,7 +18,7 @@ class Student(BaseModel):
     classes: list[str]
 
 
-schema = AnySchema(model=Student)
+schema = AnySchema(spec=Student)
 ```
 
 === "to arrow"

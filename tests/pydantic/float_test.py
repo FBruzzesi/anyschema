@@ -5,7 +5,10 @@ import narwhals as nw
 from hypothesis import assume, given
 from pydantic import BaseModel, FiniteFloat, NegativeFloat, NonNegativeFloat, NonPositiveFloat, PositiveFloat, confloat
 
-from anyschema._pydantic import model_to_nw_schema
+from anyschema.parsers import create_parser_chain
+from tests.pydantic.utils import model_to_nw_schema
+
+parser_chain = create_parser_chain("auto", spec_type="pydantic")
 
 
 @given(lb=st.floats(), ub=st.floats())
@@ -55,6 +58,6 @@ def test_parse_float(lb: float, ub: float) -> None:
         con_float_or_none: confloat(gt=lb, le=ub) | None
         non_or_con_float: None | confloat(ge=lb, le=ub)
 
-    schema = model_to_nw_schema(FloatModel)
+    schema = model_to_nw_schema(FloatModel, parser_chain=parser_chain)
 
     assert all(value == nw.Float64() for value in schema.values())

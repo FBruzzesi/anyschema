@@ -54,7 +54,7 @@ def test_pydantic_to_pandas(
     dtype_backend: DTypeBackend,
     expected: dict[str, str | pd.ArrowDtype | type],
 ) -> None:
-    anyschema = AnySchema(model=student_cls)
+    anyschema = AnySchema(spec=student_cls)
     pd_schema = anyschema.to_pandas(dtype_backend=dtype_backend)
     assert isinstance(pd_schema, dict)
     assert pd_schema == expected
@@ -162,7 +162,7 @@ def test_nw_schema_to_arrow(
 ) -> None:
     unsupported_dtypes = {"array", "enum", "uint128", "int128", "decimal", "object", "unknown"}
     model = nw.Schema({k: v for k, v in nw_schema.items() if k not in unsupported_dtypes})
-    anyschema = AnySchema(model=model)
+    anyschema = AnySchema(spec=model)
     pd_schema = anyschema.to_pandas(dtype_backend=dtype_backend)
 
     assert isinstance(pd_schema, dict)

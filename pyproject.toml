@@ -15,7 +15,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-pydantic = ["pydantic>=2.0.0,<=2.10"]  # TODO(FBruzzesi): Temporary pin for pydantic
+pydantic = ["pydantic>=2.0.0"]
 
 [dependency-groups]
 test = [
@@ -51,6 +51,7 @@ fix = true
 [tool.ruff.lint]
 select = ["ALL"]
 ignore = [
+    "ANN401",
     "PLC0415",
     "UP045",
     "COM812",
@@ -58,7 +59,9 @@ ignore = [
     "D100",  # Checks for undocumented public module definitions.
     "D104",  # Checks for undocumented public package definitions.
     "D107",  # Checks for public __init__ method definitions that are missing docstrings.
-    "RET505"
+    "RET505",
+    "FIX002",
+    "TD003",
 ]
 
 [tool.ruff.lint.per-file-ignores]
@@ -66,6 +69,8 @@ ignore = [
     "D101",
     "D103",
     "S101",
+    "UP",
+    "SLF",
 ]
 
 [tool.ruff.lint.isort]
@@ -94,3 +99,9 @@ warn_unused_ignores = true
 
 [tool.coverage.run]
 plugins = ["covdefaults"]
+
+[tool.coverage.report]
+fail_under = 95
+omit = [
+    "src/anyschema/typing.py",
+]

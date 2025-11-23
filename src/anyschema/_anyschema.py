@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-from importlib import metadata
+from collections.abc import Iterable
 from typing import TYPE_CHECKING
 
 from narwhals.schema import Schema
-from narwhals.utils import parse_version
 
-from anyschema._dependencies import get_pydantic
+from anyschema._dependencies import is_into_ordered_dict, is_pydantic_base_model
+from anyschema.adapters import into_ordered_dict_adapter, pydantic_adapter
+from anyschema.parsers import create_parser_chain
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -15,15 +16,13 @@ if TYPE_CHECKING:
     import polars as pl
     import pyarrow as pa
     from narwhals.typing import DTypeBackend
-    from pydantic import BaseModel
     from typing_extensions import Self
 
-
-NARWHALS_VERSION = parse_version(metadata.version("narwhals"))
+    from anyschema.typing import Adapter, IntoParserChain, Spec
 
 
 class AnySchema:
-    """A utility class for converting from a model-like to a native dataframe schema object.
+    """A utility class for converting from a (schema) specification to a native dataframe schema object.
 
     The `AnySchema` class bridges the gap between Narwhals' Schemas and Pydantic Models, and popular dataframe libraries
     such as `pandas`, `polars` and `pyarrow`, by enabling converting from the former to latter native schemas.
@@ -32,26 +31,42 @@ class AnySchema:
     equivalent dataframe schemas.
 
     Arguments:
-        model: The input model. This can be:
+        spec: The input model. This can be:
 
-            - a [Narwhals Schema](https://narwhals-dev.github.io/narwhals/api-reference/schema/#narwhals.schema.Schema)
+            - a [Narwhals Schema](https://narwhals-dev.github.io/narwhals/api-reference/schema/#narwhals.schema.Schema).
+                In this case parsing data types is a no-op.
+            - a [python mapping](https://docs.python.org/3/glossary.html#term-mapping).
             - a [Pydantic Model](https://docs.pydantic.dev/latest/concepts/models/) class or an instance of such
+
+        parsers: Control how types are parsed into Narwhals dtypes. Options:
+
+            - `"auto"` (default): Automatically select appropriate parsers based on the model type
+            - A sequence of parser instances: Use custom parsers for extensibility
+
+            This allows for custom type parsing logic and extensibility from user-defined parsers.
+
+        adapter: A custom adapter function that converts the spec into a sequence of field specifications.
+            This function should yield tuples of `(field_name, field_type, metadata)` for each field.
+            The metadata tuple is always empty `()` for this adapter.
+
+            This allows for custom field specification logic and extensibility from user-defined adapters.
 
     Raises:
         NotImplementedError:
-            If `model` is not a narwhals Schema or a Pydantic model.
+            If `spec` type is unknown and `adapter` is not specified.
 
     Examples:
+        >>> from __future__ import annotations
+        >>>
         >>> from anyschema import AnySchema
-        >>> from pydantic import BaseModel
-        >>> from pydantic import PositiveInt
+        >>> from pydantic import BaseModel, PositiveInt
         >>>
         >>> class Student(BaseModel):
         ...     name: str
         ...     age: PositiveInt
         ...     classes: list[str]
         >>>
-        >>> schema = AnySchema(model=Student)
+        >>> schema = AnySchema(spec=Student)
 
         We can now convert `schema` to a pyarrow schema via `to_arrow` method:
 
@@ -83,19 +98,44 @@ class AnySchema:
             Converts the underlying Pydantic model schema into a `polars.Schema`.
     """
 
-    def __init__(self: Self, model: Schema | BaseModel | type[BaseModel]) -> None:
-        if isinstance(model, Schema):
-            self._nw_schema = model
+    _nw_schema: Schema
 
-        elif (pydantic := get_pydantic()) is not None and (
-            (isinstance(model, type) and issubclass(model, pydantic.BaseModel)) or isinstance(model, pydantic.BaseModel)
-        ):
-            from anyschema._pydantic import model_to_nw_schema
+    def __init__(
+        self: Self,
+        spec: Spec,
+        parsers: IntoParserChain = "auto",
+        adapter: Adapter | None = None,
+    ) -> None:
+        if isinstance(spec, Schema):
+            self._nw_schema = spec
+            return
 
-            self._nw_schema = model_to_nw_schema(model=model)
-
+        if is_into_ordered_dict(spec):
+            _parser_chain = create_parser_chain(parsers, spec_type="python")
+            nw_schema = Schema(
+                {
+                    name: _parser_chain.parse(input_type, metadata)
+                    for name, input_type, metadata in into_ordered_dict_adapter(spec)
+                }
+            )
+        elif is_pydantic_base_model(spec):
+            _parser_chain = create_parser_chain(parsers, spec_type="pydantic")
+            nw_schema = Schema(
+                {
+                    name: _parser_chain.parse(input_type, metadata)
+                    for name, input_type, metadata in pydantic_adapter(spec)
+                }
+            )
+        elif adapter is not None:
+            _parser_chain = create_parser_chain(parsers, spec_type=None)
+            nw_schema = Schema(
+                {name: _parser_chain.parse(input_type, metadata) for name, input_type, metadata in adapter(spec)}
+            )
         else:
-            raise NotImplementedError
+            msg = "`spec` type is unknown and `adapter` is not specified."
+            raise ValueError(msg)
+
+        self._nw_schema = nw_schema
 
     def to_arrow(self: Self) -> pa.Schema:
         """Converts input model into pyarrow schema.

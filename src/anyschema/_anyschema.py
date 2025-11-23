@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 
 
 class AnySchema:
-    """A utility class for converting from a (schema) specification to a native dataframe schema object.
+    """The class implements the workflow to convert from a (schema) specification to a native dataframe schema object.
 
     The `AnySchema` class enables to convert from type specifications (such as Pydantic models) to native dataframe
     schemas (such as `pandas`, `polars` and `pyarrow`).

@@ -8,7 +8,7 @@ name = "anyschema"
 version = "0.0.1"
 description = "From type specifications to any dataframe schema"
 readme = "README.md"
-license = {file = "LICENSE.md"}
+license = {file = "LICENSE"}
 authors = [{ name = "Francesco Bruzzesi"}]
 requires-python = ">=3.10"
 dependencies = [
@@ -42,6 +42,8 @@ docs = [
   "mkdocs",
   "mkdocs-material",
   "mkdocstrings[python]",
+  "mkdocstrings-python",
+  "mkdocs-autorefs",
 ]
 
 [tool.ruff]

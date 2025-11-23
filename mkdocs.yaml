@@ -1,9 +1,17 @@
 site_name: AnySchema
-# repo_url:
+repo_url: https://github.com/FBruzzesi/anyschema
+repo_name: FBruzzesi/anyschema
+edit_uri: edit/main/docs/
+
 watch:
   - src
+
 nav:
   - Home: index.md
+  - Getting Started: getting-started.md
+  - Architecture: architecture.md
+  - Advanced Usage: advanced.md
+  - API Reference: api-reference.md
 
 theme:
   name: material
@@ -13,9 +21,19 @@ theme:
   features:
     - content.code.copy
     - content.code.annotate
+    - content.tabs.link
     - navigation.footer
     - navigation.indexes
+    - navigation.instant
+    - navigation.sections
+    - navigation.tabs
+    - navigation.tabs.sticky
     - navigation.top
+    - navigation.tracking
+    - search.highlight
+    - search.share
+    - search.suggest
+    - toc.follow
   palette:
     # Palette toggle for automatic mode
     - media: "(prefers-color-scheme)"
@@ -44,17 +62,45 @@ plugins:
     handlers:
       python:
         import:
-        - https://installer.readthedocs.io/en/stable/objects.inv
+        - https://docs.python.org/3/objects.inv
+        - https://narwhals-dev.github.io/narwhals/objects.inv
+        - https://docs.pydantic.dev/latest/objects.inv
+        paths: [src]
         rendering:
           show_signature_annotations: true
-        options:
-          members_order: alphabetical
+          show_source: true
+          show_root_heading: true
+          show_root_full_path: false
+          heading_level: 2
+          members_order: source
+          docstring_style: google
+          docstring_section_style: table
+          show_if_no_docstring: false
+          show_docstring_attributes: true
+          show_docstring_functions: true
+          show_docstring_classes: true
+          show_docstring_modules: true
+          show_docstring_description: true
+          show_docstring_examples: true
+          show_docstring_other_parameters: true
+          show_docstring_parameters: true
+          show_docstring_raises: true
+          show_docstring_receives: true
+          show_docstring_returns: true
+          show_docstring_warns: true
+          show_docstring_yields: true
     enable_inventory: true
 
 markdown_extensions:
 - footnotes
 - admonition
 - md_in_html
+- attr_list
+- def_list
+- tables
+- toc:
+    permalink: true
+    toc_depth: 3
 - pymdownx.details
 - pymdownx.tabbed:
     alternate_style: true
@@ -64,8 +110,17 @@ markdown_extensions:
       class: python
       validator: !!python/name:markdown_exec.validator
       format: !!python/name:markdown_exec.formatter
+- pymdownx.highlight:
+    anchor_linenums: true
+    line_spans: __span
+    pygments_lang_class: true
+- pymdownx.inlinehilite
+- pymdownx.snippets
 - pymdownx.arithmatex:
     generic: true
+- pymdownx.emoji:
+    emoji_index: !!python/name:material.extensions.emoji.twemoji
+    emoji_generator: !!python/name:material.extensions.emoji.to_svg
 
 extra_javascript:
   - javascripts/extra.js

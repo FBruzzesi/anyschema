@@ -13,3 +13,12 @@ test:
 typing:
 	uv run --active --no-sync --group typing pyright src
 	uv run --active --no-sync --group typing mypy src
+
+docs-serve:
+	uv run --active --no-sync --group docs mkdocs serve
+
+docs-build:
+	uv run --active --no-sync --group docs mkdocs build --strict
+
+docs-deploy:
+	uv run --active --no-sync --group docs mkdocs gh-deploy --force

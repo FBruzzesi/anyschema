@@ -51,13 +51,13 @@ class ForwardRefParser(TypeParser):
             "tuple": tuple,
             "set": set,
             # Typing constructs
-            "Optional": __import__("typing").Optional,
-            "Union": __import__("typing").Union,
-            "List": __import__("typing").List,
-            "Dict": __import__("typing").Dict,
-            "Tuple": __import__("typing").Tuple,
-            "Set": __import__("typing").Set,
             "Annotated": __import__("typing").Annotated,
+            "Dict": __import__("typing").Dict,
+            "List": __import__("typing").List,
+            "Optional": __import__("typing").Optional,
+            "Set": __import__("typing").Set,
+            "Union": __import__("typing").Union,
+            "Tuple": __import__("typing").Tuple,
         }
 
         # Add user-provided globals (can override defaults)

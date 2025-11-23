@@ -92,6 +92,6 @@ def _auto_create_parsers(spec_type: SpecType) -> Sequence[TypeParser]:
 
         annotated_types_parser = AnnotatedTypesParser()
         parsers = (forward_ref_parser, union_parser, annotated_parser, annotated_types_parser, python_parser)
-    else:
+    else:  # pragma: no cover
         parsers = (forward_ref_parser, union_parser, annotated_parser, python_parser)
     return parsers

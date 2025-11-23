@@ -3,11 +3,10 @@ from __future__ import annotations
 from collections.abc import Callable, Generator, Mapping, Sequence
 from typing import TYPE_CHECKING, Any, Literal, TypeAlias
 
-from narwhals.schema import Schema
-
 from anyschema.parsers import TypeParser
 
 if TYPE_CHECKING:
+    from narwhals.schema import Schema
     from pydantic import BaseModel
 
 

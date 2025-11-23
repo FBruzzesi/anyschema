@@ -1,12 +1,14 @@
 from __future__ import annotations
 
-from contextlib import AbstractContextManager
-from typing import Any, ForwardRef, Optional
+from typing import TYPE_CHECKING, Any, ForwardRef, Optional
 
 import narwhals as nw
 import pytest
 
 from anyschema.parsers import ForwardRefParser, ParserChain, PyTypeParser, UnionTypeParser
+
+if TYPE_CHECKING:
+    from contextlib import AbstractContextManager
 
 
 def forward_ref_parser_builder(globalns: dict | None = None, localns: dict | None = None) -> ForwardRefParser:

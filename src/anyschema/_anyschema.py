@@ -8,7 +8,6 @@ from narwhals.schema import Schema
 from anyschema._dependencies import is_into_ordered_dict, is_pydantic_base_model
 from anyschema.adapters import into_ordered_dict_adapter, pydantic_adapter
 from anyschema.parsers import create_parser_chain
-from anyschema.typing import Spec
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -19,7 +18,7 @@ if TYPE_CHECKING:
     from narwhals.typing import DTypeBackend
     from typing_extensions import Self
 
-    from anyschema.typing import Adapter, IntoParserChain
+    from anyschema.typing import Adapter, IntoParserChain, Spec
 
 
 class AnySchema:

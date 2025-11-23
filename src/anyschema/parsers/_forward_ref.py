@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, ForwardRef
 
+from anyschema._dependencies import ANNOTATED_TYPES_AVAILABLE, PYDANTIC_AVAILABLE
 from anyschema.parsers._base import TypeParser
 
 if TYPE_CHECKING:
@@ -59,6 +60,51 @@ class ForwardRefParser(TypeParser):
             "Union": __import__("typing").Union,
             "Tuple": __import__("typing").Tuple,
         }
+
+        # Add pydantic types if available
+        if PYDANTIC_AVAILABLE:
+            import pydantic
+
+            pydantic_types = {
+                "BaseModel": pydantic.BaseModel,
+                "Field": pydantic.Field,
+                # Constrained integers
+                "PositiveInt": pydantic.PositiveInt,
+                "NegativeInt": pydantic.NegativeInt,
+                "NonPositiveInt": pydantic.NonPositiveInt,
+                "NonNegativeInt": pydantic.NonNegativeInt,
+                # Constrained floats
+                "PositiveFloat": pydantic.PositiveFloat,
+                "NegativeFloat": pydantic.NegativeFloat,
+                "NonPositiveFloat": pydantic.NonPositiveFloat,
+                "NonNegativeFloat": pydantic.NonNegativeFloat,
+                # constraints
+                "constr": pydantic.constr,
+                "conint": pydantic.conint,
+                "confloat": pydantic.confloat,
+                "conlist": pydantic.conlist,
+                "conset": pydantic.conset,
+            }
+            namespace.update(pydantic_types)
+
+        # Add annotated-types if available
+        if ANNOTATED_TYPES_AVAILABLE:
+            import annotated_types
+
+            annotated_types_dict = {
+                "Gt": annotated_types.Gt,
+                "Ge": annotated_types.Ge,
+                "Lt": annotated_types.Lt,
+                "Le": annotated_types.Le,
+                "Interval": annotated_types.Interval,
+                "MultipleOf": annotated_types.MultipleOf,
+                "MinLen": annotated_types.MinLen,
+                "MaxLen": annotated_types.MaxLen,
+                "Len": annotated_types.Len,
+                "Timezone": annotated_types.Timezone,
+                "Predicate": annotated_types.Predicate,
+            }
+            namespace.update(annotated_types_dict)
 
         # Add user-provided globals (can override defaults)
         if user_globals:
@@ -135,6 +181,3 @@ class ForwardRefParser(TypeParser):
         """
         namespace = {**self.globalns, **self.localns}
         return eval(type_string, namespace)  # type: ignore[no-any-return]  # noqa: S307
-
-
-__all__ = ("ForwardRefParser",)

@@ -11,10 +11,11 @@ if TYPE_CHECKING:
 
 
 class UnionTypeStep(ParserStep):
-    """Parser for Union types including Optional (T | None).
+    """Parser for Union types including `Optional`.
 
     Handles:
-    - Union[T, None] / T | None / Optional[T] (Optional types)
+
+    - `Union[T, None]`, `T | None`, `Optional[T]`
     - Extracts the non-None type and its metadata for further parsing
     """
 

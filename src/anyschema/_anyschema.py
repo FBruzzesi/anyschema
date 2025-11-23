@@ -90,13 +90,13 @@ class AnySchema:
 
         >>> pl_schema = schema.to_polars()
         >>> print(pl_schema)
-        Schema([('name', String), ('age', UInt64), ('classes', List(String))])
+        Schema({'name': String, 'age': UInt64, 'classes': List(String)})
 
         Convert to Pandas schema:
 
         >>> pd_schema = schema.to_pandas()
         >>> print(pd_schema)
-        {'name': ArrowDtype(string), 'age': ArrowDtype(uint64), 'classes': ArrowDtype(list<item: string>)}
+        {'name': <class 'str'>, 'age': 'uint64', 'classes': list<item: string>[pyarrow]}
 
         Using a plain Python dict:
 

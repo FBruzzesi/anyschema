@@ -21,9 +21,10 @@ class PyTypeStep(ParserStep):
     """Parser for Python builtin types.
 
     Handles:
-    - int, float, decimal, str, bytes, bool, date, datetime, timedelta, time, object, enum
-    - generics: list[T], Sequence[T], Iterable[T], tuple[T, ...]
-    - dict, Mapping[K, V], and typed dictionaries (TypedDict)
+
+    - `int`, `float`, `decimal`, `str`, `bytes`, `bool`, `date`, `datetime`, `timedelta`, `time`, `object`, `Enum`
+    - generics: `list[T]`, `Sequence[T]`, `Iterable[T]`, `tuple[T, ...]`
+    - `dict`,` Mapping[K, V]`, and typed dictionaries (`TypedDict`)
     """
 
     def parse(self, input_type: Any, metadata: tuple = ()) -> DType | None:  # noqa: C901, PLR0911, PLR0912

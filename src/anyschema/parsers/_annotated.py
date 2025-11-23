@@ -10,10 +10,11 @@ if TYPE_CHECKING:
 
 
 class AnnotatedStep(ParserStep):
-    """Parser for typing.Annotated types.
+    """Parser for `typing.Annotated` types.
 
     Handles:
-    - Annotated[T, metadata...] - extracts the type and metadata for further parsing
+
+    - `Annotated[T, metadata...]` - extracts the type and metadata for further parsing
     """
 
     def parse(self, input_type: Any, metadata: tuple = ()) -> DType | None:

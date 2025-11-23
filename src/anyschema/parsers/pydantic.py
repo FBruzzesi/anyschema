@@ -19,9 +19,13 @@ class PydanticTypeStep(ParserStep):
     """Parser for Pydantic-specific types.
 
     Handles:
-    - Pydantic datetime types (AwareDatetime, NaiveDatetime, etc.)
-    - Pydantic date types (PastDate, FutureDate)
-    - Pydantic BaseModel (Struct types)
+
+    - Pydantic datetime types (`AwareDatetime`, `NaiveDatetime`, etc.)
+    - Pydantic date types (`PastDate`, `FutureDate`)
+    - Pydantic `BaseModel` (Struct types)
+
+    Warning:
+        It requires [pydantic](https://docs.pydantic.dev/latest/) to be installed.
     """
 
     def parse(self, input_type: Any, metadata: tuple = ()) -> DType | None:  # noqa: ARG002

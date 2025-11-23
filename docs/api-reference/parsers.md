@@ -1,72 +1,85 @@
 # Parsers
 
-## Making a pipeline
+## Pipeline
+
+A parser pipeline is a sequence of [parser steps](#parser-steps) that process type annotations to produce Narwhals dtypes.
 
 ::: anyschema.parsers.make_pipeline
     handler: python
-    show_source: true
+    options:
+      show_root_heading: true
+      show_source: false
+      heading_level: 3
+
+
+::: anyschema.parsers.ParserPipeline
+    handler: python
+    options:
+      show_root_heading: true
+      show_source: false
+      heading_level: 3
+
 
 ## Parser Steps
 
 Parser steps are the building blocks of the type parsing pipeline. Each step handles specific type patterns.
-For more details on how these work together, see the [Parser Pipeline](architecture.md#parser-pipeline) section in the
-Architecture guide.
 
-### ParserStep (Base Class)
+For more details on how these work together, see the [parser steps](../architecture.md#parser-steps)
+section in the Architecture guide.
 
 ::: anyschema.parsers.ParserStep
     handler: python
-    show_root_full_path: true
-    show_root_heading: true
-    show_source: true
-    heading_level: 4
+    options:
+      show_root_heading: true
+      show_source: false
+      heading_level: 3
 
-### Built-in Parser Steps
+
+---
+
+The following steps are built-in and come dependency-free.
+
 
 ::: anyschema.parsers.ForwardRefStep
     handler: python
-    show_root_full_path: true
-    show_root_heading: true
-    show_source: true
-    heading_level: 4
+    options:
+      show_root_heading: true
+      show_source: false
+      heading_level: 3
 
 ::: anyschema.parsers.UnionTypeStep
     handler: python
-    show_root_full_path: true
-    show_root_heading: true
-    show_source: true
-    heading_level: 4
+    options:
+      show_root_heading: true
+      show_source: false
+      heading_level: 3
 
 ::: anyschema.parsers.AnnotatedStep
     handler: python
-    show_root_full_path: true
-    show_root_heading: true
-    show_source: true
-    heading_level: 4
+    options:
+      show_root_heading: true
+      show_source: false
+      heading_level: 3
 
 ::: anyschema.parsers.PyTypeStep
     handler: python
-    show_root_full_path: true
-    show_root_heading: true
-    show_source: true
-    heading_level: 4
+    options:
+      show_root_heading: true
+      show_source: false
+      heading_level: 3
+
+---
 
 ::: anyschema.parsers.annotated_types.AnnotatedTypesStep
     handler: python
-    show_root_full_path: true
-    show_root_heading: true
-    show_source: true
-    heading_level: 4
+    options:
+      show_root_heading: true
+      show_source: false
+      heading_level: 3
 
 ::: anyschema.parsers.pydantic.PydanticTypeStep
     handler: python
-    show_root_full_path: true
-    show_root_heading: true
-    show_source: true
-    heading_level: 4
-
-## ParserPipeline
-
-A parser pipeline is a sequence of parser steps that process type annotations to produce Narwhals dtypes.
-
-::: anyschema.parsers.ParserPipeline
+    options:
+      show_root_heading: true
+      show_source: false
+      heading_level: 3

@@ -32,6 +32,36 @@ class ParserStep(ABC):
 
     Note:
         Subclasses must implement the `parse` method to define their specific parsing logic.
+
+    Examples:
+        >>> from typing import get_origin, get_args
+        >>> import narwhals as nw
+        >>> from anyschema.parsers import ParserStep, PyTypeStep, make_pipeline
+        >>>
+        >>> class CustomType: ...
+        >>> class CustomList[T]: ...
+        >>>
+        >>> class CustomParserStep(ParserStep):
+        ...     def parse(self, input_type: Any, metadata: tuple = ()) -> DType | None:
+        ...         if input_type is CustomType:
+        ...             return nw.String()
+        ...
+        ...         if get_origin(input_type) is CustomList:
+        ...             inner = get_args(input_type)[0]
+        ...             # Delegate to pipeline for recursion
+        ...             inner_dtype = self.pipeline.parse(inner, metadata=metadata)
+        ...             return nw.List(inner_dtype)
+        ...
+        ...         # Return None if we can't handle it
+        ...         return None
+        >>>
+        >>> pipeline = make_pipeline(steps=[CustomParserStep(), PyTypeStep()])
+        >>> pipeline.parse(CustomType)
+        String
+        >>> pipeline.parse(CustomList[int])
+        List(Int64)
+        >>> pipeline.parse(CustomList[str])
+        List(String)
     """
 
     _pipeline: ParserPipeline | None = None
@@ -81,6 +111,9 @@ class ParserStep(ABC):
             A Narwhals DType if the parser can handle this type, None otherwise.
         """
         ...
+
+    def __repr__(self) -> str:
+        return self.__class__.__name__
 
 
 class ParserPipeline:

@@ -44,11 +44,15 @@ MAX_INT: Final[int] = 18_446_744_073_709_551_615
 
 
 class AnnotatedTypesStep(ParserStep):
-    """Parser for types with annotated_types metadata.
+    """Parser for types with `annotated_types` metadata.
 
     Handles:
-    - Integer constraints (Gt, Ge, Lt, Le, Interval)
+
+    - Integer constraints (`Gt`, `Ge`, `Lt`, `Le`, `Interval`)
     - Type refinement based on metadata
+
+    Warning:
+        It requires [annotated-types](https://github.com/annotated-types/annotated-types) to be installed.
     """
 
     def parse(self, input_type: Any, metadata: tuple = ()) -> DType | None:

@@ -53,9 +53,11 @@ def pydantic_adapter(spec: type[BaseModel]) -> FieldSpecIterable:
     Examples:
         >>> from pydantic import BaseModel, Field
         >>> from typing import Annotated
+        >>>
         >>> class Student(BaseModel):
         ...     name: str
         ...     age: Annotated[int, Field(ge=0)]
+        >>>
         >>> list(pydantic_adapter(Student))
         [('name', <class 'str'>, ()), ('age', ForwardRef('Annotated[int, Field(ge=0)]'), ())]
     """

@@ -10,7 +10,7 @@ from anyschema.exceptions import UnsupportedDTypeError
 from anyschema.parsers import ParserChain, PyTypeParser, UnionTypeParser
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def union_parser() -> UnionTypeParser:
     """Create a UnionTypeParser instance with parser_chain set."""
     union_parser = UnionTypeParser()

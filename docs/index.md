@@ -45,7 +45,7 @@ schema = AnySchema(spec=Student)
     # polars.schema.Schema
 
     pl_schema
-    # Schema([('name', String), ('age', UInt64), ('classes', List(String))])
+    # Schema({'name': String, 'age': UInt64, 'classes': List(String)})
     ```
 
 ## Why does this exist?

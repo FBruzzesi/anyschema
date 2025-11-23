@@ -8,10 +8,10 @@ import pytest
 from narwhals.utils import parse_version
 from pydantic import BaseModel, StrictStr, constr
 
-from anyschema.parsers import create_parser_chain
+from anyschema.parsers import make_pipeline
 from tests.pydantic.utils import model_to_nw_schema
 
-parser_chain = create_parser_chain("auto", spec_type="pydantic")
+pipeline = make_pipeline("auto", spec_type="pydantic")
 
 
 def test_parse_string() -> None:
@@ -34,7 +34,7 @@ def test_parse_string() -> None:
         con_str_or_none: constr(min_length=3) | None
         none_or_con_str: None | constr(max_length=6)
 
-    schema = model_to_nw_schema(StringModel, parser_chain=parser_chain)
+    schema = model_to_nw_schema(StringModel, pipeline=pipeline)
 
     assert all(value == nw.String() for value in schema.values())
 
@@ -51,6 +51,6 @@ def test_parse_string_constraints() -> None:
         str_con_or_none: Annotated[str, str_constraint] | None
         none_or_str_con: None | Annotated[str, str_constraint]
 
-    schema = model_to_nw_schema(StringConstraintsModel, parser_chain=parser_chain)
+    schema = model_to_nw_schema(StringConstraintsModel, pipeline=pipeline)
 
     assert all(value == nw.String() for value in schema.values())

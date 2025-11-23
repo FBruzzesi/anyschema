@@ -6,86 +6,86 @@ from typing import TYPE_CHECKING, Any
 import narwhals as nw
 import pytest
 
-from anyschema.exceptions import UnavailableParseChainError
-from anyschema.parsers import ParserChain, TypeParser
+from anyschema.exceptions import UnavailablePipelineError
+from anyschema.parsers import ParserPipeline, ParserStep
 
 if TYPE_CHECKING:
     from narwhals.dtypes import DType
 
 
-class AlwaysNoneParser(TypeParser):
+class AlwaysNoneStep(ParserStep):
     def parse(self, input_type: type, metadata: tuple = ()) -> DType | None:
         return None
 
 
-class StrParser(TypeParser):
+class StrStep(ParserStep):
     def parse(self, input_type: type, metadata: tuple = ()) -> DType | None:
         return nw.String() if input_type is str else None
 
 
-class Int32Parser(TypeParser):
+class Int32Step(ParserStep):
     def parse(self, input_type: type, metadata: tuple = ()) -> DType | None:
         return nw.Int32() if input_type is int else None
 
 
-class Int64Parser(TypeParser):
+class Int64Step(ParserStep):
     def parse(self, input_type: type, metadata: tuple = ()) -> DType | None:
         return nw.Int64() if input_type is int else None
 
 
-class MetadataAwareParser(TypeParser):
+class MetadataAwareStep(ParserStep):
     def parse(self, input_type: type, metadata: tuple = ()) -> DType | None:
         return nw.Int32() if input_type is int and metadata == ("meta1", "meta2") else None
 
 
-def test_parser_chain_not_set() -> None:
-    parser = AlwaysNoneParser()
-    expected_msg = "`parser_chain` is not set yet. You can set it by `parser.parser_chain = chain"
+def test_pipeline_not_set() -> None:
+    step = AlwaysNoneStep()
+    expected_msg = "`pipeline` is not set yet. You can set it by `step.pipeline = pipeline`"
 
-    with pytest.raises(UnavailableParseChainError, match=expected_msg):
-        _ = parser.parser_chain
-
-
-def test_parser_chain_set_valid() -> None:
-    parser = AlwaysNoneParser()
-    chain = ParserChain([parser])
-    parser.parser_chain = chain
-
-    assert parser.parser_chain is chain
+    with pytest.raises(UnavailablePipelineError, match=expected_msg):
+        _ = step.pipeline
 
 
-def test_parser_chain_set_invalid_type() -> None:
-    parser = AlwaysNoneParser()
+def test_pipeline_set_valid() -> None:
+    step = AlwaysNoneStep()
+    pipeline = ParserPipeline([step])
+    step.pipeline = pipeline
 
-    with pytest.raises(TypeError, match="Expected `ParserChain` object, found"):
-        parser.parser_chain = "not a chain"  # type: ignore[assignment]
-
-
-def test_parser_chain_setter_updates_correctly() -> None:
-    parser = AlwaysNoneParser()
-    chain1 = ParserChain([parser])
-    chain2 = ParserChain([parser])
-
-    parser.parser_chain = chain1
-    assert parser.parser_chain is chain1
-
-    parser.parser_chain = chain2
-    assert parser.parser_chain is chain2
+    assert step.pipeline is pipeline
 
 
-def test_parser_chain_init_with_parsers() -> None:
-    int_parser, str_parser = Int64Parser(), StrParser()
-    parsers = [int_parser, str_parser]
-    chain = ParserChain(parsers)
+def test_pipeline_set_invalid_type() -> None:
+    step = AlwaysNoneStep()
 
-    assert len(chain.parsers) == len(parsers)
-    assert chain.parsers == tuple(parsers)
-    assert isinstance(chain.parsers, tuple)
+    with pytest.raises(TypeError, match="Expected `ParserPipeline` object, found"):
+        step.pipeline = "not a pipeline"  # type: ignore[assignment]
 
-    # Modifying the original list shouldn't affect the chain
-    no_parser = AlwaysNoneParser()
-    parsers.append(no_parser)
-    assert len(chain.parsers) < len(parsers)
+
+def test_pipeline_setter_updates_correctly() -> None:
+    step = AlwaysNoneStep()
+    pipeline1 = ParserPipeline([step])
+    pipeline2 = ParserPipeline([step])
+
+    step.pipeline = pipeline1
+    assert step.pipeline is pipeline1
+
+    step.pipeline = pipeline2
+    assert step.pipeline is pipeline2
+
+
+def test_pipeline_init_with_steps() -> None:
+    int_step, str_step = Int64Step(), StrStep()
+    steps = [int_step, str_step]
+    pipeline = ParserPipeline(steps)
+
+    assert len(pipeline.steps) == len(steps)
+    assert pipeline.steps == tuple(steps)
+    assert isinstance(pipeline.steps, tuple)
+
+    # Modifying the original list shouldn't affect the pipeline
+    no_step = AlwaysNoneStep()
+    steps.append(no_step)
+    assert len(pipeline.steps) < len(steps)
 
 
 @pytest.mark.parametrize(
@@ -96,37 +96,37 @@ def test_parser_chain_init_with_parsers() -> None:
         (bool, None),
     ],
 )
-def test_parser_chain_parse_non_strict(input_type: Any, expected: nw.dtypes.DType | None) -> None:
-    chain = ParserChain([Int64Parser(), StrParser()])
+def test_pipeline_parse_non_strict(input_type: Any, expected: nw.dtypes.DType | None) -> None:
+    pipeline = ParserPipeline([Int64Step(), StrStep()])
 
-    result = chain.parse(input_type, strict=False)
+    result = pipeline.parse(input_type, strict=False)
     assert result == expected
 
 
 @pytest.mark.parametrize("input_type", [float, bool])
-def test_parser_chain_parse_strict(input_type: Any) -> None:
-    chain = ParserChain([Int64Parser(), StrParser()])
+def test_pipeline_parse_strict(input_type: Any) -> None:
+    pipeline = ParserPipeline([Int64Step(), StrStep()])
 
-    with pytest.raises(NotImplementedError, match="No parser in chain could handle type"):
-        chain.parse(input_type, strict=True)
+    with pytest.raises(NotImplementedError, match="No parser in the pipeline could handle type"):
+        pipeline.parse(input_type, strict=True)
 
 
-def test_parser_chain_parse_with_metadata() -> None:
-    parser = MetadataAwareParser()
-    chain = ParserChain([parser])
+def test_pipeline_parse_with_metadata() -> None:
+    step = MetadataAwareStep()
+    pipeline = ParserPipeline([step])
 
-    result = chain.parse(int, metadata=("meta1", "meta2"), strict=True)
+    result = pipeline.parse(int, metadata=("meta1", "meta2"), strict=True)
     assert result == nw.Int32()
 
-    result = chain.parse(int, metadata=("meta1",), strict=False)
+    result = pipeline.parse(int, metadata=("meta1",), strict=False)
     assert result is None
 
 
 @pytest.mark.parametrize(
-    ("parsers", "expected"),
-    [((Int32Parser(), Int64Parser()), nw.Int32()), ((Int64Parser(), Int32Parser()), nw.Int64())],
+    ("steps", "expected"),
+    [((Int32Step(), Int64Step()), nw.Int32()), ((Int64Step(), Int32Step()), nw.Int64())],
 )
-def test_parser_chain_parse_order_matters(parsers: tuple[TypeParser, ...], expected: nw.dtypes.DType) -> None:
-    chain = ParserChain(parsers=parsers)
-    result = chain.parse(int, strict=True)
+def test_pipeline_parse_order_matters(steps: tuple[ParserStep, ...], expected: nw.dtypes.DType) -> None:
+    pipeline = ParserPipeline(steps=steps)
+    result = pipeline.parse(int, strict=True)
     assert result == expected

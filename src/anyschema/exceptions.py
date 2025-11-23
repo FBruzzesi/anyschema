@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-__all__ = ("UnavailableParseChainError", "UnsupportedDTypeError")
+__all__ = ("UnavailablePipelineError", "UnsupportedDTypeError")
 
 
-class UnavailableParseChainError(ValueError):
-    """Exception raised when a parser does not have a ParserChain set."""
+class UnavailablePipelineError(ValueError):
+    """Exception raised when a parser does not have a ParserPipeline set."""
 
 
 class UnsupportedDTypeError(ValueError):

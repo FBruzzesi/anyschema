@@ -8,19 +8,19 @@ import pytest
 from pydantic import AwareDatetime, BaseModel, FutureDate, FutureDatetime, NaiveDatetime, PastDate, PastDatetime
 
 from anyschema.exceptions import UnsupportedDTypeError
-from anyschema.parsers._base import ParserChain
-from anyschema.parsers._builtin import PyTypeParser
-from anyschema.parsers.pydantic import PydanticTypeParser
+from anyschema.parsers import ParserPipeline
+from anyschema.parsers._builtin import PyTypeStep
+from anyschema.parsers.pydantic import PydanticTypeStep
 
 
 @pytest.fixture(scope="module")
-def pydantic_parser() -> PydanticTypeParser:
-    """Create a PydanticTypeParser instance with parser_chain set."""
-    parser = PydanticTypeParser()
-    py_parser = PyTypeParser()
-    chain = ParserChain([parser, py_parser])
-    parser.parser_chain = chain
-    py_parser.parser_chain = chain
+def pydantic_parser() -> PydanticTypeStep:
+    """Create a PydanticTypeStep instance with pipeline set."""
+    parser = PydanticTypeStep()
+    py_parser = PyTypeStep()
+    chain = ParserPipeline([parser, py_parser])
+    parser.pipeline = chain
+    py_parser.pipeline = chain
     return parser
 
 
@@ -34,18 +34,18 @@ def pydantic_parser() -> PydanticTypeParser:
         (FutureDate, nw.Date()),
     ],
 )
-def test_parse_pydantic_types(pydantic_parser: PydanticTypeParser, input_type: type, expected: nw.dtypes.DType) -> None:
+def test_parse_pydantic_types(pydantic_parser: PydanticTypeStep, input_type: type, expected: nw.dtypes.DType) -> None:
     result = pydantic_parser.parse(input_type)
     assert result == expected
 
 
-def test_parse_aware_datetime_raises(pydantic_parser: PydanticTypeParser) -> None:
+def test_parse_aware_datetime_raises(pydantic_parser: PydanticTypeStep) -> None:
     expected_msg = "pydantic AwareDatetime does not specify a fixed timezone."
     with pytest.raises(UnsupportedDTypeError, match=expected_msg):
         pydantic_parser.parse(AwareDatetime)
 
 
-def test_parse_model_into_struct(pydantic_parser: PydanticTypeParser) -> None:
+def test_parse_model_into_struct(pydantic_parser: PydanticTypeStep) -> None:
     class SomeModel(BaseModel):
         past_date: PastDate
         future_date: FutureDate
@@ -62,7 +62,7 @@ def test_parse_model_into_struct(pydantic_parser: PydanticTypeParser) -> None:
     assert result == expected
 
 
-def test_parse_nested_model(pydantic_parser: PydanticTypeParser) -> None:
+def test_parse_nested_model(pydantic_parser: PydanticTypeStep) -> None:
     class Address(BaseModel):
         street: str
         city: str
@@ -86,7 +86,7 @@ def test_parse_nested_model(pydantic_parser: PydanticTypeParser) -> None:
     assert result == expected
 
 
-def test_parse_empty_model(pydantic_parser: PydanticTypeParser) -> None:
+def test_parse_empty_model(pydantic_parser: PydanticTypeStep) -> None:
     """Test parsing an empty Pydantic model."""
 
     class EmptyModel(BaseModel):
@@ -99,12 +99,12 @@ def test_parse_empty_model(pydantic_parser: PydanticTypeParser) -> None:
 
 
 @pytest.mark.parametrize("input_type", [int, float, list[int], date, datetime])
-def parse_non_pydantic_types(pydantic_parser: PydanticTypeParser, input_type: Any) -> None:
+def parse_non_pydantic_types(pydantic_parser: PydanticTypeStep, input_type: Any) -> None:
     result = pydantic_parser.parse(input_type)
     assert result is None
 
 
-def test_parse_custom_class_returns_none(pydantic_parser: PydanticTypeParser) -> None:
+def test_parse_custom_class_returns_none(pydantic_parser: PydanticTypeStep) -> None:
     """Test that parsing non-BaseModel class returns None."""
 
     class CustomClass:
@@ -114,7 +114,7 @@ def test_parse_custom_class_returns_none(pydantic_parser: PydanticTypeParser) ->
     assert result is None
 
 
-def test_parse_model_with_field_metadata(pydantic_parser: PydanticTypeParser) -> None:
+def test_parse_model_with_field_metadata(pydantic_parser: PydanticTypeStep) -> None:
     """Test parsing model that has field metadata."""
     from typing import Annotated
 

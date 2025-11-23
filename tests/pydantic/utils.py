@@ -9,10 +9,8 @@ from anyschema.adapters import pydantic_adapter
 if TYPE_CHECKING:
     from pydantic import BaseModel
 
-    from anyschema.parsers import ParserChain
+    from anyschema.parsers import ParserPipeline
 
 
-def model_to_nw_schema(spec: type[BaseModel], parser_chain: ParserChain) -> Schema:
-    return Schema(
-        {name: parser_chain.parse(input_type, metadata) for name, input_type, metadata in pydantic_adapter(spec)}
-    )
+def model_to_nw_schema(spec: type[BaseModel], pipeline: ParserPipeline) -> Schema:
+    return Schema({name: pipeline.parse(input_type, metadata) for name, input_type, metadata in pydantic_adapter(spec)})

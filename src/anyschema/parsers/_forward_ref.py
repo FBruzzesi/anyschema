@@ -3,13 +3,13 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, ForwardRef
 
 from anyschema._dependencies import ANNOTATED_TYPES_AVAILABLE, PYDANTIC_AVAILABLE
-from anyschema.parsers._base import TypeParser
+from anyschema.parsers._base import ParserStep
 
 if TYPE_CHECKING:
     from narwhals.dtypes import DType
 
 
-class ForwardRefParser(TypeParser):
+class ForwardRefStep(ParserStep):
     """Parser for ForwardRef types (string annotations and forward references).
 
     This parser handles type annotations that are forward references (ForwardRef),
@@ -132,7 +132,7 @@ class ForwardRefParser(TypeParser):
             msg = f"Failed to resolve ForwardRef '{input_type.__forward_arg__}': {e}"
             raise NotImplementedError(msg) from e
 
-        return self.parser_chain.parse(resolved_type, metadata, strict=True)
+        return self.pipeline.parse(resolved_type, metadata, strict=True)
 
     def _resolve_forward_ref(self, forward_ref: ForwardRef) -> type:  # pragma: no cover
         """Resolve a ForwardRef to its actual type.

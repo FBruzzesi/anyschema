@@ -5,26 +5,26 @@ from typing import TYPE_CHECKING, Any, ForwardRef, Optional
 import narwhals as nw
 import pytest
 
-from anyschema.parsers import ForwardRefParser, ParserChain, PyTypeParser, UnionTypeParser
+from anyschema.parsers import ForwardRefStep, ParserPipeline, PyTypeStep, UnionTypeStep
 
 if TYPE_CHECKING:
     from contextlib import AbstractContextManager
 
 
-def forward_ref_parser_builder(globalns: dict | None = None, localns: dict | None = None) -> ForwardRefParser:
-    forward_ref_parser = ForwardRefParser(globalns=globalns, localns=localns)
-    union_parser = UnionTypeParser()
-    py_parser = PyTypeParser()
-    chain = ParserChain([forward_ref_parser, union_parser, py_parser])
-    forward_ref_parser.parser_chain = chain
-    union_parser.parser_chain = chain
-    py_parser.parser_chain = chain
+def forward_ref_parser_builder(globalns: dict | None = None, localns: dict | None = None) -> ForwardRefStep:
+    forward_ref_parser = ForwardRefStep(globalns=globalns, localns=localns)
+    union_parser = UnionTypeStep()
+    py_parser = PyTypeStep()
+    chain = ParserPipeline([forward_ref_parser, union_parser, py_parser])
+    forward_ref_parser.pipeline = chain
+    union_parser.pipeline = chain
+    py_parser.pipeline = chain
     return forward_ref_parser
 
 
 @pytest.fixture(scope="module")
-def forward_ref_parser() -> ForwardRefParser:
-    """Create a ForwardRefParser instance with parser_chain set."""
+def forward_ref_parser() -> ForwardRefStep:
+    """Create a ForwardRefStep instance with pipeline set."""
     return forward_ref_parser_builder()
 
 
@@ -47,7 +47,7 @@ class CustomType:
         ("Optional[int]", nw.Int64()),
     ],
 )
-def test_forward_ref(forward_ref_parser: ForwardRefParser, input_type: Any, expected: nw.dtypes.DType) -> None:
+def test_forward_ref(forward_ref_parser: ForwardRefStep, input_type: Any, expected: nw.dtypes.DType) -> None:
     result = forward_ref_parser.parse(input_type=ForwardRef(input_type))
     assert result == expected
 
@@ -60,7 +60,7 @@ def test_forward_ref(forward_ref_parser: ForwardRefParser, input_type: Any, expe
         list[int],
     ],
 )
-def test_non_forward_ref(forward_ref_parser: ForwardRefParser, input_type: Any) -> None:
+def test_non_forward_ref(forward_ref_parser: ForwardRefStep, input_type: Any) -> None:
     result = forward_ref_parser.parse(input_type=input_type)
     assert result is None
 
@@ -74,12 +74,12 @@ def test_non_forward_ref(forward_ref_parser: ForwardRefParser, input_type: Any) 
         ("Optional[str]", Optional[str]),
     ],
 )
-def test_evaluate_string(forward_ref_parser: ForwardRefParser, type_string: str, expected: type) -> None:
+def test_evaluate_string(forward_ref_parser: ForwardRefStep, type_string: str, expected: type) -> None:
     result = forward_ref_parser._evaluate_string(type_string)
     assert result == expected
 
 
-def test_evaluate_string_name_error(forward_ref_parser: ForwardRefParser) -> None:
+def test_evaluate_string_name_error(forward_ref_parser: ForwardRefStep) -> None:
     with pytest.raises(NameError):
         forward_ref_parser._evaluate_string("UndefinedType")
 
@@ -111,17 +111,17 @@ def test_custom_local() -> None:
     [
         ("UndefinedType", pytest.raises(NotImplementedError, match="Failed to resolve ForwardRef")),
         ("list[", pytest.raises(SyntaxError, match="Forward reference must be an expression")),
-        ("1 + 1", pytest.raises(NotImplementedError, match="No parser in chain could handle type")),
+        ("1 + 1", pytest.raises(NotImplementedError, match="No parser in the pipeline could handle type")),
     ],
 )
 def test_resolution_error(
-    forward_ref_parser: ForwardRefParser, input_type: str, context: AbstractContextManager[Any]
+    forward_ref_parser: ForwardRefStep, input_type: str, context: AbstractContextManager[Any]
 ) -> None:
     with context:
         forward_ref_parser.parse(ForwardRef(input_type))
 
 
-def test_build_namespace_default(forward_ref_parser: ForwardRefParser) -> None:
+def test_build_namespace_default(forward_ref_parser: ForwardRefStep) -> None:
     # Globals
     assert forward_ref_parser.globalns["int"] is int
     assert forward_ref_parser.globalns["str"] is str

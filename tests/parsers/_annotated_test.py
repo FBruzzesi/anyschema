@@ -5,17 +5,17 @@ from typing import Annotated
 import narwhals as nw
 import pytest
 
-from anyschema.parsers import AnnotatedParser, ParserChain, PyTypeParser
+from anyschema.parsers import AnnotatedStep, ParserPipeline, PyTypeStep
 
 
 @pytest.fixture(scope="module")
-def annotated_parser() -> AnnotatedParser:
-    """Create an AnnotatedParser instance with parser_chain set."""
-    annotated_parser = AnnotatedParser()
-    py_parser = PyTypeParser()
-    chain = ParserChain([annotated_parser, py_parser])
-    annotated_parser.parser_chain = chain
-    py_parser.parser_chain = chain
+def annotated_parser() -> AnnotatedStep:
+    """Create an AnnotatedStep instance with pipeline set."""
+    annotated_parser = AnnotatedStep()
+    py_parser = PyTypeStep()
+    chain = ParserPipeline([annotated_parser, py_parser])
+    annotated_parser.pipeline = chain
+    py_parser.pipeline = chain
     return annotated_parser
 
 
@@ -32,7 +32,7 @@ def annotated_parser() -> AnnotatedParser:
         (Annotated[tuple[str, str, str], "meta"], nw.Array(nw.String(), shape=3)),
     ],
 )
-def test_parse_annotated(annotated_parser: AnnotatedParser, input_type: type, expected: nw.dtypes.DType) -> None:
+def test_parse_annotated(annotated_parser: AnnotatedStep, input_type: type, expected: nw.dtypes.DType) -> None:
     result = annotated_parser.parse(input_type)
     assert result == expected
 
@@ -48,7 +48,7 @@ def test_parse_annotated(annotated_parser: AnnotatedParser, input_type: type, ex
         (1, 2, 3),
     ],
 )
-def test_parse_annotated_various_metadata(annotated_parser: AnnotatedParser, metadata_items: tuple) -> None:
+def test_parse_annotated_various_metadata(annotated_parser: AnnotatedStep, metadata_items: tuple) -> None:
     """Parametrized test for Annotated with various metadata."""
     input_type = Annotated[int, metadata_items]
     result = annotated_parser.parse(input_type)
@@ -56,12 +56,12 @@ def test_parse_annotated_various_metadata(annotated_parser: AnnotatedParser, met
 
 
 @pytest.mark.parametrize("input_type", [int, str, list[int], tuple[str, ...]])
-def test_parse_non_annotated(annotated_parser: AnnotatedParser, input_type: type) -> None:
+def test_parse_non_annotated(annotated_parser: AnnotatedStep, input_type: type) -> None:
     result = annotated_parser.parse(input_type)
     assert result is None
 
 
-def test_parse_annotated_with_class_metadata(annotated_parser: AnnotatedParser) -> None:
+def test_parse_annotated_with_class_metadata(annotated_parser: AnnotatedStep) -> None:
     class CustomMetadata:
         def __init__(self, value: str) -> None:
             self.value = value
@@ -70,6 +70,6 @@ def test_parse_annotated_with_class_metadata(annotated_parser: AnnotatedParser) 
     assert result == nw.Int64()
 
 
-def test_parse_annotated_with_callable_metadata(annotated_parser: AnnotatedParser) -> None:
+def test_parse_annotated_with_callable_metadata(annotated_parser: AnnotatedStep) -> None:
     result = annotated_parser.parse(Annotated[int, lambda x: x > 0])
     assert result == nw.Int64()

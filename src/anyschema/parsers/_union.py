@@ -4,13 +4,13 @@ from types import GenericAlias, NoneType, UnionType
 from typing import TYPE_CHECKING, Any, Union, _GenericAlias, get_args, get_origin  # type: ignore[attr-defined]
 
 from anyschema.exceptions import UnsupportedDTypeError
-from anyschema.parsers._base import TypeParser
+from anyschema.parsers._base import ParserStep
 
 if TYPE_CHECKING:
     from narwhals.dtypes import DType
 
 
-class UnionTypeParser(TypeParser):
+class UnionTypeStep(ParserStep):
     """Parser for Union types including Optional (T | None).
 
     Handles:
@@ -35,14 +35,14 @@ class UnionTypeParser(TypeParser):
                 args = get_args(input_type)
                 extracted_type, extracted_metadata = self._parse_union(args, metadata)
 
-                return self.parser_chain.parse(extracted_type, extracted_metadata, strict=True)
+                return self.pipeline.parse(extracted_type, extracted_metadata, strict=True)
 
         # Handle UnionType (PEP 604: T | U syntax)
         elif isinstance(input_type, UnionType):
             args = get_args(input_type)
             extracted_type, extracted_metadata = self._parse_union(args, metadata)
 
-            return self.parser_chain.parse(extracted_type, extracted_metadata, strict=True)
+            return self.pipeline.parse(extracted_type, extracted_metadata, strict=True)
 
         return None
 
@@ -75,6 +75,3 @@ class UnionTypeParser(TypeParser):
         # Extract the non-None type. Return the type as-is and preserve the outer metadata
         extracted_type = field1 if field0 is NoneType else field0
         return extracted_type, outer_metadata
-
-
-__all__ = ("UnionTypeParser",)

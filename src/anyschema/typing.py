@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable, Generator, Mapping, Sequence
 from typing import TYPE_CHECKING, Any, Literal, TypeAlias
 
-from anyschema.parsers import TypeParser
+from anyschema.parsers import ParserStep
 
 if TYPE_CHECKING:
     from narwhals.schema import Schema
@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 
 
 IntoOrderedDict: TypeAlias = Mapping[str, type] | Sequence[tuple[str, type]]
-IntoParserChain: TypeAlias = Literal["auto"] | Sequence[TypeParser]
+IntoParserPipeline: TypeAlias = Literal["auto"] | Sequence[ParserStep]
 
 Spec: TypeAlias = "Schema |  IntoOrderedDict | type[BaseModel]"
 SpecType: TypeAlias = Literal["pydantic", "python"] | None

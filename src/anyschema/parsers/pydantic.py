@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Any
 import narwhals as nw
 from pydantic import AwareDatetime, BaseModel, FutureDate, FutureDatetime, NaiveDatetime, PastDate, PastDatetime
 
+from anyschema._dependencies import is_pydantic_base_model
 from anyschema.exceptions import UnsupportedDTypeError
 from anyschema.parsers._base import TypeParser
 
@@ -53,7 +54,7 @@ class PydanticTypeParser(TypeParser):
             return nw.Date()
 
         # Handle Pydantic models (Struct types)
-        if isinstance(input_type, type) and issubclass(input_type, BaseModel):
+        if is_pydantic_base_model(input_type):
             return self._parse_pydantic_model(input_type)
 
         # TODO(FBruzzesi): It's possible to map many more types, however we would lose the information that such type

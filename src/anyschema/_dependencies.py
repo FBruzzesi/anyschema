@@ -3,7 +3,7 @@ from __future__ import annotations
 import sys
 from collections.abc import Mapping, Sequence
 from importlib.util import find_spec
-from typing import TYPE_CHECKING, TypeGuard
+from typing import TYPE_CHECKING, TypeGuard, cast
 
 if TYPE_CHECKING:
     from types import ModuleType
@@ -23,7 +23,11 @@ def get_pydantic() -> ModuleType | None:  # pragma: no cover
 
 def is_pydantic_base_model(obj: object) -> TypeGuard[type[BaseModel]]:
     """Check if the object is a pydantic BaseModel."""
-    return (pydantic := get_pydantic()) is not None and (isinstance(obj, type) and issubclass(obj, pydantic.BaseModel))
+    return (
+        (pydantic := get_pydantic()) is not None
+        and isinstance(obj, cast("type", type(pydantic.BaseModel)))
+        and issubclass(obj, pydantic.BaseModel)  # type: ignore[arg-type]
+    )
 
 
 def is_into_ordered_dict(obj: object) -> TypeGuard[IntoOrderedDict]:

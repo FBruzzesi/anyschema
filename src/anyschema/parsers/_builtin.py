@@ -11,13 +11,13 @@ from typing import TYPE_CHECKING, Any, _GenericAlias, get_args, get_origin  # ty
 import narwhals as nw
 
 from anyschema.exceptions import UnsupportedDTypeError
-from anyschema.parsers._base import TypeParser
+from anyschema.parsers._base import ParserStep
 
 if TYPE_CHECKING:
     from narwhals.dtypes import DType
 
 
-class PyTypeParser(TypeParser):
+class PyTypeStep(ParserStep):
     """Parser for Python builtin types.
 
     Handles:
@@ -80,7 +80,7 @@ class PyTypeParser(TypeParser):
             A Narwhals DType if this parser can handle the type, None otherwise.
         """
         origin, args = get_origin(input_type), get_args(input_type)
-        inner_dtype = self.parser_chain.parse(args[0], metadata=metadata, strict=True)
+        inner_dtype = self.pipeline.parse(args[0], metadata=metadata, strict=True)
 
         if inner_dtype is None:  # pragma: no cover
             return None

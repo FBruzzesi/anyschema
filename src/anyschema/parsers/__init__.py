@@ -4,94 +4,94 @@ from functools import lru_cache
 from typing import TYPE_CHECKING
 
 from anyschema._dependencies import ANNOTATED_TYPES_AVAILABLE
-from anyschema.parsers._annotated import AnnotatedParser
-from anyschema.parsers._base import ParserChain, TypeParser
-from anyschema.parsers._builtin import PyTypeParser
-from anyschema.parsers._forward_ref import ForwardRefParser
-from anyschema.parsers._union import UnionTypeParser
+from anyschema.parsers._annotated import AnnotatedStep
+from anyschema.parsers._base import ParserPipeline, ParserStep
+from anyschema.parsers._builtin import PyTypeStep
+from anyschema.parsers._forward_ref import ForwardRefStep
+from anyschema.parsers._union import UnionTypeStep
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from anyschema.typing import IntoParserChain, SpecType
+    from anyschema.typing import IntoParserPipeline, SpecType
 
 __all__ = (
-    "AnnotatedParser",
-    "ForwardRefParser",
-    "ParserChain",
-    "PyTypeParser",
-    "TypeParser",
-    "UnionTypeParser",
-    "create_parser_chain",
+    "AnnotatedStep",
+    "ForwardRefStep",
+    "ParserPipeline",
+    "ParserStep",
+    "PyTypeStep",
+    "UnionTypeStep",
+    "make_pipeline",
 )
 
 
 @lru_cache(maxsize=16)
-def create_parser_chain(parsers: IntoParserChain = "auto", *, spec_type: SpecType = None) -> ParserChain:
-    """Create a parser chain with the specified parsers.
+def make_pipeline(steps: IntoParserPipeline = "auto", *, spec_type: SpecType = None) -> ParserPipeline:
+    """Create a parser pipeline with the specified steps.
 
     Arguments:
-        parsers: Either "auto" to automatically select parsers based on spec_type,
-            or a sequence of parser instances.
+        steps: steps to use in the ParserPipeline. If "auto" then the sequence is automatically populated based on
+            the spec_type
         spec_type: The type of model being parsed ("pydantic" or "python"). Only used when parsers="auto".
 
     Returns:
-        A ParserChain instance with the configured parsers.
+        A ParserPipeline instance with the configured parsers.
     """
-    parsers_ = _auto_create_parsers(spec_type) if parsers == "auto" else tuple(parsers)
-    chain = ParserChain(parsers_)
+    steps = _auto_pipeline(spec_type) if steps == "auto" else tuple(steps)
+    pipeline = ParserPipeline(steps)
 
-    # Wire up the parser_chain reference for parsers that need it
+    # Wire up the pipeline reference for parsers that need it
     # TODO(FBruzzesi): Is there a better way to achieve this?
-    for parser in parsers_:
-        parser.parser_chain = chain
+    for step in steps:
+        step.pipeline = pipeline
 
-    return chain
+    return pipeline
 
 
-def _auto_create_parsers(spec_type: SpecType) -> Sequence[TypeParser]:
+def _auto_pipeline(spec_type: SpecType) -> Sequence[ParserStep]:
     """Create a parser chain with automatically selected parsers.
 
     Arguments:
         spec_type: The type of model being parsed.
 
     Returns:
-        A ParserChain instance with automatically selected parsers.
+        A ParserPipeline instance with automatically selected parsers.
     """
     # Create parser instances without chain reference (yet)
-    forward_ref_parser = ForwardRefParser()
-    union_parser = UnionTypeParser()
-    annotated_parser = AnnotatedParser()
-    python_parser = PyTypeParser()
+    forward_ref_step = ForwardRefStep()
+    union_step = UnionTypeStep()
+    annotated_step = AnnotatedStep()
+    python_step = PyTypeStep()
 
-    # Order matters! More specific parsers should come first:
-    # 1. ForwardRefParser - resolves ForwardRef to actual types (MUST be first!)
-    # 2. UnionTypeParser - handles Union/Optional and extracts the real type
-    # 3. AnnotatedParser - extracts typing.Annotated and its metadata
-    # 4. AnnotatedTypesParser - refines types based on metadata (e.g., int with constraints)
-    # 5. PydanticTypeParser - handles Pydantic-specific types (if pydantic model)
-    # 6. PyTypeParser - handles basic Python types (fallback)
-    parsers: Sequence[TypeParser]
+    # Order matters! More specific steps should come first:
+    # 1. ForwardRefStep - resolves ForwardRef to actual types (MUST be first!)
+    # 2. UnionTypeStep - handles Union/Optional and extracts the real type
+    # 3. AnnotatedStep - extracts typing.Annotated and its metadata
+    # 4. AnnotatedTypesStep - refines types based on metadata (e.g., int with constraints)
+    # 5. PydanticTypeStep - handles Pydantic-specific types (if pydantic model)
+    # 6. PyTypeStep - handles basic Python types (fallback)
+    steps: Sequence[ParserStep]
     if spec_type == "pydantic":
-        from anyschema.parsers.annotated_types import AnnotatedTypesParser
-        from anyschema.parsers.pydantic import PydanticTypeParser
+        from anyschema.parsers.annotated_types import AnnotatedTypesStep
+        from anyschema.parsers.pydantic import PydanticTypeStep
 
-        annotated_types_parser = AnnotatedTypesParser()
-        pydantic_parser = PydanticTypeParser()
+        annotated_types_step = AnnotatedTypesStep()
+        pydantic_step = PydanticTypeStep()
 
-        parsers = (
-            forward_ref_parser,
-            union_parser,
-            annotated_parser,
-            annotated_types_parser,
-            pydantic_parser,
-            python_parser,
+        steps = (
+            forward_ref_step,
+            union_step,
+            annotated_step,
+            annotated_types_step,
+            pydantic_step,
+            python_step,
         )
     elif ANNOTATED_TYPES_AVAILABLE:
-        from anyschema.parsers.annotated_types import AnnotatedTypesParser
+        from anyschema.parsers.annotated_types import AnnotatedTypesStep
 
-        annotated_types_parser = AnnotatedTypesParser()
-        parsers = (forward_ref_parser, union_parser, annotated_parser, annotated_types_parser, python_parser)
+        annotated_types_step = AnnotatedTypesStep()
+        steps = (forward_ref_step, union_step, annotated_step, annotated_types_step, python_step)
     else:  # pragma: no cover
-        parsers = (forward_ref_parser, union_parser, annotated_parser, python_parser)
-    return parsers
+        steps = (forward_ref_step, union_step, annotated_step, python_step)
+    return steps

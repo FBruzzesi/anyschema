@@ -7,15 +7,15 @@ from pydantic import AwareDatetime, BaseModel, FutureDate, FutureDatetime, Naive
 
 from anyschema._dependencies import is_pydantic_base_model
 from anyschema.exceptions import UnsupportedDTypeError
-from anyschema.parsers._base import TypeParser
+from anyschema.parsers._base import ParserStep
 
 if TYPE_CHECKING:
     from narwhals.dtypes import DType
 
-__all__ = ("PydanticTypeParser",)
+__all__ = ("PydanticTypeStep",)
 
 
-class PydanticTypeParser(TypeParser):
+class PydanticTypeStep(ParserStep):
     """Parser for Pydantic-specific types.
 
     Handles:
@@ -79,7 +79,7 @@ class PydanticTypeParser(TypeParser):
             annotation, metadata = field_info.annotation, tuple(field_info.metadata)
 
             assert annotation is not None  # noqa: S101
-            field_dtype = self.parser_chain.parse(annotation, metadata, strict=True)
+            field_dtype = self.pipeline.parse(annotation, metadata, strict=True)
             fields.append(nw.Field(name=field_name, dtype=field_dtype))
 
         return nw.Struct(fields)

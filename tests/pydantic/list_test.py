@@ -5,10 +5,10 @@ from typing import Optional
 import narwhals as nw
 from pydantic import BaseModel, conint, conlist
 
-from anyschema.parsers import create_parser_chain
+from anyschema.parsers import make_pipeline
 from tests.pydantic.utils import model_to_nw_schema
 
-parser_chain = create_parser_chain("auto", spec_type="pydantic")
+pipeline = make_pipeline("auto", spec_type="pydantic")
 
 
 def test_parse_list_optional_outer() -> None:
@@ -25,7 +25,7 @@ def test_parse_list_optional_outer() -> None:
         con_list_or_none: conlist(float) | None
         none_or_con_list: None | conlist(bool)
 
-    schema = model_to_nw_schema(ListModel, parser_chain=parser_chain)
+    schema = model_to_nw_schema(ListModel, pipeline=pipeline)
     expected = {
         "py_list": nw.List(nw.Int64()),
         "py_list_optional": nw.List(nw.String()),
@@ -51,7 +51,7 @@ def test_parse_list_optional_inner() -> None:
         con_list_or_none: conlist(str | None, max_length=6)
         none_or_con_list: conlist(None | float)
 
-    schema = model_to_nw_schema(ListModel, parser_chain=parser_chain)
+    schema = model_to_nw_schema(ListModel, pipeline=pipeline)
     expected = {
         "py_list_optional": nw.List(nw.String()),
         "py_list_or_none": nw.List(nw.Float64()),
@@ -77,7 +77,7 @@ def test_parse_list_optional_outer_and_inner() -> None:
         con_list_none_optional: conlist(Optional[float]) | None
         con_list_none_none: conlist(None | bool) | None
 
-    schema = model_to_nw_schema(ListModel, parser_chain=parser_chain)
+    schema = model_to_nw_schema(ListModel, pipeline=pipeline)
     expected = {
         "py_list_optional_optional": nw.List(nw.Int64()),
         "py_list_optional_none": nw.List(nw.String()),
@@ -101,7 +101,7 @@ def test_parse_conlist_conint() -> None:
         con_list_int8: conlist(None | conint(gt=-64, lt=64))
         con_list_uint8: conlist(Optional[conint(gt=0, lt=64)])
 
-    schema = model_to_nw_schema(ListModel, parser_chain=parser_chain)
+    schema = model_to_nw_schema(ListModel, pipeline=pipeline)
     expected = {
         "py_list_int8": nw.List(nw.Int8()),
         "py_list_uint8": nw.List(nw.UInt8()),

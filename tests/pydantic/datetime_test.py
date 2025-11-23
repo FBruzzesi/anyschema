@@ -5,10 +5,10 @@ from datetime import datetime  # noqa: TC003
 import narwhals as nw
 from pydantic import BaseModel, FutureDatetime, NaiveDatetime, PastDatetime
 
-from anyschema.parsers import create_parser_chain
+from anyschema.parsers import make_pipeline
 from tests.pydantic.utils import model_to_nw_schema
 
-parser_chain = create_parser_chain("auto", spec_type="pydantic")
+pipeline = make_pipeline("auto", spec_type="pydantic")
 
 
 def test_parse_datetime() -> None:
@@ -37,6 +37,6 @@ def test_parse_datetime() -> None:
         future_dt_or_none: FutureDatetime | None
         none_or_future_dt: None | FutureDatetime
 
-    schema = model_to_nw_schema(DatetimeModel, parser_chain=parser_chain)
+    schema = model_to_nw_schema(DatetimeModel, pipeline=pipeline)
 
     assert all(value == nw.Datetime() for value in schema.values())

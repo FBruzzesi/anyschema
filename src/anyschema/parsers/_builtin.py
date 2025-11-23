@@ -64,6 +64,9 @@ class PyTypeParser(TypeParser):
         if isinstance(input_type, (_GenericAlias, GenericAlias)):
             return self._parse_generic(input_type, metadata)
 
+        if input_type in (list, tuple, Sequence, Iterable):
+            return nw.List(nw.Object())
+
         return None
 
     def _parse_generic(self, input_type: _GenericAlias | GenericAlias, metadata: tuple) -> DType | None:  # type: ignore[no-any-unimported]
@@ -77,11 +80,9 @@ class PyTypeParser(TypeParser):
             A Narwhals DType if this parser can handle the type, None otherwise.
         """
         origin, args = get_origin(input_type), get_args(input_type)
-        if (not args) and (origin in (list, tuple, Sequence, Iterable)):
-            return nw.List(nw.Object())
-
         inner_dtype = self.parser_chain.parse(args[0], metadata=metadata, strict=True)
-        if inner_dtype is None:
+
+        if inner_dtype is None:  # pragma: no cover
             return None
 
         if origin in (list, Sequence, Iterable):

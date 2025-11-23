@@ -5,9 +5,7 @@ from typing import Annotated
 import narwhals as nw
 import pytest
 
-from anyschema.parsers._annotated import AnnotatedParser
-from anyschema.parsers._base import ParserChain
-from anyschema.parsers._builtin import PyTypeParser
+from anyschema.parsers import AnnotatedParser, ParserChain, PyTypeParser
 
 
 @pytest.fixture(scope="module")

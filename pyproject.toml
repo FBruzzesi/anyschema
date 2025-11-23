@@ -37,6 +37,7 @@ typing = [
 ]
 
 docs = [
+  "anyschema[pydantic]",
   "black",  # required by mkdocstrings_handlers
   "markdown-exec[ansi]",
   "mkdocs",
@@ -44,6 +45,9 @@ docs = [
   "mkdocstrings[python]",
   "mkdocstrings-python",
   "mkdocs-autorefs",
+  "pandas",
+  "polars",
+  "pyarrow",
 ]
 
 [tool.ruff]

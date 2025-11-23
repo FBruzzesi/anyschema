@@ -1,10 +1,10 @@
 site_name: AnySchema
-# repo_url: 
+# repo_url:
 watch:
   - src
 nav:
   - Home: index.md
-  
+
 theme:
   name: material
   font: false
@@ -16,7 +16,7 @@ theme:
     - navigation.footer
     - navigation.indexes
     - navigation.top
-  palette:   
+  palette:
     # Palette toggle for automatic mode
     - media: "(prefers-color-scheme)"
       toggle:
@@ -64,11 +64,8 @@ markdown_extensions:
       class: python
       validator: !!python/name:markdown_exec.validator
       format: !!python/name:markdown_exec.formatter
-- pymdownx.emoji:
-      emoji_index: !!python/name:material.extensions.emoji.twemoji
-      emoji_generator: !!python/name:material.extensions.emoji.to_svg
 - pymdownx.arithmatex:
-      generic: true
+    generic: true
 
 extra_javascript:
   - javascripts/extra.js

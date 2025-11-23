@@ -13,4 +13,3 @@ test:
 typing:
 	uv run --active --no-sync --group typing pyright src
 	uv run --active --no-sync --group typing mypy src
-

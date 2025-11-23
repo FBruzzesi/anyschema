@@ -16,7 +16,7 @@ parser_chain = create_parser_chain("auto", spec_type="pydantic")
     ("input_type", "msg"),
     [
         (str | float | int, "Union with more than two types is not supported."),
-        (str | float, "Union with both types being not None is not supported."),
+        (str | float, "Union with mixed types is not supported."),
     ],
 )
 def test_raise_parse_union(input_type: type, msg: str) -> None:

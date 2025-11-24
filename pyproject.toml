@@ -5,10 +5,11 @@ build-backend = "hatchling.build"
 
 [project]
 name = "anyschema"
-version = "0.1.0"
-description = "From pydantic to any frame schema"
+version = "0.0.1"
+description = "From type specifications to any dataframe schema"
 readme = "README.md"
-authors = [{ name = "FBruzzesi"}]
+license = {file = "LICENSE"}
+authors = [{ name = "Francesco Bruzzesi"}]
 requires-python = ">=3.10"
 dependencies = [
     "narwhals>=2.0.0",
@@ -36,11 +37,17 @@ typing = [
 ]
 
 docs = [
+  "anyschema[pydantic]",
   "black",  # required by mkdocstrings_handlers
   "markdown-exec[ansi]",
   "mkdocs",
   "mkdocs-material",
   "mkdocstrings[python]",
+  "mkdocstrings-python",
+  "mkdocs-autorefs",
+  "pandas",
+  "polars",
+  "pyarrow",
 ]
 
 [tool.ruff]
@@ -59,9 +66,11 @@ ignore = [
     "D100",  # Checks for undocumented public module definitions.
     "D104",  # Checks for undocumented public package definitions.
     "D107",  # Checks for public __init__ method definitions that are missing docstrings.
+    "D205",
     "RET505",
     "FIX002",
     "TD003",
+
 ]
 
 [tool.ruff.lint.per-file-ignores]
@@ -105,3 +114,9 @@ fail_under = 95
 omit = [
     "src/anyschema/typing.py",
 ]
+
+
+[tool.rumdl]
+line-length = 120
+include = ["docs/*.md", "README.md"]
+disable = ["MD052"]

@@ -16,17 +16,17 @@ class ForwardRefStep(ParserStep):
     which occur when using string annotations or referencing types before they're defined.
 
     The parser resolves the ForwardRef to the actual type and delegates to the parser chain.
+
+    Initialization can be customized by providing a global and local namespace that will be used to evaluate the
+    forward references when resolving the type. The default namespace is built with common types, yet you can override
+    it with your own types.
+
+    Arguments:
+        globalns: Global namespace for evaluating forward references. Defaults to a namespace with common types.
+        localns: Local namespace for evaluating forward references. Defaults to an empty namespace.
     """
 
     def __init__(self, globalns: dict | None = None, localns: dict | None = None) -> None:
-        """Initialize the parser with namespace context for resolving forward references.
-
-        Arguments:
-            globalns: Global namespace for evaluating forward references.
-                     Defaults to a namespace with common types.
-            localns: Local namespace for evaluating forward references.
-                    Defaults to an empty namespace.
-        """
         super().__init__()
         # Build namespace with common types for resolution
         self.globalns = self._build_namespace(globalns)

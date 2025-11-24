@@ -1,15 +1,34 @@
 site_name: AnySchema
-# repo_url:
+site_url: https://fbruzzesi.github.io/anyschema/
+site_author: Francesco Bruzzesi
+
+repo_url: https://github.com/FBruzzesi/anyschema
+repo_name: FBruzzesi/anyschema
+edit_uri: edit/main/docs/
+
 watch:
-  - src
+  - src/anyschema
+  - docs
+
 nav:
   - Home: index.md
+  - User Guide:
+    - Getting Started: user-guide/getting-started.md
+    - Advanced Usage: user-guide/advanced.md
+  - Architecture: architecture.md
+  - API Reference:
+    - Home: api-reference/index.md
+    - AnySchema: api-reference/anyschema.md
+    - Parsers: api-reference/parsers.md
+    - Spec Adapters: api-reference/adapters.md
+    - Exceptions: api-reference/exceptions.md
+    - Typing: api-reference/typing.md
 
 theme:
   name: material
   font: false
-  # favicon: assets/logo.svg
-  # logo: assets/logo.svg
+  # favicon: assets/logo.svg  # TODO(FBruzzesi)
+  # logo: assets/logo.svg  # TODO(FBruzzesi)
   features:
     - content.code.copy
     - content.code.annotate
@@ -39,22 +58,31 @@ theme:
 
 
 plugins:
-- search
+- autorefs
+- search:
+    enabled: true
+    separator: '[\s\-,:!=\[\]()"`/]+|\.(?!\d)|&[lg]t;|(?!\b)(?=[A-Z][a-z])'
 - mkdocstrings:
+    default_handler: python
+    enable_inventory: true
     handlers:
       python:
-        import:
-        - https://installer.readthedocs.io/en/stable/objects.inv
-        rendering:
-          show_signature_annotations: true
         options:
           members_order: alphabetical
-    enable_inventory: true
+          line_length: 100
+          show_overloads: false
+          show_signature_annotations: true
+          signature_crossrefs: true
 
 markdown_extensions:
 - footnotes
 - admonition
 - md_in_html
+- attr_list
+- def_list
+- toc:
+    permalink: true
+    toc_depth: 5
 - pymdownx.details
 - pymdownx.tabbed:
     alternate_style: true
@@ -64,6 +92,15 @@ markdown_extensions:
       class: python
       validator: !!python/name:markdown_exec.validator
       format: !!python/name:markdown_exec.formatter
+    - name: mermaid
+      class: mermaid
+      format: !!python/name:pymdownx.superfences.fence_code_format
+- pymdownx.highlight:
+    anchor_linenums: true
+    line_spans: __span
+    pygments_lang_class: true
+- pymdownx.inlinehilite
+- pymdownx.snippets
 - pymdownx.arithmatex:
     generic: true
 

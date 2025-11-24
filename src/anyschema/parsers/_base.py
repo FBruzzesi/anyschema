@@ -22,7 +22,6 @@ class ParserStep(ABC):
     implementation handles specific type patterns or annotation styles.
 
     Attributes:
-        _pipeline: Internal reference to the `ParserPipeline` this parser belongs to.
         pipeline: Property to access the `ParserPipeline`, raises `UnavailablePipelineError`
             if not set.
 
@@ -32,6 +31,36 @@ class ParserStep(ABC):
 
     Note:
         Subclasses must implement the `parse` method to define their specific parsing logic.
+
+    Examples:
+        >>> from typing import get_origin, get_args
+        >>> import narwhals as nw
+        >>> from anyschema.parsers import ParserStep, PyTypeStep, make_pipeline
+        >>>
+        >>> class CustomType: ...
+        >>> class CustomList[T]: ...
+        >>>
+        >>> class CustomParserStep(ParserStep):
+        ...     def parse(self, input_type: Any, metadata: tuple = ()) -> DType | None:
+        ...         if input_type is CustomType:
+        ...             return nw.String()
+        ...
+        ...         if get_origin(input_type) is CustomList:
+        ...             inner = get_args(input_type)[0]
+        ...             # Delegate to pipeline for recursion
+        ...             inner_dtype = self.pipeline.parse(inner, metadata=metadata)
+        ...             return nw.List(inner_dtype)
+        ...
+        ...         # Return None if we can't handle it
+        ...         return None
+        >>>
+        >>> pipeline = make_pipeline(steps=[CustomParserStep(), PyTypeStep()])
+        >>> pipeline.parse(CustomType)
+        String
+        >>> pipeline.parse(CustomList[int])
+        List(Int64)
+        >>> pipeline.parse(CustomList[str])
+        List(String)
     """
 
     _pipeline: ParserPipeline | None = None
@@ -82,21 +111,20 @@ class ParserStep(ABC):
         """
         ...
 
+    def __repr__(self) -> str:
+        return self.__class__.__name__
+
 
 class ParserPipeline:
     """A pipeline of parser steps that tries each parser in sequence.
 
-    This allows for composable parsing where multiple parsers can be tried
-    until one successfully handles the type. The name follows the familiar
-    pattern from scikit-learn's Pipeline for sequential processing.
+    This allows for composable parsing where multiple parsers can be tried until one successfully handles the type.
+
+    Arguments:
+        steps: Sequence of [`ParserStep`][anyschema.parsers.ParserStep]'s to use in the pipeline (in such order).
     """
 
     def __init__(self, steps: Sequence[ParserStep]) -> None:
-        """Initialize the parser chain with a list of parsers.
-
-        Arguments:
-            steps: List of parser instances to try in order.
-        """
         self.steps = tuple(steps)
 
     @overload

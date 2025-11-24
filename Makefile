@@ -13,3 +13,9 @@ test:
 typing:
 	uv run --active --no-sync --group typing pyright src
 	uv run --active --no-sync --group typing mypy src
+
+docs-serve:
+	uv run --active --no-sync --group docs mkdocs serve --watch src --watch docs --dirty
+
+docs-build:
+	uv run --active --no-sync --group docs mkdocs build --strict

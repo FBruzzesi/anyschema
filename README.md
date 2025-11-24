@@ -5,7 +5,8 @@
 > If you are keen to try it out, it is possible to install it via pip anyway:
 > `python -m pip install git+https://github.com/FBruzzesi/anyschema.git`
 
-`anyschema` allows you to convert from a pydantic model to _any_ dataframe schema (by _"any"_ we intend those supported by Narwhals).
+`anyschema` allows you to convert from a pydantic model to _any_ dataframe schema (by _"any"_ we intend those supported
+by Narwhals).
 
 Let's see how it works in practice with an example:
 
@@ -44,14 +45,11 @@ pl_schema
 # Schema([('name', String), ('age', UInt64), ('classes', List(String))])
 ```
 
-## Why does this exist?
+## Why `anyschema`?
 
-The initial motivation to start this project has originated by listening to a
-[Talk Python podcast episode](https://www.youtube.com/live/wuGirNCyTxA?t=2880s) in which the creator of
-[LanceDB](https://github.com/lancedb/lancedb) was interviewed.
+The project was inspired by a [Talk Python podcast episode](https://www.youtube.com/live/wuGirNCyTxA?t=2880s) featuring
+the creator of [LanceDB](https://github.com/lancedb/lancedb), who mentioned the need to convert from Pydantic models to
+PyArrow schemas.
 
-He mentioned that they need to convert from pydantic models to pyarrow schemas.
-
-I thought that this could (easily?) be generalized to many other dataframe schema by translating to Narwhals first.
-
-So the challenge was on!
+This challenge led to a realization: such conversion could be generalized to many dataframe libraries by using Narwhals
+as an intermediate representation. `anyschema` makes this conversion seamless and extensible.

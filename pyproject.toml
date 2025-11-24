@@ -70,7 +70,6 @@ ignore = [
     "RET505",
     "FIX002",
     "TD003",
-
 ]
 
 [tool.ruff.lint.per-file-ignores]
@@ -115,8 +114,17 @@ omit = [
     "src/anyschema/typing.py",
 ]
 
-
 [tool.rumdl]
 line-length = 120
-include = ["docs/*.md", "README.md"]
-disable = ["MD052"]
+flavor = "mkdocs"
+include = ["docs/", "README.md"]
+disable = [
+  "MD052",  # Fix broken reference links and images  # NOTE: false positive in code blocks e.g. `pip install anyschema[pydantic]` as well as github alerts e.g. [!CAUTION].
+]
+
+[tool.rumdl.per-file-ignores]
+"docs/architecture.md" = [
+  "MD005",  # List indentation should be consistent  # NOTE: For nested lists mkdocs requires 4 spaces indentation
+  "MD006",  # Consider starting bulleted lists at the beginning of the line  # NOTE: Fore nested lists this is not possible?
+  "MD056",  # Keep table column count consistent  # NOTE: false positive if "|" is in a code block, see https://github.com/rvben/rumdl/issues/163
+]

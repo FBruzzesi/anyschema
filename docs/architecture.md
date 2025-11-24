@@ -105,7 +105,7 @@ Steps inherit from the [`ParserStep`](api-reference/parsers.md#anyschema.parsers
 | Step | Purpose | Handles | Order |
 |------|---------|---------|-------|
 | `ForwardRefStep` | Resolves forward references before any type inspection can happen | `ForwardRef('ClassName')` | Must be first |
-| `UnionTypeStep` | Extracts non-None types from Optional/Union types (dataframe libraries don't have Union types) | `Union[T, None]`, `T \| None`, `Optional[T]` | Early - simplifies downstream parsers |
+| `UnionTypeStep` | Extracts non-None types from Optional/Union types (dataframe libraries don't have Union types) | `Union[T, None]`, `T | None`, `Optional[T]` | Early - simplifies downstream parsers |
 | `AnnotatedStep` | Separates base types from their constraints/metadata for independent processing | `Annotated[T, metadata1, ...]` | Before type-specific parsers |
 | `AnnotatedTypesStep` | Refines types based on constraints (e.g., positive integers become unsigned types) | Types with `annotated_types` or Pydantic constraints | After `AnnotatedStep`, before type parsers |
 | `PydanticTypeStep` | Handles Pydantic-specific types that need special processing beyond Python type inspection | Pydantic types like `FutureDate` | After metadata extraction, before fallback |
@@ -159,9 +159,9 @@ class Product(BaseModel):
 
 The pipeline processes this as:
 
-1. pydantic_adapter extracts: ("price", Annotated[float, Field(gt=0)], (FieldInfo,))
-2. AnnotatedStep extracts: float with metadata (Field(gt=0), FieldInfo)
-3. AnnotatedTypesStep refines based on constraints and converts to UInt64 (instead of Int64)
+1. `pydantic_adapter` extracts: `("price", Annotated[float, Field(gt=0)], (FieldInfo,))`
+2. `AnnotatedStep` extracts: `float` with metadata `(Field(gt=0), FieldInfo)`
+3. `AnnotatedTypesStep` refines based on constraints and converts to `UInt64` (instead of `Int64`)
 
 ## Recursion and Nested Types
 
@@ -246,8 +246,8 @@ Complete processing flow:
         * `PyTypeStep`: `list[str]` -> recursively parse `str` (within the generic) -> returns `List(String())`
         * **Result**: `List(String())` (nullable)
 
-5. **Final Schema**:
+5. Final Schema:
 
-   ```python
-   Schema({"name": String(), "age": UInt64(), "classes": List(String())})
-   ```
+    ```python
+    Schema({"name": String(), "age": UInt64(), "classes": List(String())})
+    ```

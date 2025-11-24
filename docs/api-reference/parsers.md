@@ -12,7 +12,6 @@ dtypes.
       show_source: false
       heading_level: 3
 
-
 ::: anyschema.parsers.ParserPipeline
     handler: python
     options:

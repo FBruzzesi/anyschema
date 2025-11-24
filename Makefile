@@ -1,3 +1,6 @@
+ARG := $(word 2, $(MAKECMDGOALS))
+$(eval $(ARG):;@:)
+
 sources = anyschema tests
 
 lint:
@@ -19,3 +22,11 @@ docs-serve:
 
 docs-build:
 	uv run --active --no-sync --group docs mkdocs build --strict
+
+setup-release:
+	git checkout main
+	git fetch upstream
+	git reset --hard upstream/main
+	git checkout -b bump-version
+	python bump-version.py $(ARG)
+	gh pr create --title "release: Bump version to " --body "Bump version" --base main --label release

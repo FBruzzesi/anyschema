@@ -81,8 +81,6 @@ print(schema.to_polars())
 
 ### Nested Types
 
-
-
 ```python exec="true" source="above" session="nested"
 from anyschema import AnySchema
 from pydantic import BaseModel

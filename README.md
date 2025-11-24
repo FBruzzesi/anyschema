@@ -1,4 +1,4 @@
-# anyschema: From pydantic to any frame schema
+# anyschema: From Type Specifications to Dataframe Schemas
 
 > [!CAUTION]
 > `anyschema` is still in early development and not in pypi yet.

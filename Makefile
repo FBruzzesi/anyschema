@@ -1,4 +1,4 @@
-sources = src tests
+sources = anyschema tests
 
 lint:
 	uvx ruff version
@@ -7,15 +7,15 @@ lint:
 	uvx ruff clean
 
 test:
-	uv run --active --no-sync --group tests pytest tests --cov=src --cov=tests --cov-fail-under=90
-	uv run --active --no-sync --group tests pytest src --doctest-modules
+	uv run --active --no-sync --group tests pytest tests --cov=anyschema --cov=tests --cov-fail-under=90
+	uv run --active --no-sync --group tests pytest anyschema --doctest-modules
 
 typing:
-	uv run --active --no-sync --group typing pyright src
-	uv run --active --no-sync --group typing mypy src
+	uv run --active --no-sync --group typing pyright anyschema
+	uv run --active --no-sync --group typing mypy anyschema
 
 docs-serve:
-	uv run --active --no-sync --group docs mkdocs serve --watch src --watch docs --dirty
+	uv run --active --no-sync --group docs mkdocs serve --watch anyschema --watch docs --dirty
 
 docs-build:
 	uv run --active --no-sync --group docs mkdocs build --strict

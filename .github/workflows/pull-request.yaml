@@ -76,7 +76,9 @@ jobs:
           uvx ruff check anyschema tests --output-format=github
           uvx ruff clean
       - name: Run rumdl linter and formatter
-        run: uv tool run rumdl check --output-format=github .
+        run: |
+          uv tool run rumdl check --output-format=github docs
+          uv tool run rumdl check --output-format=github README.md
 
   check-typos:
     runs-on: ubuntu-latest

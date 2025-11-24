@@ -4,19 +4,12 @@
 dataframe schemas (such as PyArrow, Polars, and Pandas).
 
 !!! warning "Development Status"
-    `anyschema` is still in early development and not yet published on PyPI.
+    `anyschema` is still in early development and possibly unstable.
 
-    You can install it directly from GitHub:
+## Installation
 
-    ```bash
-    python -m pip install git+https://github.com/FBruzzesi/anyschema.git
-    ```
-
-    For Pydantic support (recommended), install with the `pydantic` extra:
-
-    ```bash
-    python -m pip install "git+https://github.com/FBruzzesi/anyschema.git[pydantic]"
-    ```
+`anyschema` is available on [pypi](https://pypi.org/project/iso-week-date/), and it can be installed directly via
+any package manager.
 
 ## Quick Start
 

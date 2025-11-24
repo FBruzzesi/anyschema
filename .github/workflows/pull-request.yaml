@@ -59,7 +59,7 @@ jobs:
       - name: Build docs strict mode
         run: uv run --group docs mkdocs build --strict
 
-  ruff:
+  lint-and-format:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout source code
@@ -70,17 +70,11 @@ jobs:
           python-version: $DEFAULT_PYTHON
           enable-cache: "true"
           cache-dependency-glob: "pyproject.toml"
-      - name: Install & run ruff linter and formatter
+      - name: Run ruff linter and formatter
         run: |
           uvx ruff version
           uvx ruff format src tests --diff
           uvx ruff check src tests --output-format=github
           uvx ruff clean
-
-  rumdl:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout source code
-        uses: actions/checkout@v6
-      - name: Lint Markdown
-        run: rumdl check --output-format github .
+      - name: Run rumdl linter and formatter
+        run: uv tool run rumdl check --output-format=github .

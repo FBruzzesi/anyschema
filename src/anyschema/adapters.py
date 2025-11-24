@@ -59,7 +59,7 @@ def pydantic_adapter(spec: type[BaseModel]) -> FieldSpecIterable:
         ...     age: Annotated[int, Field(ge=0)]
         >>>
         >>> list(pydantic_adapter(Student))
-        [('name', <class 'str'>, ()), ('age', ForwardRef('Annotated[int, Field(ge=0)]'), ())]
+        [('name', <class 'str'>, ()), ('age', ForwardRef('Annotated[int, Field(ge=0)]', is_class=True), ())]
     """
     for field_name, field_info in spec.model_fields.items():
         yield field_name, field_info.annotation, tuple(field_info.metadata)  # type: ignore[misc]

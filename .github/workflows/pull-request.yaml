@@ -27,7 +27,6 @@ jobs:
         if: matrix.python-version == '3.14'
         run: uv run --active --no-sync --group tests pytest src --doctest-modules
 
-
   minimum_versions:
     strategy:
       matrix:
@@ -53,7 +52,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v7
         with:
-          python-version: $DEFAULT_PYTHON
+          python-version: ${{ env.DEFAULT_PYTHON }}
           enable-cache: "true"
           cache-dependency-glob: "pyproject.toml"
       - name: Build docs strict mode
@@ -67,7 +66,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v7
         with:
-          python-version: $DEFAULT_PYTHON
+          python-version: ${{ env.DEFAULT_PYTHON }}
           enable-cache: "true"
           cache-dependency-glob: "pyproject.toml"
       - name: Run ruff linter and formatter

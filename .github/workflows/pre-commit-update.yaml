@@ -1,0 +1,31 @@
+name: "Pre-commit auto-update"
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 0 10 * *"  # Every 10th of the month at 00:00 UTC
+
+permissions: write-all
+
+jobs:
+  auto-update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v5
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.12"
+          enable-cache: "true"
+          cache-dependency-glob: "pyproject.toml"
+      - name: pre-commit install autoupdate
+        run: uvx pre-commit autoupdate
+      - name: Commit and push changes
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: update-pre-commit-hooks
+          title: 'Update pre-commit hooks'
+          commit-message: 'Update pre-commit hooks'
+          body: |
+              Update versions of pre-commit hooks to latest versions.

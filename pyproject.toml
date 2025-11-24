@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 [project]
 name = "anyschema"
 version = "0.0.1"
-description = "From type specifications to any dataframe schema"
+description = "From type specifications to dataframe schemas"
 readme = "README.md"
 license = {file = "LICENSE"}
 authors = [{ name = "Francesco Bruzzesi"}]
@@ -17,6 +17,17 @@ dependencies = [
 
 [project.optional-dependencies]
 pydantic = ["pydantic>=2.0.0"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "src/*",
+  "tests/*",
+]
+
+[tool.hatch.build.targets.wheel]
+include = [
+  "src/*",
+]
 
 [dependency-groups]
 test = [

@@ -1,4 +1,4 @@
-name: Tests
+name: "PR Checks"
 
 on:
   pull_request:
@@ -25,7 +25,7 @@ jobs:
         run: uv run --all-extras --group test pytest tests --cov=src --cov=tests --cov-fail-under=95
       - name: Run doctest
         if: matrix.python-version == '3.14'
-        run: uv run --active --no-sync --group tests pytest src --doctest-modules
+        run: uv run --group tests pytest src --doctest-modules
 
   minimum_versions:
     strategy:
@@ -77,3 +77,13 @@ jobs:
           uvx ruff clean
       - name: Run rumdl linter and formatter
         run: uv tool run rumdl check --output-format=github .
+
+  check-typos:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v6
+      - name: Check for typos
+        uses: crate-ci/typos@master
+        with:
+          files: .

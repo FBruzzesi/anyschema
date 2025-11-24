@@ -6,10 +6,6 @@ repo_url: https://github.com/FBruzzesi/anyschema
 repo_name: FBruzzesi/anyschema
 edit_uri: edit/main/docs/
 
-watch:
-  - src/anyschema
-  - docs
-
 nav:
   - Home: index.md
   - User Guide:
@@ -105,7 +101,7 @@ markdown_extensions:
     generic: true
 
 extra_javascript:
-  - javascripts/extra.js
+  - javascript/extra.js
 
 extra_css:
   - css/extra.css

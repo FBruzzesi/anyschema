@@ -1,0 +1,86 @@
+name: Tests
+
+on:
+  pull_request:
+
+env:
+  DEFAULT_PYTHON: "3.12"
+
+jobs:
+  pytest:
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v6
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: ${{ matrix.python-version }}
+          enable-cache: "true"
+          cache-dependency-glob: "pyproject.toml"
+      - name: Run pytest
+        run: uv run --all-extras --group test pytest tests --cov=src --cov=tests --cov-fail-under=95
+      - name: Run doctest
+        if: matrix.python-version == '3.14'
+        run: uv run --active --no-sync --group tests pytest src --doctest-modules
+
+
+  minimum_versions:
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11"]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v6
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: ${{ matrix.python-version }}
+          enable-cache: "true"
+          cache-dependency-glob: "pyproject.toml"
+      - name: Run pytest
+        run: uv run --with pydantic==2.0.0,narwhals==2.0.0 --group test pytest tests --cov=src --cov=tests --cov-fail-under=95
+
+  mkdocs-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v6
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: $DEFAULT_PYTHON
+          enable-cache: "true"
+          cache-dependency-glob: "pyproject.toml"
+      - name: Build docs strict mode
+        run: uv run --group docs mkdocs build --strict
+
+  ruff:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v6
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: $DEFAULT_PYTHON
+          enable-cache: "true"
+          cache-dependency-glob: "pyproject.toml"
+      - name: Install & run ruff linter and formatter
+        run: |
+          uvx ruff version
+          uvx ruff format src tests --diff
+          uvx ruff check src tests --output-format=github
+          uvx ruff clean
+
+  rumdl:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v6
+      - name: Lint Markdown
+        run: rumdl check --output-format github .

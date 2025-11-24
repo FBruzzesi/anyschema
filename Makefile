@@ -15,10 +15,7 @@ typing:
 	uv run --active --no-sync --group typing mypy src
 
 docs-serve:
-	uv run --active --no-sync --group docs mkdocs serve
+	uv run --active --no-sync --group docs mkdocs serve --watch src --watch docs --dirty
 
 docs-build:
 	uv run --active --no-sync --group docs mkdocs build --strict
-
-docs-deploy:
-	uv run --active --no-sync --group docs mkdocs gh-deploy --force

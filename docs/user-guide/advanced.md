@@ -3,14 +3,14 @@
 This guide covers advanced topics including custom parser steps, custom spec adapters, and extending anyschema for your
 specific use cases.
 
-It might be useful to review the [Architecture](architecture.md) and have gone through the
-[Getting Started](user-guide/getting-started.md) guide before diving into advanced topics.
+It might be useful to review the [Architecture](../architecture.md) and have gone through the
+[Getting Started](getting-started.md) guide before diving into advanced topics.
 
 ## Custom Parser Steps
 
 Creating custom parser steps allows you to add support for new type systems or handle special types in your own way.
-Parser steps should inherit from the [ParserStep](../api-reference/parsers.md#parserstep-base-class) base class and
-implement the `parse` method with the following signature:
+Parser steps should inherit from the [ParserStep](../api-reference/parsers.md#anyschema.parsers.ParserStep) base class
+and implement the `parse` method with the following signature:
 
 ```python
 def parse(self, input_type: Any, metadata: tuple = ()) -> DType | None:
@@ -64,7 +64,7 @@ print(result)
 ### Custom Parser with Nested Types
 
 This example shows how to handle a custom generic type. Note how we use `self.pipeline.parse()` for recursion, as
-explained in the [Architecture](architecture.md#recursion-and-nested-types) page:
+explained in the [Architecture](../architecture.md#recursion-and-nested-types) page:
 
 ```python exec="true" source="above" result="python" session="custom-parser"
 from typing import Any, TypeVar, get_args, get_origin
@@ -115,7 +115,7 @@ print(result)
 ### Custom Parser with Metadata Handling
 
 This example shows how to use metadata to refine type parsing. For more on metadata flow, see the
-[Architecture](architecture.md#metadata-preservation) section:
+[Architecture](../architecture.md#metadata-preservation) section:
 
 ```python exec="true" source="above" result="python" session="custom-parser"
 from typing import Any, Annotated

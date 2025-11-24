@@ -85,7 +85,7 @@ See the [API Reference](api-reference/adapters.md) for detailed documentation.
 
 ### Parser Pipeline
 
-The [`ParserPipeline`](api-reference/parsers.md#parserpipeline) orchestrates multiple parser steps, executing each step
+The [`ParserPipeline`](api-reference/parsers.md#anyschema.parsers.ParserPipeline) orchestrates multiple parser steps, executing each step
 in sequence until one successfully handles the type (or raises an error).
 
 ```python exec="true" source="above" result="python" session="parser-pipeline"
@@ -100,7 +100,7 @@ print(dtype)
 ### Parser Steps
 
 Each parser step is responsible for handling specific type patterns.
-Steps inherit from the [`ParserStep`](api-reference/parsers.md#parserstep) abstract base class.
+Steps inherit from the [`ParserStep`](api-reference/parsers.md#anyschema.parsers.ParserStep) abstract base class.
 
 | Step | Purpose | Handles | Order |
 |------|---------|---------|-------|

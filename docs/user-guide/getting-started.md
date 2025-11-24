@@ -129,8 +129,9 @@ in the schema.
 
 ## Working with (Integer) Constraints
 
-Constraints are processed by the [AnnotatedTypesStep](api-reference/parsers.md#AnnotatedTypesStep) parser step, which
-refines types based on their metadata. The following examples demonstrate how constraints are handled.
+Constraints are processed by the [`AnnotatedTypesStep`](../api-reference/parsers.md#anyschema.parsers.annotated_types.AnnotatedTypesStep)
+parser step, which refines types based on their metadata.
+The following examples demonstrate how constraints are handled.
 
 Pydantic's constrained integer types are automatically converted to appropriate unsigned or signed integers:
 

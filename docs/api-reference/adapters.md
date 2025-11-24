@@ -2,7 +2,7 @@
 
 Adapters convert various input specifications into a normalized format for parsing.
 
-Learn how to create custom adapters in the [Advanced Usage](user-guide/advanced.md#custom-spec-adapters) guide.
+Learn how to create custom adapters in the [Advanced Usage](../user-guide/advanced.md#custom-spec-adapters) guide.
 
 ::: anyschema.adapters.into_ordered_dict_adapter
     handler: python

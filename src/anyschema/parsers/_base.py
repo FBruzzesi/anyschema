@@ -22,7 +22,6 @@ class ParserStep(ABC):
     implementation handles specific type patterns or annotation styles.
 
     Attributes:
-        _pipeline: Internal reference to the `ParserPipeline` this parser belongs to.
         pipeline: Property to access the `ParserPipeline`, raises `UnavailablePipelineError`
             if not set.
 
@@ -119,17 +118,13 @@ class ParserStep(ABC):
 class ParserPipeline:
     """A pipeline of parser steps that tries each parser in sequence.
 
-    This allows for composable parsing where multiple parsers can be tried
-    until one successfully handles the type. The name follows the familiar
-    pattern from scikit-learn's Pipeline for sequential processing.
+    This allows for composable parsing where multiple parsers can be tried until one successfully handles the type.
+
+    Arguments:
+        steps: Sequence of [`ParserStep`][anyschema.parsers.ParserStep]'s to use in the pipeline (in such order).
     """
 
     def __init__(self, steps: Sequence[ParserStep]) -> None:
-        """Initialize the parser chain with a list of parsers.
-
-        Arguments:
-            steps: List of parser instances to try in order.
-        """
         self.steps = tuple(steps)
 
     @overload

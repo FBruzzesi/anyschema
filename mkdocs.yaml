@@ -7,7 +7,7 @@ repo_name: FBruzzesi/anyschema
 edit_uri: edit/main/docs/
 
 watch:
-  - src
+  - src/anyschema
   - docs
 
 nav:

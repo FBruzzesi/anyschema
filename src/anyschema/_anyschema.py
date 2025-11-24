@@ -106,7 +106,7 @@ class AnySchema:
         name: string
         active: bool
 
-    See Also:
+    Tip: See also
         - [ParserStep][anyschema.parsers.ParserStep]: Base class for custom parser steps
         - [ParserPipeline][anyschema.parsers.ParserPipeline]: Pipeline for chaining parser steps
         - [make_pipeline][anyschema.parsers.make_pipeline]: Factory function for creating parser pipelines
@@ -155,6 +155,24 @@ class AnySchema:
 
         Returns:
             The converted pyarrow schema.
+
+        Examples:
+            >>> from anyschema import AnySchema
+            >>> from pydantic import BaseModel
+            >>>
+            >>>
+            >>> class User(BaseModel):
+            ...     id: int
+            ...     username: str
+            ...     email: str
+            ...     is_active: bool
+            >>>
+            >>> schema = AnySchema(spec=User)
+            >>> schema.to_arrow()
+            id: int64
+            username: string
+            email: string
+            is_active: bool
         """
         return self._nw_schema.to_arrow()
 
@@ -168,6 +186,21 @@ class AnySchema:
 
         Returns:
             The converted pandas schema.
+
+        Examples:
+            >>> from anyschema import AnySchema
+            >>> from pydantic import BaseModel
+            >>>
+            >>>
+            >>> class User(BaseModel):
+            ...     id: int
+            ...     username: str
+            ...     email: str
+            ...     is_active: bool
+            >>>
+            >>> schema = AnySchema(spec=User)
+            >>> schema.to_pandas(dtype_backend=("pyarrow", "numpy_nullable", "pyarrow", None))
+            {'id': 'Int64[pyarrow]', 'username': 'string', 'email': string[pyarrow], 'is_active': 'bool'}
         """
         return self._nw_schema.to_pandas(dtype_backend=dtype_backend)
 
@@ -176,5 +209,20 @@ class AnySchema:
 
         Returns:
             The converted polars schema.
+
+        Examples:
+            >>> from anyschema import AnySchema
+            >>> from pydantic import BaseModel
+            >>>
+            >>>
+            >>> class User(BaseModel):
+            ...     id: int
+            ...     username: str
+            ...     email: str
+            ...     is_active: bool
+            >>>
+            >>> schema = AnySchema(spec=User)
+            >>> schema.to_polars()
+            Schema({'id': Int64, 'username': String, 'email': String, 'is_active': Boolean})
         """
         return self._nw_schema.to_polars()

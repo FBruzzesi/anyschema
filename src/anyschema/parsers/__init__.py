@@ -28,9 +28,8 @@ __all__ = (
 
 
 def make_pipeline(steps: IntoParserPipeline = "auto", *, spec_type: SpecType = None) -> ParserPipeline:
-    """Create a [`ParserPipeline`][ParserPipeline] with the specified steps and associated the pipeline to each step.
-
-    [ParserPipeline][anyschema.parsers.ParserPipeline]
+    """Create a [`ParserPipeline`][anyschema.parsers.ParserPipeline] with the specified steps and associates the
+    pipeline to each step.
 
     Tip:
         This is the recommended way to create a parser pipeline.

@@ -1,6 +1,6 @@
 # anyschema: From Type Specifications to Dataframe Schemas
 
-**anyschema** is a Python library that enables conversions from type specifications (such as Pydantic models) to native
+`anyschema` is a Python library that enables conversions from type specifications (such as Pydantic models) to native
 dataframe schemas (such as PyArrow, Polars, and Pandas).
 
 !!! warning "Development Status"
@@ -74,14 +74,14 @@ Then, you can convert it to different dataframe schemas:
 - **Narwhals Integration**: Leverages [Narwhals](https://narwhals-dev.github.io/narwhals/) as the intermediate
     representation.
 
-## Why anyschema?
+## Why `anyschema`?
 
 The project was inspired by a [Talk Python podcast episode](https://www.youtube.com/live/wuGirNCyTxA?t=2880s) featuring
 the creator of [LanceDB](https://github.com/lancedb/lancedb), who mentioned the need to convert from Pydantic models to
 PyArrow schemas.
 
 This challenge led to a realization: such conversion could be generalized to many dataframe libraries by using Narwhals
-as an intermediate representation. **anyschema** makes this conversion seamless and extensible.
+as an intermediate representation. `anyschema` makes this conversion seamless and extensible.
 
 ## Core Components
 
@@ -90,12 +90,15 @@ as an intermediate representation. **anyschema** makes this conversion seamless 
 Parser steps are modular components that convert type annotations to Narwhals dtypes. Each parser handles specific type
 patterns:
 
-- `ForwardRefStep`: Resolves forward references
-- `UnionTypeStep`: Handles `Union` and `Optional` types
-- `AnnotatedStep`: Extracts metadata from `typing.Annotated`
-- `AnnotatedTypesStep`: Refines types based on constraints from the `annotated-types` library
-- `PydanticTypeStep`: Handles Pydantic-specific types
-- `PyTypeStep`: Handles basic Python types (fallback)
+- [`ForwardRefStep`](api-reference/parsers.md#anyschema.parsers.ForwardRefStep): Resolves forward references.
+- [`UnionTypeStep`](api-reference/parsers.md#anyschema.parsers.UnionTypeStep): Handles `Union` and `Optional` types.
+- [`AnnotatedStep`](api-reference/parsers.md#anyschema.parsers.AnnotatedStep): Extracts metadata from
+    `typing.Annotated`.
+- [`AnnotatedTypesStep`](api-reference/parsers.md#anyschema.parsers.annotated_types.AnnotatedTypesStep): Refines types
+    based on constraints from the `annotated-types` library.
+- [`PydanticTypeStep`](api-reference/parsers.md#anyschema.parsers.pydantic.PydanticTypeStep): Handles Pydantic-specific
+    types.
+- [`PyTypeStep`](api-reference/parsers.md#anyschema.parsers.PyTypeStep): Handles basic Python types (fallback).
 
 Learn more about how these work together in the [Architecture](architecture.md) section.
 
@@ -103,8 +106,10 @@ Learn more about how these work together in the [Architecture](architecture.md) 
 
 Adapters convert input specifications into a common format that the parser pipeline can process:
 
-- **into_ordered_dict_adapter**: Handles Python dicts and sequences.
-- **pydantic_adapter**: Extracts field information from Pydantic models.
+- [`into_ordered_dict_adapter`](api-reference/adapters.md#anyschema.adapters.into_ordered_dict_adapter): Handles Python
+    dicts and sequences.
+- [`pydantic_adapter`](api-reference/adapters.md#anyschema.adapters.pydantic_adapter): Extracts field information from
+    Pydantic models.
 
 See the [API Reference](api-reference/adapters.md) for detailed documentation.
 

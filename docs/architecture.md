@@ -159,9 +159,9 @@ class Product(BaseModel):
 
 The pipeline processes this as:
 
-1. pydantic_adapter extracts: ("price", Annotated[float, Field(gt=0)], (FieldInfo,))
-2. AnnotatedStep extracts: float with metadata (Field(gt=0), FieldInfo)
-3. AnnotatedTypesStep refines based on constraints and converts to UInt64 (instead of Int64)
+1. `pydantic_adapter` extracts: `("price", Annotated[float, Field(gt=0)], (FieldInfo,))`
+2. `AnnotatedStep` extracts: `float` with metadata `(Field(gt=0), FieldInfo)`
+3. `AnnotatedTypesStep` refines based on constraints and converts to `UInt64` (instead of `Int64`)
 
 ## Recursion and Nested Types
 

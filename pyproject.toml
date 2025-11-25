@@ -47,6 +47,7 @@ docs = [
   "pandas",
   "polars",
   "pyarrow",
+  "pytest",
 ]
 
 [tool.hatch.build.targets.sdist]
@@ -127,18 +128,17 @@ omit = [
 [tool.rumdl]
 line-length = 120
 flavor = "mkdocs"
-include = ["docs/", "README.md"]
+include = ["docs/**", "README.md"]
 disable = [
+  "MD005",  # List indentation should be consistent  # NOTE: For nested lists mkdocs requires 4 spaces indentation
+  "MD006",  # Consider starting bulleted lists at the beginning of the line  # NOTE: Fore nested lists this is not possible?
+  "MD031",  # No blank line after admonition block
+  "MD046",  # Use fenced code blocks  # NOTE: This looks like either a false positive or unsupported case
   "MD052",  # Fix broken reference links and images  # NOTE: false positive in code blocks e.g. `pip install anyschema[pydantic]` as well as github alerts e.g. [!CAUTION].
 ]
 
 [tool.rumdl.per-file-ignores]
-"docs/index.md" = [
-  "MD031",  # No blank line after admonition block  # NOTE: Until admonition is removed!
-]
 "docs/architecture.md" = [
-  "MD005",  # List indentation should be consistent  # NOTE: For nested lists mkdocs requires 4 spaces indentation
-  "MD006",  # Consider starting bulleted lists at the beginning of the line  # NOTE: Fore nested lists this is not possible?
   "MD007",
   "MD056",  # Keep table column count consistent  # NOTE: false positive if "|" is in a code block, see https://github.com/rvben/rumdl/issues/163
 ]

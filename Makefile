@@ -8,6 +8,7 @@ lint:
 	uvx ruff format $(sources)
 	uvx ruff check $(sources) --fix
 	uvx ruff clean
+	uv tool run rumdl check .
 
 test:
 	uv run --active --no-sync --group tests pytest tests --cov=anyschema --cov=tests --cov-fail-under=90

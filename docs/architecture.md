@@ -3,9 +3,38 @@
 This page provides a deep dive into anyschema's internal design and architecture.
 Understanding these concepts will help you extend anyschema and troubleshoot issues.
 
+## TL;DR - Quick Summary
+
+* `anyschema` uses a pipeline architecture with two main phases:
+
+    1. Adapters normalize input specs (Pydantic, dict, etc.) into `(field_name, field_type, metadata)` tuples.
+    2. Parser pipeline converts each type to a Narwhals dtype by running parser steps in sequence.
+
+* Parser steps run in order and the first step to handle a type to Narwhals returns:
+
+    1. `ForwardRefStep` - Resolves `ForwardRef('ClassName')`
+    2. `UnionTypeStep` - Extracts non-None from `T | None`
+    3. `AnnotatedStep` - Separates `Annotated[T, ...]` into type + metadata
+    4. `AnnotatedTypesStep` - Refines types based on constraints (e.g., `PositiveInt` -> `UInt64`)
+    5. `PydanticTypeStep` - Handles Pydantic-specific types
+    6. `PyTypeStep` - Fallback for standard Python types
+
+* Key concepts:
+
+    * Return `None` if your parser can't handle a type (lets next parser try).
+    * Use `self.pipeline.parse()` for recursion (handles nested types like `list[YourType]`).
+    * Pass metadata through when recursing (`metadata=metadata`).
+    * Order matters - specialized parsers before general ones.
+
+* To extend anyschema:
+
+    * Create custom **parser steps** to handle new types.
+    * Create custom **adapters** to support new schema formats.
+    * See [Advanced Usage](user-guide/advanced.md) for examples.
+
 ## Overview
 
-anyschema follows a pipeline architecture with two main components:
+`anyschema` follows a pipeline architecture with two main components:
 
 1. **Spec Adapters**: Convert input specifications into a normalized format.
     For specifications supported directly by anyschema there is no need to create custom adapters.

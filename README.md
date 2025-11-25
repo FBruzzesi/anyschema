@@ -55,7 +55,20 @@ To read more about `anyschema` functionalities and features consider checking ou
 ## Installation
 
 `anyschema` is available on [pypi](https://pypi.org/project/anyschema/), and it can be installed directly via
-any package manager.
+any package manager. For instance:
+
+```bash
+uv pip install "anyschema[pydantic]"
+```
+
+To allow interoperability with pydantic models.
+
+## When to use `anyschema`
+
+`anyschema` is designed for scenarios where some type specifications (e.g. a Pydantic Model) want to be used as a single
+source of truth for both validation and (dataframe) schema generation.
+
+The typical use cases are: Data pipelines, API to database workflows, schema generation, type-safe data processing.
 
 ## Why `anyschema`?
 

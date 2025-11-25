@@ -4,6 +4,9 @@ This guide will help you get started with `anyschema` and explore its core funct
 
 ## Basic Usage
 
+`anyschema` accepts specifications in multiple formats (and more to come, see [anyschema[#11](https://github.com/FBruzzesi/anyschema/issues/11)])
+and converts them to dataframe schemas. Let's explore each approach and when to use it.
+
 ### With Pydantic Models
 
 The most common way to use anyschema is with Pydantic models:
@@ -194,10 +197,19 @@ schema = AnySchema(spec=nw_schema)
 
 ## Pandas output format
 
-While for pyarrow and polars the output schema is the respective schema object, for pandas the output is a dictionary
-mapping column names to dtypes. Additionally pandas supports multiple dtype backends (default is None, which uses
-non nullable 'numpy'), and when converting to the native pandas dtypes it's possible to specify which backend to use by
-specifying the `dtype_backend` parameter, either for all the fields together, or for each field individually.
+!!! abstract "pandas schema"
+    Unlike pyarrow and polars, pandas does not have a native schema representation.
+    Therefore our output is a dictionary mapping column names to dtypes.
+
+!!! warning "pandas multiple `dtype_backend`'s"
+    pandas supports multiple dtype backends that affect types nullability:
+
+    - `None` (default): Uses standard NumPy dtypes (not nullable).
+    - `"numpy_nullable"`* Uses pandas nullable dtypes (e.g., `Int64` instead of `int64`).
+    - `"pyarrow"`: Uses PyArrow-backed dtypes (better performance, native nullable support).
+
+    You can specify which backend to use via the `dtype_backend` parameter, either for all fields together, or for each
+    field individually.
 
 Let's see it in practice:
 
@@ -207,9 +219,9 @@ from pydantic import BaseModel, PositiveInt, NonNegativeInt
 
 
 class Metrics(BaseModel):
-    count: PositiveInt  # -> UInt64 (always positive)
-    offset: NonNegativeInt  # -> UInt64 (zero or positive)
-    delta: int  # -> Int64 (can be negative)
+    count: PositiveInt
+    offset: NonNegativeInt
+    delta: int
 
 
 schema = AnySchema(spec=Metrics)

@@ -8,8 +8,35 @@ dataframe schemas (such as PyArrow, Polars, and Pandas).
 
 ## Installation
 
-`anyschema` is available on [pypi](https://pypi.org/project/iso-week-date/), and it can be installed directly via
-any package manager.
+`anyschema` is available on [pypi](https://pypi.org/project/anyschema/), and it can be installed directly via
+any package manager. For instance:
+
+=== "pip"
+
+    ```bash
+    python -m pip install anyschema
+    ```
+
+=== "uv"
+
+    ```bash
+    uv pip install anyschema
+    ```
+
+We suggest to install also `pydantic` to follow along with the examples.
+`anyschema` interoperability with pydantic models requires `pydantic>=2.0.0`.
+
+=== "pip"
+
+    ```bash
+    python -m pip install "anyschema[pydantic]"
+    ```
+
+=== "uv"
+
+    ```bash
+    uv pip install "anyschema[pydantic]"
+    ```
 
 ## Quick Start
 
@@ -57,6 +84,13 @@ Then, you can convert it to different dataframe schemas:
     print(pd_schema)
     ```
 
+## When to use `anyschema`
+
+`anyschema` is designed for scenarios where some type specifications (e.g. a Pydantic Model) want to be used as a single
+source of truth for both validation and (dataframe) schema generation.
+
+The typical use cases are: Data pipelines, API to database workflows, schema generation, type-safe data processing.
+
 ## Key Features
 
 - **Multiple Input Formats**: Support for Pydantic models, Python mappings and sequence of field specifications.
@@ -66,15 +100,6 @@ Then, you can convert it to different dataframe schemas:
     Pydantic-specific types.
 - **Narwhals Integration**: Leverages [Narwhals](https://narwhals-dev.github.io/narwhals/) as the intermediate
     representation.
-
-## Why `anyschema`?
-
-The project was inspired by a [Talk Python podcast episode](https://www.youtube.com/live/wuGirNCyTxA?t=2880s) featuring
-the creator of [LanceDB](https://github.com/lancedb/lancedb), who mentioned the need to convert from Pydantic models to
-PyArrow schemas.
-
-This challenge led to a realization: such conversion could be generalized to many dataframe libraries by using Narwhals
-as an intermediate representation. `anyschema` makes this conversion seamless and extensible.
 
 ## Core Components
 
@@ -108,10 +133,23 @@ See the [API Reference](api-reference/adapters.md) for detailed documentation.
 
 ## Next Steps
 
-- **[Getting Started](user-guide/getting-started.md)**: Learn the basics and explore type mappings
-- **[Advanced Usage](user-guide/advanced.md)**: Create custom parser steps and adapters
-- **[Architecture](architecture.md)**: Understand the internal design and components
-- **[API Reference](api-reference/index.md)**: Complete API documentation
+### Learning Path
+
+We recommend following this order to get the most out of anyschema:
+
+1. [Getting Started](user-guide/getting-started.md): Learn the basics.
+2. [Architecture](architecture.md): Understand the internal design and how components work together.
+3. [Advanced Usage](user-guide/advanced.md): Create custom parser steps and adapters for your specific needs.
+4. [Best Practices](user-guide/best-practices.md): Learn patterns and anti-patterns for custom components.
+5. [End-to-End Example](user-guide/custom-end-to-end-example.md): See a complete real-world example.
+
+### Reference Materials
+
+- [API Reference](api-reference/index.md): Complete API documentation.
+
+<!--
+## [Troubleshooting](user-guide/troubleshooting.md): Common issues and solutions.
+-->
 
 ## Contributing
 
@@ -121,3 +159,12 @@ started.
 ## License
 
 This project is licensed under the Apache-2.0 license.
+
+## Why `anyschema`?
+
+The project was inspired by a [Talk Python podcast episode](https://www.youtube.com/live/wuGirNCyTxA?t=2880s) featuring
+the creator of [LanceDB](https://github.com/lancedb/lancedb), who mentioned the need to convert from Pydantic models to
+PyArrow schemas.
+
+This challenge led to a realization: such conversion could be generalized to many dataframe libraries by using Narwhals
+as an intermediate representation. `anyschema` makes this conversion seamless and extensible.

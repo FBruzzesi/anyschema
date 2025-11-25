@@ -132,6 +132,7 @@ include = ["docs/**", "README.md"]
 disable = [
   "MD005",  # List indentation should be consistent  # NOTE: For nested lists mkdocs requires 4 spaces indentation
   "MD006",  # Consider starting bulleted lists at the beginning of the line  # NOTE: Fore nested lists this is not possible?
+  "MD007",  # Indentation depth
   "MD031",  # No blank line after admonition block
   "MD046",  # Use fenced code blocks  # NOTE: This looks like either a false positive or unsupported case
   "MD052",  # Fix broken reference links and images  # NOTE: false positive in code blocks e.g. `pip install anyschema[pydantic]` as well as github alerts e.g. [!CAUTION].

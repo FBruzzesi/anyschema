@@ -11,8 +11,9 @@ nav:
   - User Guide:
     - Getting Started: user-guide/getting-started.md
     - Advanced Usage: user-guide/advanced.md
-    - Custom End to End Example: user-guide/custom-end-to-end-example.md
     - Best Practices: user-guide/best-practices.md
+    - End to End Example with Custom Components: user-guide/custom-end-to-end-example.md
+    # - Troubleshooting: user-guide/troubleshooting.md  # TODO(FBruzzesi): WIP
   - Architecture: architecture.md
   - API Reference:
     - Home: api-reference/index.md

@@ -63,6 +63,13 @@ uv pip install "anyschema[pydantic]"
 
 To allow interoperability with pydantic models.
 
+## When to use `anyschema`
+
+`anyschema` is designed for scenarios where some type specifications (e.g. a Pydantic Model) want to be used as a single
+source of truth for both validation and (dataframe) schema generation.
+
+The typical use cases are: Data pipelines, API to database workflows, schema generation, type-safe data processing.
+
 ## Why `anyschema`?
 
 The project was inspired by a [Talk Python podcast episode](https://www.youtube.com/live/wuGirNCyTxA?t=2880s) featuring

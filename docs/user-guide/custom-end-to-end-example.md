@@ -1,5 +1,5 @@
 
-# Custom End to End Example
+# End to End Example with Custom Components
 
 Let's now combine the learnings from the [previous section](advanced.md) to show an example that combines a custom
 parser and a custom adapter.

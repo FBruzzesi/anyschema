@@ -4,6 +4,8 @@ Adapters convert various input specifications into a normalized format for parsi
 
 Learn how to create custom adapters in the [Advanced Usage](../user-guide/advanced.md#custom-spec-adapters) guide.
 
+The following built-in adapters are not meant to be used directly. They serve more as an example than anything else.
+
 ::: anyschema.adapters.into_ordered_dict_adapter
     handler: python
     options:

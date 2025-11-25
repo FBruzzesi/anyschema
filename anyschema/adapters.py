@@ -56,7 +56,7 @@ def dataclass_adapter(spec: DataclassType) -> FieldSpecIterable:
         ...     name: str
         ...     age: int
         >>>
-        >>> list(dataclass_adapter({"name": str, "age": int}))
+        >>> list(dataclass_adapter(Student))
         [('name', <class 'str'>, ()), ('age', <class 'int'>, ())]
     """
     yield from into_ordered_dict_adapter(get_type_hints(spec))

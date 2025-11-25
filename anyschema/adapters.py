@@ -3,6 +3,8 @@ from __future__ import annotations
 from collections import OrderedDict
 from typing import TYPE_CHECKING, get_type_hints
 
+from dataclasses import fields as dc_fields
+
 if TYPE_CHECKING:
     from pydantic import BaseModel
 
@@ -59,7 +61,14 @@ def dataclass_adapter(spec: DataclassType) -> FieldSpecIterable:
         >>> list(dataclass_adapter(Student))
         [('name', <class 'str'>, ()), ('age', <class 'int'>, ())]
     """
-    yield from into_ordered_dict_adapter(get_type_hints(spec))
+    # get_type_hints eagerly evaluates annotations, which alleviates us from
+    #  needing to evaluate ForwardRef's by hand later on.
+    annot_map = get_type_hints(spec)
+    for field in dc_fields(spec):
+        # TODO(unassigned): field.metadata is a mapping, however pytandic has
+        #   different metadata.  these differences should be smoothed over to
+        #   create consistent API.
+        yield field.name, annot_map[field.name], ()
 
 
 def pydantic_adapter(spec: type[BaseModel]) -> FieldSpecIterable:

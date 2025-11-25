@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 from collections import OrderedDict
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, get_type_hints
 
 if TYPE_CHECKING:
     from pydantic import BaseModel
 
-    from anyschema.typing import FieldSpecIterable, IntoOrderedDict
+    from anyschema.typing import DataclassType, FieldSpecIterable, IntoOrderedDict
 
 __all__ = ("into_ordered_dict_adapter", "pydantic_adapter")
 
@@ -33,6 +33,33 @@ def into_ordered_dict_adapter(spec: IntoOrderedDict) -> FieldSpecIterable:
     """
     for field_name, field_type in OrderedDict(spec).items():
         yield field_name, field_type, ()
+
+
+def dataclass_adapter(spec: DataclassType) -> FieldSpecIterable:
+    """Adapter for dataclasses.
+
+    Converts a dataclass into an iterator yielding field information as
+    `(field_name, field_type, metadata)` tuples.
+
+    Arguments:
+        spec: A dataclass with annotated fields.
+
+    Yields:
+        A tuple of `(field_name, field_type, metadata)` for each field.
+        The metadata tuple is always empty `()` for this adapter.
+
+    Examples:
+        >>> from dataclasses import dataclass
+        >>>
+        >>> @dataclass
+        ... class Student:
+        ...     name: str
+        ...     age: int
+        >>>
+        >>> list(dataclass_adapter({"name": str, "age": int}))
+        [('name', <class 'str'>, ()), ('age', <class 'int'>, ())]
+    """
+    yield from into_ordered_dict_adapter(get_type_hints(spec))
 
 
 def pydantic_adapter(spec: type[BaseModel]) -> FieldSpecIterable:

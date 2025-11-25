@@ -5,8 +5,8 @@ from typing import TYPE_CHECKING
 
 from narwhals.schema import Schema
 
-from anyschema._dependencies import is_into_ordered_dict, is_pydantic_base_model
-from anyschema.adapters import into_ordered_dict_adapter, pydantic_adapter
+from anyschema._dependencies import is_dataclass, is_into_ordered_dict, is_pydantic_base_model
+from anyschema.adapters import dataclass_adapter, into_ordered_dict_adapter, pydantic_adapter
 from anyschema.parsers import make_pipeline
 
 if TYPE_CHECKING:
@@ -133,6 +133,11 @@ class AnySchema:
                     name: _pipeline.parse(input_type, metadata)
                     for name, input_type, metadata in into_ordered_dict_adapter(spec)
                 }
+            )
+        elif is_dataclass(spec):
+            _pipeline = make_pipeline(steps, spec_type="python")
+            nw_schema = Schema(
+                {name: _pipeline.parse(input_type, metadata) for name, input_type, metadata in dataclass_adapter(spec)}
             )
         elif is_pydantic_base_model(spec):
             _pipeline = make_pipeline(steps, spec_type="pydantic")

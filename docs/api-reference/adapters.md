@@ -12,6 +12,12 @@ The following built-in adapters are not meant to be used directly. They serve mo
       show_root_heading: true
       show_source: true
 
+::: anyschema.adapters.dataclass_adapter
+    handler: python
+    options:
+      show_root_heading: true
+      show_source: true
+
 ::: anyschema.adapters.pydantic_adapter
     handler: python
     options:

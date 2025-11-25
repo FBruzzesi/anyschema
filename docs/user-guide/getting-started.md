@@ -46,6 +46,25 @@ Convert to different schema formats:
     print(schema.to_pandas())
     ```
 
+### With dataclasses
+
+You can also use plain Python dataclasses
+
+```python exec="true" source="above" result="python" session="basic-dataclass"
+from anyschema import AnySchema
+from dataclasses import dataclass
+
+@dataclass
+class User:
+    id: int
+    username: str
+    email: str
+    is_active: bool
+
+schema = AnySchema(spec=User)
+print(schema.to_arrow())
+```
+
 ### With Python Mappings
 
 You can also use plain Python mappings (such as dictionaries):

@@ -384,42 +384,6 @@ schema = AnySchema(spec=schema_spec, adapter=nested_adapter)
 print(schema.to_arrow())
 ```
 
-### Adapter for Dataclass-like Structures
-
-Convert from dataclass-like structures:
-
-```python exec="true" source="above" result="python" session="custom-adapter"
-from dataclasses import dataclass, fields as dc_fields
-from anyschema import AnySchema
-from anyschema.typing import FieldSpecIterable
-
-
-@dataclass
-class DataclassSpec:
-    """A dataclass used as a schema specification."""
-
-    id: int
-    name: str
-    active: bool
-
-
-def dataclass_adapter(spec: type) -> FieldSpecIterable:
-    """Adapter for dataclass specifications.
-
-    Arguments:
-        spec: A dataclass class.
-
-    Yields:
-        Tuples of (field_name, field_type, metadata).
-    """
-    for field in dc_fields(spec):
-        yield field.name, field.type, ()
-
-
-schema = AnySchema(spec=DataclassSpec, adapter=dataclass_adapter)
-print(schema.to_arrow())
-```
-
 ### Adapter for JSON Schema
 
 Here's a practical example of adapting from JSON Schema:

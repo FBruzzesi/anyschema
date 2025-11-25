@@ -55,7 +55,13 @@ To read more about `anyschema` functionalities and features consider checking ou
 ## Installation
 
 `anyschema` is available on [pypi](https://pypi.org/project/anyschema/), and it can be installed directly via
-any package manager.
+any package manager. For instance:
+
+```bash
+uv pip install "anyschema[pydantic]"
+```
+
+To allow interoperability with pydantic models.
 
 ## Why `anyschema`?
 

@@ -8,8 +8,35 @@ dataframe schemas (such as PyArrow, Polars, and Pandas).
 
 ## Installation
 
-`anyschema` is available on [pypi](https://pypi.org/project/iso-week-date/), and it can be installed directly via
-any package manager.
+`anyschema` is available on [pypi](https://pypi.org/project/anyschema/), and it can be installed directly via
+any package manager. For instance:
+
+=== "pip"
+
+    ```bash
+    python -m pip install anyschema
+    ```
+
+=== "uv"
+
+    ```bash
+    uv pip install anyschema
+    ```
+
+We suggest to install also `pydantic` to follow along with the examples.
+`anyschema` interoperability with pydantic models requires `pydantic>=2.0.0`.
+
+=== "pip"
+
+    ```bash
+    python -m pip install "anyschema[pydantic]"
+    ```
+
+=== "uv"
+
+    ```bash
+    uv pip install "anyschema[pydantic]"
+    ```
 
 ## Quick Start
 

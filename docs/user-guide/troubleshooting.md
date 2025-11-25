@@ -35,8 +35,6 @@ schema = AnySchema(spec=your_spec, steps=[MyCustomTypeStep(), PyTypeStep()])
 
 ### Union Type Error
 
-**Error Message:**
-
 If you are prompted the following error message:
 
 > UnsupportedDTypeError: Union with mixed types is not supported.

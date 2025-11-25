@@ -146,10 +146,7 @@ We recommend following this order to get the most out of anyschema:
 ### Reference Materials
 
 - [API Reference](api-reference/index.md): Complete API documentation.
-
-<!--
-## [Troubleshooting](user-guide/troubleshooting.md): Common issues and solutions.
--->
+- [Troubleshooting](user-guide/troubleshooting.md): Common issues and solutions.
 
 ## Contributing
 

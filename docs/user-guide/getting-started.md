@@ -201,6 +201,7 @@ schema = AnySchema(spec=nw_schema)
     Unlike pyarrow and polars, pandas does not have a native schema representation.
     Therefore our output is a dictionary mapping column names to dtypes.
 
+<!-- rumdl-disable MD005 -->
 !!! warning "pandas multiple `dtype_backend`'s"
     pandas supports multiple dtype backends that affect types nullability:
 
@@ -210,6 +211,7 @@ schema = AnySchema(spec=nw_schema)
 
     You can specify which backend to use via the `dtype_backend` parameter, either for all fields together, or for each
     field individually.
+<!-- rumdl-enable MD005 -->
 
 Let's see it in practice:
 

@@ -213,9 +213,9 @@ follow the [Adapter](../api-reference/adapters.md#adapters-specification) signat
 Here's a simple adapter for a custom schema format:
 
 ```python exec="true" source="above" result="python" session="custom-adapter"
-from typing import Iterator, TypedDict
+from typing import TypedDict
 from anyschema import AnySchema
-from anyschema.typing import FieldSpec
+from anyschema.typing import FieldSpecIterable
 
 
 class CustomFieldSpec(TypedDict):
@@ -232,7 +232,7 @@ class SimpleSchema:
         self.fields = fields
 
 
-def simple_schema_adapter(spec: SimpleSchema) -> Iterator[FieldSpec]:
+def simple_schema_adapter(spec: SimpleSchema) -> FieldSpecIterable:
     """Adapter for SimpleSchema format.
 
     Arguments:
@@ -261,9 +261,9 @@ print(schema.to_arrow())
 This example shows how to convert schema metadata to anyschema metadata:
 
 ```python exec="true" source="above" result="python" session="custom-adapter"
-from typing import Iterator, Annotated
+from typing import Annotated
 from anyschema import AnySchema
-from anyschema.typing import FieldSpec
+from anyschema.typing import FieldSpecIterable
 
 
 class FieldWithConstraints:
@@ -289,7 +289,7 @@ class SchemaWithConstraints:
         self.fields = fields
 
 
-def constrained_adapter(spec: SchemaWithConstraints) -> Iterator[FieldSpec]:
+def constrained_adapter(spec: SchemaWithConstraints) -> FieldSpecIterable:
     """Adapter that converts constraints to metadata.
 
     Arguments:
@@ -329,9 +329,9 @@ See an example in the dedicated [Custom Parser Steps](#custom-parser-with-metada
 Handle nested schemas with a recursive adapter by dynamically creating TypedDict classes:
 
 ```python exec="true" source="above" result="python" session="custom-adapter"
-from typing import Iterator, Any, TypedDict
+from typing import Any, TypedDict
 from anyschema import AnySchema
-from anyschema.typing import FieldSpec
+from anyschema.typing import FieldSpecIterable
 
 
 class NestedSchema:
@@ -341,7 +341,7 @@ class NestedSchema:
         self.fields = fields
 
 
-def nested_adapter(spec: NestedSchema) -> Iterator[FieldSpec]:
+def nested_adapter(spec: NestedSchema) -> FieldSpecIterable:
     """Adapter for nested schema structures.
 
     For nested schemas, we dynamically create a TypedDict so the parser
@@ -389,9 +389,9 @@ print(schema.to_arrow())
 Convert from dataclass-like structures:
 
 ```python exec="true" source="above" result="python" session="custom-adapter"
-from typing import Iterator
 from dataclasses import dataclass, fields as dc_fields
 from anyschema import AnySchema
+from anyschema.typing import FieldSpecIterable
 
 
 @dataclass
@@ -403,7 +403,7 @@ class DataclassSpec:
     active: bool
 
 
-def dataclass_adapter(spec: type) -> Iterator[FieldSpec]:
+def dataclass_adapter(spec: type) -> FieldSpecIterable:
     """Adapter for dataclass specifications.
 
     Arguments:
@@ -417,5 +417,73 @@ def dataclass_adapter(spec: type) -> Iterator[FieldSpec]:
 
 
 schema = AnySchema(spec=DataclassSpec, adapter=dataclass_adapter)
+print(schema.to_arrow())
+```
+
+### Adapter for JSON Schema
+
+Here's a practical example of adapting from JSON Schema:
+
+```python exec="true" source="above" result="python" session="custom-adapter"
+import json
+from anyschema import AnySchema
+from anyschema.typing import FieldSpecIterable
+
+
+def json_schema_adapter(spec: str) -> FieldSpecIterable:
+    """Adapter for JSON Schema format.
+
+    Arguments:
+        spec: A JSON Schema with "type": "object" and "properties".
+
+    Yields:
+        Tuples of (field_name, field_type, metadata).
+    """
+    spec = json.loads(spec)
+    if spec.get("type") != "object":
+        raise ValueError("Only object types supported")
+
+    properties = spec.get("properties", {})
+    required = set(spec.get("required", []))
+
+    type_mapping = {
+        "string": str,
+        "integer": int,
+        "number": float,
+        "boolean": bool,
+        "array": list,
+        "object": dict,
+    }
+
+    for field_name, field_spec in properties.items():
+        json_type = field_spec.get("type")
+        python_type = type_mapping.get(json_type, object)
+
+        # Handle optional fields
+        if field_name not in required:
+            python_type = python_type | None
+
+        # Handle array types
+        if json_type == "array" and "items" in field_spec:
+            item_type = type_mapping.get(field_spec["items"].get("type"), object)
+            python_type = list[item_type]
+
+        yield field_name, python_type, ()
+
+
+json_schema = json.dumps(
+    {
+        "type": "object",
+        "properties": {
+            "id": {"type": "integer"},
+            "name": {"type": "string"},
+            "tags": {"type": "array", "items": {"type": "string"}},
+            "email": {"type": "string"},
+        },
+        "required": ["id", "name"],
+    }
+)
+
+schema = AnySchema(spec=json_schema, adapter=json_schema_adapter)
 print(schema.to_arrow())
 ```

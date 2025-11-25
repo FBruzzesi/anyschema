@@ -11,6 +11,8 @@ nav:
   - User Guide:
     - Getting Started: user-guide/getting-started.md
     - Advanced Usage: user-guide/advanced.md
+    - Custom End to End Example: user-guide/custom-end-to-end-example.md
+    - Best Practices: user-guide/best-practices.md
   - Architecture: architecture.md
   - API Reference:
     - Home: api-reference/index.md
@@ -51,7 +53,6 @@ theme:
       toggle:
         icon: material/brightness-4
         name: Switch to system preference
-
 
 plugins:
 - autorefs

@@ -127,7 +127,7 @@ omit = [
 [tool.rumdl]
 line-length = 120
 flavor = "mkdocs"
-include = ["docs/", "README.md"]
+include = ["docs/**", "README.md"]
 disable = [
   "MD052",  # Fix broken reference links and images  # NOTE: false positive in code blocks e.g. `pip install anyschema[pydantic]` as well as github alerts e.g. [!CAUTION].
 ]

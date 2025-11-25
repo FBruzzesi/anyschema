@@ -3,7 +3,7 @@
 ## For Custom Parsers
 
 * Return `None` when you can't handle a type to let other parsers in the chain try.
-* Use `self.pipeline.parse()` for recursion. This possibly allow to handle nested types by delegating to the pipeline.
+* Use `self.pipeline.parse()` for recursion. This possibly allows to handle nested types by delegating to the pipeline.
 * Preserve metadata: Pass metadata through when recursively parsing.
 * Order matters: Place specialized parsers before general ones.
 * Document what types the parser can handle: Make it clear in docstrings.

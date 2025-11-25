@@ -141,7 +141,6 @@ disable = [
 [tool.rumdl.per-file-ignores]
 "docs/architecture.md" = [
   "MD007",
-  "MD056",  # Keep table column count consistent  # NOTE: false positive if "|" is in a code block, see https://github.com/rvben/rumdl/issues/163
 ]
 
 "docs/api-reference/adapters.md" = [

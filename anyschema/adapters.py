@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 from collections import OrderedDict
-from typing import TYPE_CHECKING, get_type_hints
-
 from dataclasses import fields as dc_fields
+from typing import TYPE_CHECKING, get_type_hints
 
 if TYPE_CHECKING:
     from pydantic import BaseModel

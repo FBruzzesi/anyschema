@@ -5,6 +5,7 @@ from datetime import date
 from typing import TYPE_CHECKING
 
 import pytest
+from pydantic.dataclasses import dataclass as pydantic_dataclass
 
 from anyschema.adapters import dataclass_adapter
 
@@ -12,7 +13,6 @@ if TYPE_CHECKING:
     from anyschema.typing import Dataclass
 
 
-@dataclass
 class Test:
     name: str
     age: int
@@ -22,7 +22,8 @@ class Test:
 @pytest.mark.parametrize(
     "spec",
     [
-        Test,
+        pydantic_dataclass(Test),
+        dataclass(Test),
         make_dataclass("Test", [("name", str), ("age", int), ("date_of_birth", date)]),
     ],
 )

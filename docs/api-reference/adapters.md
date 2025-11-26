@@ -6,17 +6,15 @@ Learn how to create custom adapters in the [Advanced Usage](../user-guide/advanc
 
 The following built-in adapters are not meant to be used directly. They serve more as an example than anything else.
 
-::: anyschema.adapters.into_ordered_dict_adapter
+::: anyschema.adapters
     handler: python
     options:
       show_root_heading: true
       show_source: true
-
-::: anyschema.adapters.pydantic_adapter
-    handler: python
-    options:
-      show_root_heading: true
-      show_source: true
+    members:
+      - dataclass_adapter
+      - into_ordered_dict_adapter
+      - pydantic_adapter
 
 ## Adapters specification
 

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sys
 from collections.abc import Mapping, Sequence
+from dataclasses import is_dataclass as dc_is_dataclass
 from importlib.util import find_spec
 from typing import TYPE_CHECKING, TypeGuard, cast
 
@@ -10,7 +11,7 @@ if TYPE_CHECKING:
 
     from pydantic import BaseModel
 
-    from anyschema.typing import IntoOrderedDict
+    from anyschema.typing import DataclassType, IntoOrderedDict
 
 ANNOTATED_TYPES_AVAILABLE = find_spec("annotated_types") is not None
 PYDANTIC_AVAILABLE = find_spec("pydantic") is not None
@@ -36,3 +37,8 @@ def is_into_ordered_dict(obj: object) -> TypeGuard[IntoOrderedDict]:
     return isinstance(obj, Mapping) or (
         isinstance(obj, Sequence) and all(isinstance(s, tuple) and len(s) == tpl_size for s in obj)
     )
+
+
+def is_dataclass(obj: object) -> TypeGuard[DataclassType]:
+    """Check if the object is a dataclass and narrows type checkers."""
+    return dc_is_dataclass(obj)

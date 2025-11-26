@@ -64,9 +64,8 @@ def dataclass_adapter(spec: DataclassType) -> FieldSpecIterable:
     #  needing to evaluate ForwardRef's by hand later on.
     annot_map = get_type_hints(spec)
     for field in dc_fields(spec):
-        # TODO(unassigned): field.metadata is a mapping, however pytandic has
-        #   different metadata.  these differences should be smoothed over to
-        #   create consistent API.
+        # TODO(unassigned): field.metadata is a mapping, however pydantic has different metadata.
+        #  These differences should be smoothed over to create consistent API.
         yield field.name, annot_map[field.name], ()
 
 

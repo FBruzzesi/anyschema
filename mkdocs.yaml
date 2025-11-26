@@ -13,7 +13,7 @@ nav:
     - Advanced Usage: user-guide/advanced.md
     - Best Practices: user-guide/best-practices.md
     - End to End Example with Custom Components: user-guide/custom-end-to-end-example.md
-    # - Troubleshooting: user-guide/troubleshooting.md  # TODO(FBruzzesi): WIP
+    - Troubleshooting: user-guide/troubleshooting.md
   - Architecture: architecture.md
   - API Reference:
     - Home: api-reference/index.md

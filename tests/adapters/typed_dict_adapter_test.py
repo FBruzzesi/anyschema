@@ -1,0 +1,29 @@
+from __future__ import annotations
+
+from datetime import date
+from typing import TYPE_CHECKING, TypedDict
+
+import pytest
+
+from anyschema.adapters import typed_dict_adapter
+
+if TYPE_CHECKING:
+    from anyschema.typing import TypedDictType
+
+
+class TestTypedDict(TypedDict):
+    name: str
+    age: int
+    date_of_birth: date
+
+
+@pytest.mark.parametrize(
+    "spec",
+    [
+        TestTypedDict,
+    ],
+)
+def test_typed_dict_adapter(spec: TypedDictType) -> None:
+    expected = (("name", str, ()), ("age", int, ()), ("date_of_birth", date, ()))
+    result = tuple(typed_dict_adapter(spec))
+    assert result == expected

@@ -27,7 +27,7 @@ class Test:
         make_dataclass("Test", [("name", str), ("age", int), ("date_of_birth", date)]),
     ],
 )
-def test_into_ordered_dict_adapter(spec: DataclassType) -> None:
+def test_dataclass_adapter(spec: DataclassType) -> None:
     expected = (("name", str, ()), ("age", int, ()), ("date_of_birth", date, ()))
     result = tuple(dataclass_adapter(spec))
     assert result == expected

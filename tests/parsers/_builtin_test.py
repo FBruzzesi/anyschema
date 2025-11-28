@@ -5,7 +5,7 @@ from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 from enum import Enum
 from types import NoneType
-from typing import Any, TypedDict
+from typing import Any, Literal, TypedDict
 
 import narwhals as nw
 import pytest
@@ -60,6 +60,10 @@ def py_type_parser() -> PyTypeStep:
         (object, nw.Object()),
         (Color, nw.Enum(Color)),
         (Status, nw.Enum(Status)),
+        (Literal["red", "green", "blue"], nw.Enum(("red", "green", "blue"))),
+        (Literal[1, 2, 3], nw.Enum([1, 2, 3])),
+        (Literal["active", "inactive"], nw.Enum(("active", "inactive"))),
+        (Literal[True, False], nw.Enum([True, False])),
     ],
 )
 def test_parse_non_nested(py_type_parser: PyTypeStep, input_type: Any, expected: nw.dtypes.DType) -> None:

@@ -47,7 +47,8 @@ class AnySchema:
 
         steps: Control how types are parsed into Narwhals dtypes. Options:
 
-            - `"auto"` (default): Automatically select the appropriate parser steps based on the spec type.
+            - `"auto"` (default): Automatically select the appropriate parser steps based on the
+                installed dependencies.
             - A sequence of `ParserStep` instances to use in the pipeline.
 
                 **Warning**: Order matters! More specific parsers should come before general ones.

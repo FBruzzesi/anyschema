@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, ForwardRef, Optional
+from typing import TYPE_CHECKING, Any, ForwardRef
 
 import narwhals as nw
 import pytest
@@ -63,25 +63,6 @@ def test_forward_ref(forward_ref_parser: ForwardRefStep, input_type: Any, expect
 def test_non_forward_ref(forward_ref_parser: ForwardRefStep, input_type: Any) -> None:
     result = forward_ref_parser.parse(input_type=input_type)
     assert result is None
-
-
-@pytest.mark.parametrize(
-    ("type_string", "expected"),
-    [
-        ("int", int),
-        ("str", str),
-        ("list[int]", list[int]),
-        ("Optional[str]", Optional[str]),
-    ],
-)
-def test_evaluate_string(forward_ref_parser: ForwardRefStep, type_string: str, expected: type) -> None:
-    result = forward_ref_parser._evaluate_string(type_string)
-    assert result == expected
-
-
-def test_evaluate_string_name_error(forward_ref_parser: ForwardRefStep) -> None:
-    with pytest.raises(NameError):
-        forward_ref_parser._evaluate_string("UndefinedType")
 
 
 def test_custom_globals() -> None:

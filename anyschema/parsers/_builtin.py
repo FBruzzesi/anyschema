@@ -5,10 +5,10 @@ from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 from enum import Enum
 from inspect import isclass
-from types import GenericAlias
-from typing import TYPE_CHECKING, Any, _GenericAlias, get_args, get_origin, get_type_hints  # type: ignore[attr-defined]
+from typing import TYPE_CHECKING, Any
 
 import narwhals as nw
+from typing_extensions import get_args, get_origin, get_type_hints, is_typeddict  # noqa: UP035
 
 from anyschema.exceptions import UnsupportedDTypeError
 from anyschema.parsers._base import ParserStep
@@ -67,11 +67,11 @@ class PyTypeStep(ParserStep):
             # Plain dict without type parameters -> Struct with Object fields
             return nw.Struct([])
 
-        if self._is_typed_dict(input_type):
+        if is_typeddict(input_type):
             return self._parse_typed_dict(input_type, metadata)
 
         # Handle generic type: list[T], tuple[T, ...], Sequence[T], Iterable[T], dict[K, V]
-        if isinstance(input_type, (_GenericAlias, GenericAlias)):
+        if get_origin(input_type) is not None:
             return self._parse_generic(input_type, metadata)
 
         if input_type in (list, tuple, Sequence, Iterable):
@@ -79,7 +79,7 @@ class PyTypeStep(ParserStep):
 
         return None
 
-    def _parse_generic(self, input_type: _GenericAlias | GenericAlias, metadata: tuple) -> DType | None:  # type: ignore[no-any-unimported]
+    def _parse_generic(self, input_type: Any, metadata: tuple) -> DType | None:
         """Parse generic types like list[int], dict[str, int].
 
         Arguments:
@@ -116,27 +116,6 @@ class PyTypeStep(ParserStep):
             return nw.Array(inner_dtype, shape=len(args))
 
         return None
-
-    @staticmethod
-    def _is_typed_dict(input_type: Any) -> bool:
-        """Check if a type is a TypedDict.
-
-        Arguments:
-            input_type: The type to check.
-
-        Returns:
-            True if the type is a TypedDict, False otherwise.
-        """
-        try:
-            # TypedDict classes have __annotations__ and __total__ attributes
-            return (
-                hasattr(input_type, "__annotations__")
-                and hasattr(input_type, "__total__")
-                and hasattr(input_type, "__required_keys__")
-                and hasattr(input_type, "__optional_keys__")
-            )
-        except (AttributeError, TypeError):  # pragma: no cover
-            return False
 
     def _parse_typed_dict(self, typed_dict: type, metadata: tuple) -> DType:  # noqa: ARG002
         """Parse a TypedDict into a Struct type.

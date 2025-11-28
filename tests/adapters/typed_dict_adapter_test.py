@@ -11,7 +11,7 @@ if TYPE_CHECKING:
     from anyschema.typing import TypedDictType
 
 
-class TestTypedDict(TypedDict):
+class PersonTypedDict(TypedDict):
     name: str
     age: int
     date_of_birth: date
@@ -20,7 +20,7 @@ class TestTypedDict(TypedDict):
 @pytest.mark.parametrize(
     "spec",
     [
-        TestTypedDict,
+        PersonTypedDict,
     ],
 )
 def test_typed_dict_adapter(spec: TypedDictType) -> None:

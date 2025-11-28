@@ -13,7 +13,7 @@ if TYPE_CHECKING:
     from anyschema.typing import DataclassType
 
 
-class Test:
+class PersonIntoDataclass:
     name: str
     age: int
     date_of_birth: date
@@ -22,8 +22,8 @@ class Test:
 @pytest.mark.parametrize(
     "spec",
     [
-        pydantic_dataclass(Test),
-        dataclass(Test),
+        pydantic_dataclass(PersonIntoDataclass),
+        dataclass(PersonIntoDataclass),
         make_dataclass("Test", [("name", str), ("age", int), ("date_of_birth", date)]),
     ],
 )

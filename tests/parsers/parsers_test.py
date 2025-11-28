@@ -14,6 +14,7 @@ from anyschema.parsers import (
     ParserStep,
     PyTypeStep,
     UnionTypeStep,
+    _auto_pipeline,
     make_pipeline,
 )
 from anyschema.parsers.annotated_types import AnnotatedTypesStep
@@ -68,9 +69,12 @@ def test_make_pipeline_custom(steps: tuple[ParserStep, ...]) -> None:
         assert _parser.pipeline is pipeline
 
 
-def test_caching(auto_pipeline: ParserPipeline) -> None:
-    # Due to lru_cache, should be the same object
-    assert auto_pipeline is make_pipeline("auto")
+def test_caching() -> None:
+    # Due to lru_cache, _auto_pipeline should return the same tuple object
+    steps_1 = _auto_pipeline()
+    steps_2 = _auto_pipeline()
+
+    assert steps_1 is steps_2
 
 
 @pytest.mark.parametrize(

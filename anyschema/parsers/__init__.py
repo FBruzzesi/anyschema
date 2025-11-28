@@ -79,7 +79,7 @@ def make_pipeline(steps: IntoParserPipeline = "auto") -> ParserPipeline:
     return pipeline
 
 
-@lru_cache(maxsize=2)
+@lru_cache(maxsize=1)
 def _auto_pipeline() -> Sequence[ParserStep]:
     """Create a parser chain with automatically selected parsers.
 

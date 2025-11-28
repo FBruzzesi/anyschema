@@ -1,19 +1,20 @@
 from __future__ import annotations
 
 from datetime import date  # noqa: TC003
+from typing import TYPE_CHECKING
 
 import hypothesis.strategies as st
 import narwhals as nw
 from hypothesis import assume, given
 from pydantic import BaseModel, FutureDate, PastDate, condate
 
-from anyschema.parsers import make_pipeline
 from tests.pydantic.utils import model_to_nw_schema
 
-pipeline = make_pipeline("auto", spec_type="pydantic")
+if TYPE_CHECKING:
+    from anyschema.parsers import ParserPipeline
 
 
-def test_parse_date() -> None:
+def test_parse_date(auto_pipeline: ParserPipeline) -> None:
     class DateModel(BaseModel):
         # python datetime type
         py_dt: date
@@ -33,13 +34,13 @@ def test_parse_date() -> None:
         future_dt_or_none: FutureDate | None
         none_or_future_dt: None | FutureDate
 
-    schema = model_to_nw_schema(DateModel, pipeline=pipeline)
+    schema = model_to_nw_schema(DateModel, pipeline=auto_pipeline)
 
     assert all(value == nw.Date() for value in schema.values())
 
 
 @given(min_date=st.dates(), max_date=st.dates())
-def test_parse_condate(min_date: date, max_date: date) -> None:
+def test_parse_condate(auto_pipeline: ParserPipeline, min_date: date, max_date: date) -> None:
     assume(min_date < max_date)
 
     class ConDateModel(BaseModel):
@@ -48,6 +49,6 @@ def test_parse_condate(min_date: date, max_date: date) -> None:
         z: condate(gt=min_date, le=max_date) | None
         w: None | condate(ge=min_date, le=max_date)
 
-    schema = model_to_nw_schema(ConDateModel, pipeline=pipeline)
+    schema = model_to_nw_schema(ConDateModel, pipeline=auto_pipeline)
 
     assert all(value == nw.Date() for value in schema.values())

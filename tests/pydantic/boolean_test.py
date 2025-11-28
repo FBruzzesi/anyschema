@@ -1,15 +1,17 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import narwhals as nw
 from pydantic import BaseModel, StrictBool
 
-from anyschema.parsers import make_pipeline
 from tests.pydantic.utils import model_to_nw_schema
 
-pipeline = make_pipeline("auto", spec_type="pydantic")
+if TYPE_CHECKING:
+    from anyschema.parsers import ParserPipeline
 
 
-def test_parse_boolean() -> None:
+def test_parse_boolean(auto_pipeline: ParserPipeline) -> None:
     class BooleanModel(BaseModel):
         # python bool type
         py_bool: bool
@@ -23,6 +25,6 @@ def test_parse_boolean() -> None:
         strict_bool_or_none: StrictBool | None
         none_or_strict_bool: None | StrictBool
 
-    schema = model_to_nw_schema(BooleanModel, pipeline=pipeline)
+    schema = model_to_nw_schema(BooleanModel, pipeline=auto_pipeline)
 
     assert all(value == nw.Boolean() for value in schema.values())

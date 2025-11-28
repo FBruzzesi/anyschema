@@ -1,8 +1,15 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import narwhals as nw
 import pytest
 from pydantic import BaseModel, PastDate, PositiveInt
+
+from anyschema.parsers import make_pipeline
+
+if TYPE_CHECKING:
+    from anyschema.parsers import ParserPipeline
 
 
 @pytest.fixture
@@ -46,6 +53,12 @@ class Student(BaseModel):
     has_graduated: bool
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def student_cls() -> type[Student]:
     return Student
+
+
+@pytest.fixture(scope="session")
+def auto_pipeline() -> ParserPipeline:
+    """Fixture to get the auto pipeline."""
+    return make_pipeline("auto")

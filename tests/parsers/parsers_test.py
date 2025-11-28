@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Annotated, Optional
+from typing import Annotated, Optional
 
 import narwhals as nw
 import pytest
@@ -14,16 +14,12 @@ from anyschema.parsers import (
     ParserStep,
     PyTypeStep,
     UnionTypeStep,
-    _auto_pipeline,
     make_pipeline,
 )
 from anyschema.parsers.annotated_types import AnnotatedTypesStep
 from anyschema.parsers.pydantic import PydanticTypeStep
 
-if TYPE_CHECKING:
-    from anyschema.typing import SpecType
-
-PYDANTIC_PIPELINE_CLS_ORDER = (
+AUTO_PIPELINE_CLS_ORDER = (
     ForwardRefStep,
     UnionTypeStep,
     AnnotatedStep,
@@ -31,7 +27,6 @@ PYDANTIC_PIPELINE_CLS_ORDER = (
     PydanticTypeStep,
     PyTypeStep,
 )
-PYTHON_PIPELINE_CLS_ORDER = (ForwardRefStep, UnionTypeStep, AnnotatedStep, AnnotatedTypesStep, PyTypeStep)
 
 PY_TYPE_STEP = PyTypeStep()
 
@@ -46,22 +41,13 @@ class Person(BaseModel):
     address: Address
 
 
-@pytest.mark.parametrize(
-    ("spec_type", "expected_steps"),
-    [
-        ("pydantic", PYDANTIC_PIPELINE_CLS_ORDER),
-        ("python", PYTHON_PIPELINE_CLS_ORDER),
-        (None, PYTHON_PIPELINE_CLS_ORDER),
-    ],
-)
-def test_make_pipeline_auto(spec_type: SpecType, expected_steps: tuple[type[ParserStep], ...]) -> None:
-    pipeline = make_pipeline("auto", spec_type=spec_type)
-    assert isinstance(pipeline, ParserPipeline)
-    assert len(pipeline.steps) == len(expected_steps)
+def test_make_pipeline_auto(auto_pipeline: ParserPipeline) -> None:
+    assert isinstance(auto_pipeline, ParserPipeline)
+    assert len(auto_pipeline.steps) == len(AUTO_PIPELINE_CLS_ORDER)
 
-    for _parser, _cls in zip(pipeline.steps, expected_steps, strict=True):
+    for _parser, _cls in zip(auto_pipeline.steps, AUTO_PIPELINE_CLS_ORDER, strict=True):
         assert isinstance(_parser, _cls)
-        assert _parser.pipeline is pipeline
+        assert _parser.pipeline is auto_pipeline
 
 
 @pytest.mark.parametrize(
@@ -82,46 +68,32 @@ def test_make_pipeline_custom(steps: tuple[ParserStep, ...]) -> None:
         assert _parser.pipeline is pipeline
 
 
-@pytest.mark.parametrize(
-    ("pipeline1", "pipeline2"),
-    [
-        (_auto_pipeline(spec_type="pydantic"), _auto_pipeline(spec_type="pydantic")),
-    ],
-)
-def test_caching(pipeline1: ParserPipeline, pipeline2: ParserPipeline) -> None:
+def test_caching(auto_pipeline: ParserPipeline) -> None:
     # Due to lru_cache, should be the same object
-    assert pipeline1 is pipeline2
-
-    pipeline3 = _auto_pipeline(spec_type="python")
-
-    # Different parameters should create different pipelines
-    assert pipeline1 is not pipeline3
+    assert auto_pipeline is make_pipeline("auto")
 
 
 @pytest.mark.parametrize(
-    ("input_type", "spec_type", "expected"),
+    ("input_type", "expected"),
     [
-        (int, "pydantic", nw.Int64()),
-        (str, "pydantic", nw.String()),
-        (list[int], "pydantic", nw.List(nw.Int64())),
-        (Optional[int], "pydantic", nw.Int64()),
-        (int, "python", nw.Int64()),
-        (str, "python", nw.String()),
-        (list[str], "python", nw.List(nw.String())),
-        (Optional[float], "python", nw.Float64()),
-        (Annotated[int, Gt(0)], "pydantic", nw.UInt64()),
-        (PositiveInt, "pydantic", nw.UInt64()),
-        (Optional[str], "python", nw.String()),
-        (list[list[int]], "python", nw.List(nw.List(nw.Int64()))),
-        (Optional[Annotated[int, Gt(0)]], "pydantic", nw.UInt64()),
-        (Annotated[Optional[int], "metadata"], "pydantic", nw.Int64()),
-        (Optional[list[int]], "pydantic", nw.List(nw.Int64())),
-        (list[Optional[int]], "pydantic", nw.List(nw.Int64())),
+        (int, nw.Int64()),
+        (str, nw.String()),
+        (list[int], nw.List(nw.Int64())),
+        (Optional[int], nw.Int64()),
+        (list[str], nw.List(nw.String())),
+        (Optional[float], nw.Float64()),
+        (Annotated[int, Gt(0)], nw.UInt64()),
+        (PositiveInt, nw.UInt64()),
+        (Optional[str], nw.String()),
+        (list[list[int]], nw.List(nw.List(nw.Int64()))),
+        (Optional[Annotated[int, Gt(0)]], nw.UInt64()),
+        (Annotated[Optional[int], "meta"], nw.Int64()),
+        (Optional[list[int]], nw.List(nw.Int64())),
+        (list[Optional[int]], nw.List(nw.Int64())),
     ],
 )
-def test_non_nested_parsing(input_type: type, spec_type: SpecType, expected: nw.dtypes.DType) -> None:
-    pipeline = make_pipeline("auto", spec_type=spec_type)
-    result = pipeline.parse(input_type)
+def test_non_nested_parsing(auto_pipeline: ParserPipeline, input_type: type, expected: nw.dtypes.DType) -> None:
+    result = auto_pipeline.parse(input_type)
     assert result == expected
 
 
@@ -148,7 +120,6 @@ def test_non_nested_parsing(input_type: type, spec_type: SpecType, expected: nw.
         ),
     ],
 )
-def test_nested_parsing(input_type: type, expected: nw.dtypes.DType) -> None:
-    pipeline = make_pipeline("auto", spec_type="pydantic")
-    result = pipeline.parse(input_type)
+def test_nested_parsing(auto_pipeline: ParserPipeline, input_type: type, expected: nw.dtypes.DType) -> None:
+    result = auto_pipeline.parse(input_type)
     assert result == expected

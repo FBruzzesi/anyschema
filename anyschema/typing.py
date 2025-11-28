@@ -29,12 +29,6 @@ Either "auto" or a sequence of [`ParserStep`][anyschema.parsers.ParserStep].
 Spec: TypeAlias = "Schema |  IntoOrderedDict | type[BaseModel] | DataclassType | TypedDictType"
 """Input specification supported directly by [`AnySchema`][anyschema.AnySchema]."""
 
-SpecType: TypeAlias = Literal["pydantic", "python"] | None
-"""Specification type, either 'pydantic', 'python' or None.
-
-Filled automatically based on the input.
-"""
-
 FieldName: TypeAlias = str
 FieldType: TypeAlias = type
 FieldMetadata: TypeAlias = tuple

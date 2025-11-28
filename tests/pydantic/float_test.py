@@ -1,18 +1,20 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import hypothesis.strategies as st
 import narwhals as nw
 from hypothesis import assume, given
 from pydantic import BaseModel, FiniteFloat, NegativeFloat, NonNegativeFloat, NonPositiveFloat, PositiveFloat, confloat
 
-from anyschema.parsers import make_pipeline
 from tests.pydantic.utils import model_to_nw_schema
 
-pipeline = make_pipeline("auto", spec_type="pydantic")
+if TYPE_CHECKING:
+    from anyschema.parsers import ParserPipeline
 
 
 @given(lb=st.floats(), ub=st.floats())
-def test_parse_float(lb: float, ub: float) -> None:
+def test_parse_float(auto_pipeline: ParserPipeline, lb: float, ub: float) -> None:
     assume(lb < ub)
 
     class FloatModel(BaseModel):
@@ -58,6 +60,6 @@ def test_parse_float(lb: float, ub: float) -> None:
         con_float_or_none: confloat(gt=lb, le=ub) | None
         non_or_con_float: None | confloat(ge=lb, le=ub)
 
-    schema = model_to_nw_schema(FloatModel, pipeline=pipeline)
+    schema = model_to_nw_schema(FloatModel, pipeline=auto_pipeline)
 
     assert all(value == nw.Float64() for value in schema.values())

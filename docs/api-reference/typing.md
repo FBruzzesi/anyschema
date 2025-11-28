@@ -14,4 +14,3 @@ The following type aliases are used throughout the anyschema codebase:
         - IntoOrderedDict
         - IntoParserPipeline
         - Spec
-        - SpecType

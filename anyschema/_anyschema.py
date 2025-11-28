@@ -144,39 +144,25 @@ class AnySchema:
             self._nw_schema = spec
             return
 
+        pipeline = make_pipeline(steps)
+
         if is_into_ordered_dict(spec):
-            _pipeline = make_pipeline(steps, spec_type="python")
-            nw_schema = Schema(
-                {
-                    name: _pipeline.parse(input_type, metadata)
-                    for name, input_type, metadata in into_ordered_dict_adapter(spec)
-                }
-            )
+            adapter_f = into_ordered_dict_adapter
         elif is_typed_dict(spec):
-            _pipeline = make_pipeline(steps, spec_type="python")
-            nw_schema = Schema(
-                {name: _pipeline.parse(input_type, metadata) for name, input_type, metadata in typed_dict_adapter(spec)}
-            )
+            adapter_f = typed_dict_adapter
         elif is_dataclass(spec):
-            _pipeline = make_pipeline(steps, spec_type="python")
-            nw_schema = Schema(
-                {name: _pipeline.parse(input_type, metadata) for name, input_type, metadata in dataclass_adapter(spec)}
-            )
+            adapter_f = dataclass_adapter
         elif is_pydantic_base_model(spec):
-            _pipeline = make_pipeline(steps, spec_type="pydantic")
-            nw_schema = Schema(
-                {name: _pipeline.parse(input_type, metadata) for name, input_type, metadata in pydantic_adapter(spec)}
-            )
+            adapter_f = pydantic_adapter
         elif adapter is not None:
-            _pipeline = make_pipeline(steps, spec_type=None)
-            nw_schema = Schema(
-                {name: _pipeline.parse(input_type, metadata) for name, input_type, metadata in adapter(spec)}
-            )
+            adapter_f = adapter
         else:
             msg = "`spec` type is unknown and `adapter` is not specified."
             raise ValueError(msg)
 
-        self._nw_schema = nw_schema
+        self._nw_schema = Schema(
+            {name: pipeline.parse(input_type, metadata) for name, input_type, metadata in adapter_f(spec)}
+        )
 
     def to_arrow(self: Self) -> pa.Schema:
         """Converts input model into pyarrow schema.

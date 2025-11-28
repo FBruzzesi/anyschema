@@ -1,15 +1,17 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import narwhals as nw
 from pydantic import BaseModel, conint
 
-from anyschema.parsers import make_pipeline
 from tests.pydantic.utils import model_to_nw_schema
 
-pipeline = make_pipeline("auto", spec_type="pydantic")
+if TYPE_CHECKING:
+    from anyschema.parsers import ParserPipeline
 
 
-def test_parse_struct() -> None:
+def test_parse_struct(auto_pipeline: ParserPipeline) -> None:
     class BaseStruct(BaseModel):
         x1: conint(gt=0, lt=123)
         x2: str
@@ -19,7 +21,7 @@ def test_parse_struct() -> None:
     class StructModel(BaseModel):
         struct: BaseStruct | None
 
-    schema = model_to_nw_schema(StructModel, pipeline=pipeline)
+    schema = model_to_nw_schema(StructModel, pipeline=auto_pipeline)
     expected = {
         "struct": nw.Struct(
             [

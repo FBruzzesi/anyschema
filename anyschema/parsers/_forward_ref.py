@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, ForwardRef
 
+from typing_extensions import evaluate_forward_ref
+
 from anyschema._dependencies import ANNOTATED_TYPES_AVAILABLE, PYDANTIC_AVAILABLE
 from anyschema.parsers._base import ParserStep
 
@@ -126,58 +128,14 @@ class ForwardRefStep(ParserStep):
             return None
 
         try:
-            resolved_type = self._resolve_forward_ref(input_type)
+            resolved_type = evaluate_forward_ref(
+                forward_ref=input_type,
+                globals=self.globalns,
+                locals=self.localns,
+            )
         except (NameError, AttributeError, TypeError) as e:
             # If resolution fails, we can't handle this type
             msg = f"Failed to resolve ForwardRef '{input_type.__forward_arg__}': {e}"
             raise NotImplementedError(msg) from e
 
         return self.pipeline.parse(resolved_type, metadata, strict=True)
-
-    def _resolve_forward_ref(self, forward_ref: ForwardRef) -> type:  # pragma: no cover
-        """Resolve a ForwardRef to its actual type.
-
-        Arguments:
-            forward_ref: The ForwardRef to resolve.
-
-        Returns:
-            The resolved type.
-
-        Raises:
-            NameError: If the type name cannot be found in the namespace.
-            TypeError: If the ForwardRef cannot be evaluated.
-        """
-        # Try using Python 3.9+ _evaluate method
-        try:
-            # Python 3.11+ signature
-            return forward_ref._evaluate(  # type: ignore[return-value]  # noqa: SLF001
-                self.globalns,
-                self.localns,
-                recursive_guard=frozenset(),
-            )
-        except TypeError:
-            # Python 3.9-3.10 signature (no recursive_guard)
-            try:
-                return forward_ref._evaluate(  # type: ignore[call-arg,return-value]  # noqa: SLF001
-                    self.globalns,
-                    self.localns,
-                    frozenset(),  # type: ignore[arg-type]
-                )
-            except TypeError:
-                # Fallback: try to evaluate the string directly
-                return self._evaluate_string(forward_ref.__forward_arg__)
-
-    def _evaluate_string(self, type_string: str) -> type:
-        """Evaluate a type string to get the actual type.
-
-        Arguments:
-            type_string: String representation of the type (e.g., 'int', 'list[int]').
-
-        Returns:
-            The evaluated type.
-
-        Raises:
-            NameError: If the type cannot be found.
-        """
-        namespace = {**self.globalns, **self.localns}
-        return eval(type_string, namespace)  # type: ignore[no-any-return]  # noqa: S307

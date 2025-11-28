@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from types import GenericAlias
-from typing import TYPE_CHECKING, Annotated, Any, _GenericAlias, get_args, get_origin  # type: ignore[attr-defined]
+from typing import TYPE_CHECKING, Annotated, Any, get_args, get_origin
 
 from anyschema.parsers._base import ParserStep
 
@@ -27,11 +26,7 @@ class AnnotatedStep(ParserStep):
         Returns:
             A Narwhals DType by extracting the base type and delegating to the chain.
         """
-        if (
-            isinstance(input_type, (_GenericAlias, GenericAlias))
-            and get_origin(input_type) is Annotated
-            and (args := get_args(input_type)) is not None
-        ):
+        if get_origin(input_type) is Annotated and (args := get_args(input_type)) is not None:
             base_type, *extra_metadata = args
             return self.pipeline.parse(base_type, (*metadata, *extra_metadata), strict=True)
 

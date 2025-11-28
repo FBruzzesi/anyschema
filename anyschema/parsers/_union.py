@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from types import GenericAlias, NoneType, UnionType
-from typing import TYPE_CHECKING, Any, Union, _GenericAlias, get_args, get_origin  # type: ignore[attr-defined]
+from types import NoneType, UnionType
+from typing import TYPE_CHECKING, Any, Union, get_args, get_origin
 
 from anyschema.exceptions import UnsupportedDTypeError
 from anyschema.parsers._base import ParserStep
@@ -30,19 +30,15 @@ class UnionTypeStep(ParserStep):
             A Narwhals DType by extracting the non-None type and delegating to the chain.
         """
         # Handle Union types from typing module (including Optional)
-        if isinstance(input_type, (_GenericAlias, GenericAlias)):
-            origin = get_origin(input_type)
-            if origin is Union:
-                args = get_args(input_type)
-                extracted_type, extracted_metadata = self._parse_union(args, metadata)
-
-                return self.pipeline.parse(extracted_type, extracted_metadata, strict=True)
-
-        # Handle UnionType (PEP 604: T | U syntax)
-        elif isinstance(input_type, UnionType):
+        if get_origin(input_type) is Union:
             args = get_args(input_type)
             extracted_type, extracted_metadata = self._parse_union(args, metadata)
+            return self.pipeline.parse(extracted_type, extracted_metadata, strict=True)
 
+        # Handle UnionType (PEP 604: T | U syntax)
+        if isinstance(input_type, UnionType):
+            args = get_args(input_type)
+            extracted_type, extracted_metadata = self._parse_union(args, metadata)
             return self.pipeline.parse(extracted_type, extracted_metadata, strict=True)
 
         return None

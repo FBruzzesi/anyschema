@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Literal, Mapping, TypedDict
 
 import narwhals as nw
 import pytest
+from pydantic import BaseModel, PositiveInt
 
 from anyschema import AnySchema
 
@@ -64,6 +65,18 @@ class ConfigTypedDict(TypedDict):
     enabled: Literal[True, False]
 
 
+class ZipcodeModel(BaseModel):
+    zipcode: PositiveInt
+
+
+class AddressTypedDictWithZipcodeModel(TypedDict):
+    """TypedDict with Nested pydantic model for testing."""
+
+    street: str
+    city: str
+    zipcode: ZipcodeModel
+
+
 @pytest.mark.parametrize(
     ("spec", "expected_schema"),
     [
@@ -102,6 +115,14 @@ class ConfigTypedDict(TypedDict):
                 "log_level": nw.Enum(["debug", "info", "warning", "error"]),
                 "max_retries": nw.Enum([1, 2, 3, 5, 10]),
                 "enabled": nw.Enum([True, False]),
+            },
+        ),
+        (
+            AddressTypedDictWithZipcodeModel,
+            {
+                "street": nw.String(),
+                "city": nw.String(),
+                "zipcode": nw.Struct([nw.Field("zipcode", nw.UInt64())]),
             },
         ),
     ],

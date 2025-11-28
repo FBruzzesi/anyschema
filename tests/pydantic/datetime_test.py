@@ -1,17 +1,18 @@
 from __future__ import annotations
 
 from datetime import datetime  # noqa: TC003
+from typing import TYPE_CHECKING
 
 import narwhals as nw
 from pydantic import BaseModel, FutureDatetime, NaiveDatetime, PastDatetime
 
-from anyschema.parsers import make_pipeline
 from tests.pydantic.utils import model_to_nw_schema
 
-pipeline = make_pipeline("auto", spec_type="pydantic")
+if TYPE_CHECKING:
+    from anyschema.parsers import ParserPipeline
 
 
-def test_parse_datetime() -> None:
+def test_parse_datetime(auto_pipeline: ParserPipeline) -> None:
     class DatetimeModel(BaseModel):
         # python datetime type
         py_dt: datetime
@@ -37,6 +38,6 @@ def test_parse_datetime() -> None:
         future_dt_or_none: FutureDatetime | None
         none_or_future_dt: None | FutureDatetime
 
-    schema = model_to_nw_schema(DatetimeModel, pipeline=pipeline)
+    schema = model_to_nw_schema(DatetimeModel, pipeline=auto_pipeline)
 
     assert all(value == nw.Datetime() for value in schema.values())

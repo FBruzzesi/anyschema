@@ -93,7 +93,8 @@ The typical use cases are: Data pipelines, API to database workflows, schema gen
 
 ## Key Features
 
-- **Multiple Input Formats**: Support for Pydantic models, Python mappings and sequence of field specifications.
+- **Multiple Input Formats**: Support for Pydantic models, TypedDict, dataclasses, Python mappings and sequence of field
+    specifications.
 - **Multiple Output Formats**: Convert to PyArrow, Polars, or Pandas schemas.
 - **Modular Architecture**: Extensible parser pipeline for custom type handling.
 - **Rich Type Support**: Handles complex types including Optional, Union, List, nested structures, and
@@ -126,6 +127,10 @@ Adapters convert input specifications into a common format that the parser pipel
 
 - [`into_ordered_dict_adapter`](api-reference/adapters.md#anyschema.adapters.into_ordered_dict_adapter): Handles Python
     dicts and sequences.
+- [`typed_dict_adapter`](api-reference/adapters.md#anyschema.adapters.typed_dict_adapter): Extracts field information from
+    TypedDict classes.
+- [`dataclass_adapter`](api-reference/adapters.md#anyschema.adapters.dataclass_adapter): Extracts field information from
+    dataclasses.
 - [`pydantic_adapter`](api-reference/adapters.md#anyschema.adapters.pydantic_adapter): Extracts field information from
     Pydantic models.
 

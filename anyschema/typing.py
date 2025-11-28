@@ -26,7 +26,7 @@ IntoParserPipeline: TypeAlias = Literal["auto"] | Sequence[ParserStep]
 Either "auto" or a sequence of [`ParserStep`][anyschema.parsers.ParserStep].
 """
 
-Spec: TypeAlias = "Schema |  IntoOrderedDict | type[BaseModel] | DataclassType"
+Spec: TypeAlias = "Schema |  IntoOrderedDict | type[BaseModel] | DataclassType | TypedDictType"
 """Input specification supported directly by [`AnySchema`][anyschema.AnySchema]."""
 
 SpecType: TypeAlias = Literal["pydantic", "python"] | None
@@ -60,3 +60,11 @@ class DataclassType(Protocol):
     # code adapted from typeshed:
     # https://github.com/python/typeshed/blob/9ab7fde0a0cd24ed7a72837fcb21093b811b80d8/stdlib/_typeshed/__init__.pyi#L351
     __dataclass_fields__: ClassVar[dict[str, Field[Any]]]
+
+
+class TypedDictType(Protocol):
+    """Protocol that represents a TypedDict in Python."""
+
+    __annotations__: dict[str, type]
+    __required_keys__: frozenset[str]
+    __optional_keys__: frozenset[str]

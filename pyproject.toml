@@ -138,13 +138,6 @@ disable = [
   "MD046",
 ]
 
-[tool.rumdl.per-file-ignores]
-"docs/architecture.md" = [
-  # Keep table column count consistent
-  # NOTE: false positive if "|" is in a code block, see https://github.com/rvben/rumdl/issues/165
-  "MD056",
-]
-
 [tool.rumdl.MD007]
 # Keep list indentation consistent
 indent = 4

@@ -60,6 +60,13 @@ include = [
   "anyschema/*",
 ]
 
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = [
+  "error",
+]
+xfail_strict = true
+
 [tool.ruff]
 line-length = 120
 target-version = "py310"

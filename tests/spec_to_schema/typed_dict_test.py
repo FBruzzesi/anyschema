@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Mapping, TypedDict
+from typing import TYPE_CHECKING, Literal, Mapping, TypedDict
 
 import narwhals as nw
 import pytest
@@ -46,6 +46,24 @@ class StudentTypedDict(TypedDict):
     grades: list[float]
 
 
+class UserTypedDict(TypedDict):
+    """TypedDict with Literal fields for testing."""
+
+    username: str
+    role: Literal["admin", "user", "guest"]
+    status: Literal["active", "inactive", "pending"]
+    age: int
+
+
+class ConfigTypedDict(TypedDict):
+    """TypedDict with mixed Literal types for testing."""
+
+    name: str
+    log_level: Literal["debug", "info", "warning", "error"]
+    max_retries: Literal[1, 2, 3, 5, 10]
+    enabled: Literal[True, False]
+
+
 @pytest.mark.parametrize(
     ("spec", "expected_schema"),
     [
@@ -67,6 +85,24 @@ class StudentTypedDict(TypedDict):
         (
             StudentTypedDict,
             {"name": nw.String(), "age": nw.Int64(), "classes": nw.List(nw.String()), "grades": nw.List(nw.Float64())},
+        ),
+        (
+            UserTypedDict,
+            {
+                "username": nw.String(),
+                "role": nw.Enum(["admin", "user", "guest"]),
+                "status": nw.Enum(["active", "inactive", "pending"]),
+                "age": nw.Int64(),
+            },
+        ),
+        (
+            ConfigTypedDict,
+            {
+                "name": nw.String(),
+                "log_level": nw.Enum(["debug", "info", "warning", "error"]),
+                "max_retries": nw.Enum([1, 2, 3, 5, 10]),
+                "enabled": nw.Enum([True, False]),
+            },
         ),
     ],
 )

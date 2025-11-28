@@ -101,7 +101,7 @@ def _auto_pipeline() -> Sequence[ParserStep]:
     # 5. PydanticTypeStep - handles Pydantic-specific types (if pydantic model)
     #   (if pydantic is available)
     # 6. PyTypeStep - handles basic Python types (fallback)
-    steps: Sequence[ParserStep] = [forward_ref_step, union_step, annotated_step]
+    steps: list[ParserStep] = [forward_ref_step, union_step, annotated_step]
     if ANNOTATED_TYPES_AVAILABLE:
         from anyschema.parsers.annotated_types import AnnotatedTypesStep
 

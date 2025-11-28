@@ -26,7 +26,10 @@ IntoParserPipeline: TypeAlias = Literal["auto"] | Sequence[ParserStep]
 Either "auto" or a sequence of [`ParserStep`][anyschema.parsers.ParserStep].
 """
 
-Spec: TypeAlias = "Schema |  IntoOrderedDict | type[BaseModel] | DataclassType | TypedDictType"
+UnknownSpec: TypeAlias = Any
+"""An unknown specification."""
+
+Spec: TypeAlias = "Schema |  IntoOrderedDict | type[BaseModel] | DataclassType | TypedDictType | UnknownSpec"
 """Input specification supported directly by [`AnySchema`][anyschema.AnySchema]."""
 
 FieldName: TypeAlias = str

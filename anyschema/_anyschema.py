@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, cast
 
 from narwhals.schema import Schema
 
@@ -146,6 +146,7 @@ class AnySchema:
             return
 
         pipeline = make_pipeline(steps)
+        adapter_f: Adapter
 
         if is_into_ordered_dict(spec):
             adapter_f = into_ordered_dict_adapter
@@ -162,7 +163,7 @@ class AnySchema:
             raise ValueError(msg)
 
         self._nw_schema = Schema(
-            {name: pipeline.parse(input_type, metadata) for name, input_type, metadata in adapter_f(spec)}
+            {name: pipeline.parse(input_type, metadata) for name, input_type, metadata in adapter_f(cast("Any", spec))}
         )
 
     def to_arrow(self: Self) -> pa.Schema:

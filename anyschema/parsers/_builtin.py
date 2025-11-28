@@ -8,13 +8,16 @@ from inspect import isclass
 from typing import TYPE_CHECKING, Any
 
 import narwhals as nw
-from typing_extensions import get_args, get_origin, get_type_hints, is_typeddict  # noqa: UP035
+from typing_extensions import get_args, get_origin, get_type_hints  # noqa: UP035
 
+from anyschema._dependencies import is_typed_dict
 from anyschema.exceptions import UnsupportedDTypeError
 from anyschema.parsers._base import ParserStep
 
 if TYPE_CHECKING:
     from narwhals.dtypes import DType
+
+    from anyschema.typing import TypedDictType
 
 
 class PyTypeStep(ParserStep):
@@ -67,7 +70,7 @@ class PyTypeStep(ParserStep):
             # Plain dict without type parameters -> Struct with Object fields
             return nw.Struct([])
 
-        if is_typeddict(input_type):
+        if is_typed_dict(input_type):
             return self._parse_typed_dict(input_type, metadata)
 
         # Handle generic type: list[T], tuple[T, ...], Sequence[T], Iterable[T], dict[K, V]
@@ -117,7 +120,7 @@ class PyTypeStep(ParserStep):
 
         return None
 
-    def _parse_typed_dict(self, typed_dict: type, metadata: tuple) -> DType:  # noqa: ARG002
+    def _parse_typed_dict(self, typed_dict: TypedDictType, metadata: tuple) -> DType:  # noqa: ARG002
         """Parse a TypedDict into a Struct type.
 
         Arguments:

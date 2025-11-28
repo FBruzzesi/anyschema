@@ -5,7 +5,7 @@ from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 from enum import Enum
 from inspect import isclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 import narwhals as nw
 from typing_extensions import get_args, get_origin, get_type_hints  # noqa: UP035
@@ -25,7 +25,8 @@ class PyTypeStep(ParserStep):
 
     Handles:
 
-    - `int`, `float`, `decimal`, `str`, `bytes`, `bool`, `date`, `datetime`, `timedelta`, `time`, `object`, `Enum`
+    - `int`, `float`, `decimal`, `str`, `bytes`, `bool`, `date`, `datetime`, `timedelta`, `time`, `object`, `Enum`,
+        `Literal`
     - generics: `list[T]`, `Sequence[T]`, `Iterable[T]`, `tuple[T, ...]`
     - `dict`,` Mapping[K, V]`, and typed dictionaries (`TypedDict`)
     """
@@ -64,6 +65,10 @@ class PyTypeStep(ParserStep):
             return nw.Object()
         if isclass(input_type) and issubclass(input_type, Enum):
             return nw.Enum(input_type)
+
+        # Handle Literal types
+        if get_origin(input_type) is Literal:
+            return nw.Enum(get_args(input_type))
 
         # Handle dict types (including TypedDict)
         if input_type is dict:

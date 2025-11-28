@@ -5,10 +5,10 @@ from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 from enum import Enum
 from inspect import isclass
-from typing import TYPE_CHECKING, Any, get_args, get_origin, get_type_hints
+from typing import TYPE_CHECKING, Any
 
 import narwhals as nw
-from typing_extensions import is_typeddict
+from typing_extensions import get_args, get_origin, get_type_hints, is_typeddict  # noqa: UP035
 
 from anyschema.exceptions import UnsupportedDTypeError
 from anyschema.parsers._base import ParserStep

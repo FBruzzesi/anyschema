@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Annotated, Any, get_args, get_origin
+from typing import TYPE_CHECKING, Annotated, Any
+
+from typing_extensions import get_args, get_origin  # noqa: UP035
 
 from anyschema.parsers._base import ParserStep
 

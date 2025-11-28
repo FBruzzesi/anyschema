@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from types import NoneType, UnionType
-from typing import TYPE_CHECKING, Any, Union, get_args, get_origin
+from typing import TYPE_CHECKING, Any, Union
+
+from typing_extensions import get_args, get_origin  # noqa: UP035
 
 from anyschema.exceptions import UnsupportedDTypeError
 from anyschema.parsers._base import ParserStep

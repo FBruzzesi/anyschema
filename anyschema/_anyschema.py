@@ -5,8 +5,8 @@ from typing import TYPE_CHECKING
 
 from narwhals.schema import Schema
 
-from anyschema._dependencies import is_dataclass, is_into_ordered_dict, is_pydantic_base_model
-from anyschema.adapters import dataclass_adapter, into_ordered_dict_adapter, pydantic_adapter
+from anyschema._dependencies import is_dataclass, is_into_ordered_dict, is_pydantic_base_model, is_typed_dict
+from anyschema.adapters import dataclass_adapter, into_ordered_dict_adapter, pydantic_adapter, typed_dict_adapter
 from anyschema.parsers import make_pipeline
 
 if TYPE_CHECKING:
@@ -38,6 +38,10 @@ class AnySchema:
             - A python [mapping](https://docs.python.org/3/glossary.html#term-mapping) (like `dict`) or
                 [sequence](https://docs.python.org/3/glossary.html#term-sequence) of tuples containing
                 the field name and type (e.g., `{"name": str, "age": int}` or `[("name", str), ("age", int)]`).
+            - A [TypedDict](https://docs.python.org/3/library/typing.html#typing.TypedDict) class (not an instance).
+                The fields are extracted using type hint introspection.
+            - A [dataclass](https://docs.python.org/3/library/dataclasses.html) class (not an instance).
+                The fields are extracted using dataclass introspection.
             - A [Pydantic Model](https://docs.pydantic.dev/latest/concepts/models/) class (not an instance).
                 The fields are extracted using Pydantic's schema introspection.
 
@@ -106,12 +110,26 @@ class AnySchema:
         name: string
         active: bool
 
+        Using a TypedDict:
+
+        >>> from typing_extensions import TypedDict
+        >>>
+        >>> class Product(TypedDict):
+        ...     id: int
+        ...     name: str
+        ...     price: float
+        >>>
+        >>> schema = AnySchema(spec=Product)
+        >>> print(schema.to_arrow())
+        id: int64
+        name: string
+        price: double
+
     Tip: See also
         - [ParserStep][anyschema.parsers.ParserStep]: Base class for custom parser steps
         - [ParserPipeline][anyschema.parsers.ParserPipeline]: Pipeline for chaining parser steps
         - [make_pipeline][anyschema.parsers.make_pipeline]: Factory function for creating parser pipelines
-        - [pydantic_adapter][anyschema.adapters.pydantic_adapter]: Adapter for Pydantic models
-        - [into_ordered_dict_adapter][anyschema.adapters.into_ordered_dict_adapter]: Adapter for dicts and lists
+        - [Spec Adapters][anyschema.adapters]: Adapters for various specifications
     """
 
     _nw_schema: Schema
@@ -133,6 +151,11 @@ class AnySchema:
                     name: _pipeline.parse(input_type, metadata)
                     for name, input_type, metadata in into_ordered_dict_adapter(spec)
                 }
+            )
+        elif is_typed_dict(spec):
+            _pipeline = make_pipeline(steps, spec_type="python")
+            nw_schema = Schema(
+                {name: _pipeline.parse(input_type, metadata) for name, input_type, metadata in typed_dict_adapter(spec)}
             )
         elif is_dataclass(spec):
             _pipeline = make_pipeline(steps, spec_type="python")

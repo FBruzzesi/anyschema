@@ -6,12 +6,14 @@ from dataclasses import is_dataclass as dc_is_dataclass
 from importlib.util import find_spec
 from typing import TYPE_CHECKING, TypeGuard, cast
 
+from typing_extensions import is_typeddict
+
 if TYPE_CHECKING:
     from types import ModuleType
 
     from pydantic import BaseModel
 
-    from anyschema.typing import DataclassType, IntoOrderedDict
+    from anyschema.typing import DataclassType, IntoOrderedDict, TypedDictType
 
 ANNOTATED_TYPES_AVAILABLE = find_spec("annotated_types") is not None
 PYDANTIC_AVAILABLE = find_spec("pydantic") is not None
@@ -42,3 +44,8 @@ def is_into_ordered_dict(obj: object) -> TypeGuard[IntoOrderedDict]:
 def is_dataclass(obj: object) -> TypeGuard[DataclassType]:
     """Check if the object is a dataclass and narrows type checkers."""
     return dc_is_dataclass(obj)
+
+
+def is_typed_dict(obj: object) -> TypeGuard[TypedDictType]:
+    """Check if the object is a TypedDict and narrows type checkers."""
+    return is_typeddict(obj)

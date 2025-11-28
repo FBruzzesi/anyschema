@@ -46,6 +46,26 @@ Convert to different schema formats:
     print(schema.to_pandas())
     ```
 
+### With TypedDict
+
+You can use `TypedDict` for a lightweight way to define typed structures:
+
+```python exec="true" source="above" result="python" session="basic-typeddict"
+from anyschema import AnySchema
+from typing_extensions import TypedDict
+
+
+class User(TypedDict):
+    id: int
+    username: str
+    email: str
+    is_active: bool
+
+
+schema = AnySchema(spec=User)
+print(schema.to_arrow())
+```
+
 ### With dataclasses
 
 You can also use plain Python dataclasses
@@ -105,49 +125,58 @@ print(schema.to_polars())
 
 ### Nested Types
 
-```python exec="true" source="above" session="nested"
-from anyschema import AnySchema
-from pydantic import BaseModel
+You can use nested structures with Pydantic models, dataclasses, or TypedDict:
+
+=== "Pydantic"
+
+    ```python exec="true" source="above" session="nested-pydantic"
+    from anyschema import AnySchema
+    from pydantic import BaseModel
 
 
-class Address(BaseModel):
-    street: str
-    city: str
-    country: str
+    class Address(BaseModel):
+        street: str
+        city: str
+        country: str
 
 
-class Person(BaseModel):
-    name: str
-    age: int
-    addresses: list[Address]
+    class Person(BaseModel):
+        name: str
+        age: int
+        addresses: list[Address]
 
 
-schema = AnySchema(spec=Person)
-```
-
-=== "pyarrow"
-
-    ```python exec="true" source="above" result="python" session="nested"
+    schema = AnySchema(spec=Person)
     pa_schema = schema.to_arrow()
     print(pa_schema)
     ```
 
-=== "polars"
+=== "TypedDict"
 
-    ```python exec="true" source="above" result="python" session="nested"
-    pl_schema = schema.to_polars()
-    print(pl_schema)
+    ```python exec="true" source="above" result="python" session="nested-typeddict"
+    from anyschema import AnySchema
+    from typing_extensions import TypedDict
+
+
+    class Address(TypedDict):
+        street: str
+        city: str
+        country: str
+
+
+    class Person(TypedDict):
+        name: str
+        age: int
+        addresses: list[Address]
+
+
+    schema = AnySchema(spec=Person)
+    pa_schema = schema.to_arrow()
+    print(pa_schema)
     ```
 
-=== "pandas"
-
-    ```python exec="true" source="above" result="python" session="nested"
-    pd_schema = schema.to_pandas()
-    print(pd_schema)
-    ```
-
-As you can see a field (`addresses`) that is itself a nested Pydantic model is correctly represented as a nested struct
-in the schema.
+As you can see, a field (`addresses`) that contains a nested structure is correctly represented as a nested struct in
+the schema.
 
 ## Working with (Integer) Constraints
 

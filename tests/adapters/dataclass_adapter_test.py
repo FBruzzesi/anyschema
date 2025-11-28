@@ -10,7 +10,7 @@ from pydantic.dataclasses import dataclass as pydantic_dataclass
 from anyschema.adapters import dataclass_adapter
 
 if TYPE_CHECKING:
-    from anyschema.typing import Dataclass
+    from anyschema.typing import DataclassType
 
 
 class Test:
@@ -27,7 +27,7 @@ class Test:
         make_dataclass("Test", [("name", str), ("age", int), ("date_of_birth", date)]),
     ],
 )
-def test_into_ordered_dict_adapter(spec: Dataclass) -> None:
+def test_into_ordered_dict_adapter(spec: DataclassType) -> None:
     expected = (("name", str, ()), ("age", int, ()), ("date_of_birth", date, ()))
     result = tuple(dataclass_adapter(spec))
     assert result == expected

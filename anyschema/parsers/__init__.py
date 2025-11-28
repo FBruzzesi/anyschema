@@ -12,7 +12,7 @@ from anyschema.parsers._forward_ref import ForwardRefStep
 from anyschema.parsers._union import UnionTypeStep
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Generator
 
     from anyschema.typing import IntoParserPipeline
 
@@ -80,39 +80,40 @@ def make_pipeline(steps: IntoParserPipeline = "auto") -> ParserPipeline:
 
 
 @lru_cache(maxsize=1)
-def _auto_pipeline() -> Sequence[ParserStep]:
+def _auto_pipeline() -> tuple[ParserStep, ...]:
     """Create a parser chain with automatically selected parsers.
 
     Returns:
         A `ParserPipeline` instance with automatically selected parsers.
     """
-    # Create parser instances without chain reference (yet)
-    forward_ref_step = ForwardRefStep()
-    union_step = UnionTypeStep()
-    annotated_step = AnnotatedStep()
-    python_step = PyTypeStep()
 
-    # Order matters! More specific steps should come first:
-    # 1. ForwardRefStep - resolves ForwardRef to actual types (MUST be first!)
-    # 2. UnionTypeStep - handles Union/Optional and extracts the real type
-    # 3. AnnotatedStep - extracts typing.Annotated and its metadata
-    # 4. AnnotatedTypesStep - refines types based on metadata (e.g., int with constraints)
-    #   (if annotated_types is available)
-    # 5. PydanticTypeStep - handles Pydantic-specific types (if pydantic model)
-    #   (if pydantic is available)
-    # 6. PyTypeStep - handles basic Python types (fallback)
-    steps: list[ParserStep] = [forward_ref_step, union_step, annotated_step]
-    if ANNOTATED_TYPES_AVAILABLE:
-        from anyschema.parsers.annotated_types import AnnotatedTypesStep
+    def _generate_steps() -> Generator[ParserStep, None, None]:
+        # Order matters! More specific steps should come first:
 
-        annotated_types_step = AnnotatedTypesStep()
-        steps.append(annotated_types_step)
+        # 1. ForwardRefStep - resolves ForwardRef to actual types (MUST be first!)
+        yield ForwardRefStep()
 
-    if PYDANTIC_AVAILABLE:
-        from anyschema.parsers.pydantic import PydanticTypeStep
+        # 2. UnionTypeStep - handles Union/Optional and extracts the real type
+        yield UnionTypeStep()
 
-        pydantic_step = PydanticTypeStep()
-        steps.append(pydantic_step)
+        # 3. AnnotatedStep - extracts typing.Annotated and its metadata
+        yield AnnotatedStep()
 
-    steps.append(python_step)
-    return tuple(steps)
+        # 4. AnnotatedTypesStep - refines types based on metadata (e.g., int with constraints)
+        #   (if annotated_types is available)
+        if ANNOTATED_TYPES_AVAILABLE:
+            from anyschema.parsers.annotated_types import AnnotatedTypesStep
+
+            yield AnnotatedTypesStep()
+
+        # 5. PydanticTypeStep - handles Pydantic-specific types (if pydantic model)
+        #   (if pydantic is available)
+        if PYDANTIC_AVAILABLE:
+            from anyschema.parsers.pydantic import PydanticTypeStep
+
+            yield PydanticTypeStep()
+
+        # 6. PyTypeStep - handles basic Python types (fallback)
+        yield PyTypeStep()
+
+    return tuple(_generate_steps())

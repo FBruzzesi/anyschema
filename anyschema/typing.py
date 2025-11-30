@@ -9,8 +9,12 @@ if TYPE_CHECKING:
     from dataclasses import Field
     from typing import ClassVar
 
+    from attrs import AttrsInstance
     from narwhals.schema import Schema
     from pydantic import BaseModel
+
+    AttrsClassType: TypeAlias = type[AttrsInstance]
+
 
 IntoOrderedDict: TypeAlias = Mapping[str, type] | Sequence[tuple[str, type]]
 """An object that can be converted into a python [`OrderedDict`][ordered-dict].
@@ -29,7 +33,9 @@ Either "auto" or a sequence of [`ParserStep`][anyschema.parsers.ParserStep].
 UnknownSpec: TypeAlias = Any
 """An unknown specification."""
 
-Spec: TypeAlias = "Schema |  IntoOrderedDict | type[BaseModel] | DataclassType | TypedDictType | UnknownSpec"
+Spec: TypeAlias = (
+    "Schema |  IntoOrderedDict | type[BaseModel] | DataclassType | TypedDictType | AttrsClassType | UnknownSpec"
+)
 """Input specification supported directly by [`AnySchema`][anyschema.AnySchema]."""
 
 FieldName: TypeAlias = str
@@ -52,6 +58,7 @@ An adapter is a callable that adapts a spec into field specifications.
 class DataclassType(Protocol):
     """Protocol that represents a dataclass in Python."""
 
+    __name__: str
     # dataclasses are runtime composed entities making them tricky to type, this may not work perfectly
     #   with all type checkers
     # code adapted from typeshed:

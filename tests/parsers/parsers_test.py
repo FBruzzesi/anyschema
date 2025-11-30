@@ -18,6 +18,7 @@ from anyschema.parsers import (
     make_pipeline,
 )
 from anyschema.parsers.annotated_types import AnnotatedTypesStep
+from anyschema.parsers.attrs import AttrsTypeStep
 from anyschema.parsers.pydantic import PydanticTypeStep
 
 AUTO_PIPELINE_CLS_ORDER = (
@@ -25,6 +26,7 @@ AUTO_PIPELINE_CLS_ORDER = (
     UnionTypeStep,
     AnnotatedStep,
     AnnotatedTypesStep,
+    AttrsTypeStep,
     PydanticTypeStep,
     PyTypeStep,
 )

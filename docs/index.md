@@ -23,19 +23,25 @@ any package manager. For instance:
     uv pip install anyschema
     ```
 
-We suggest to install also `pydantic` to follow along with the examples.
-`anyschema` interoperability with pydantic models requires `pydantic>=2.0.0`.
+We suggest to install also `pydantic` or `attrs` to follow along with the examples.
+
+- `anyschema` interoperability with pydantic models requires `pydantic>=2.0.0`.
+- `anyschema` interoperability with attrs classes requires `attrs>=24.0.0`.
 
 === "pip"
 
     ```bash
     python -m pip install "anyschema[pydantic]"
+    # or
+    python -m pip install "anyschema[attrs]"
     ```
 
 === "uv"
 
     ```bash
     uv pip install "anyschema[pydantic]"
+    # or
+    uv pip install "anyschema[attrs]"
     ```
 
 ## Quick Start
@@ -93,12 +99,12 @@ The typical use cases are: Data pipelines, API to database workflows, schema gen
 
 ## Key Features
 
-- **Multiple Input Formats**: Support for Pydantic models, TypedDict, dataclasses, Python mappings and sequence of field
-    specifications.
+- **Multiple Input Formats**: Support for Pydantic models, attrs classes, TypedDict, dataclasses, Python mappings and
+    sequence of field specifications.
 - **Multiple Output Formats**: Convert to PyArrow, Polars, or Pandas schemas.
 - **Modular Architecture**: Extensible parser pipeline for custom type handling.
-- **Rich Type Support**: Handles complex types including Optional, Union, List, nested structures, and
-    Pydantic-specific types.
+- **Rich Type Support**: Handles complex types including Optional, Union, List, nested structures, Pydantic-specific
+    types, and attrs classes.
 - **Narwhals Integration**: Leverages [Narwhals](https://narwhals-dev.github.io/narwhals/) as the intermediate
     representation.
 
@@ -131,6 +137,8 @@ Adapters convert input specifications into a common format that the parser pipel
     TypedDict classes.
 - [`dataclass_adapter`](api-reference/adapters.md#anyschema.adapters.dataclass_adapter): Extracts field information from
     dataclasses.
+- [`attrs_adapter`](api-reference/adapters.md#anyschema.adapters.attrs_adapter): Extracts field information from
+    attrs classes.
 - [`pydantic_adapter`](api-reference/adapters.md#anyschema.adapters.pydantic_adapter): Extracts field information from
     Pydantic models.
 

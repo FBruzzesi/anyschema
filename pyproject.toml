@@ -36,6 +36,7 @@ Repository = "https://github.com/fbruzzesi/anyschema"
 "Issue Tracker" = "https://github.com/fbruzzesi/anyschema/issues"
 
 [project.optional-dependencies]
+attrs = ["attrs>=24.0.0"]
 pydantic = ["pydantic>=2.0.0"]
 
 [dependency-groups]
@@ -57,7 +58,7 @@ typing = [
 ]
 
 docs = [
-  "anyschema[pydantic]",
+  "anyschema[attrs,pydantic]",
   "black",  # required by mkdocstrings_handlers
   "markdown-exec[ansi]",
   "mkdocs",
@@ -67,6 +68,15 @@ docs = [
   "mkdocs-autorefs",
   "narwhals[pandas,polars,pyarrow]",
   "pytest",
+]
+
+local-dev = [
+  "anyschema[attrs,pydantic]",
+  "pre-commit",
+  "ruff",
+  {include-group = "tests"},
+  {include-group = "typing"},
+  {include-group = "docs"}
 ]
 
 [tool.hatch.build.targets.sdist]

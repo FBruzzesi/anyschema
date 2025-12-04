@@ -123,6 +123,7 @@ patterns:
     based on constraints from the `annotated-types` library.
 - [`PydanticTypeStep`](api-reference/parsers.md#anyschema.parsers.pydantic.PydanticTypeStep): Handles Pydantic-specific
     types.
+- [`AttrsTypeStep`](api-reference/parsers.md#anyschema.parsers.attrs.AttrsTypeStep): Handles attrs classes.
 - [`PyTypeStep`](api-reference/parsers.md#anyschema.parsers.PyTypeStep): Handles basic Python types (fallback).
 
 Learn more about how these work together in the [Architecture](architecture.md) section.

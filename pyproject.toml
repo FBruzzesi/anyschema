@@ -36,7 +36,7 @@ Repository = "https://github.com/fbruzzesi/anyschema"
 "Issue Tracker" = "https://github.com/fbruzzesi/anyschema/issues"
 
 [project.optional-dependencies]
-attrs = ["attrs>=24.0.0"]
+attrs = ["attrs>=22.1.0"]
 pydantic = ["pydantic>=2.0.0"]
 
 [dependency-groups]

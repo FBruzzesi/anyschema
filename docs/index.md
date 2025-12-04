@@ -109,15 +109,13 @@ The typical use cases are: Data pipelines, API to database workflows, schema gen
 Parser steps are modular components that convert type annotations to Narwhals dtypes. Each parser handles specific type
 patterns:
 
-- [`ForwardRefStep`](api-reference/parsers.md#anyschema.parsers.ForwardRefStep): Resolves forward references.
-- [`UnionTypeStep`](api-reference/parsers.md#anyschema.parsers.UnionTypeStep): Handles `Union` and `Optional` types.
-- [`AnnotatedStep`](api-reference/parsers.md#anyschema.parsers.AnnotatedStep): Extracts metadata from
-    `typing.Annotated`.
-- [`AnnotatedTypesStep`](api-reference/parsers.md#anyschema.parsers.annotated_types.AnnotatedTypesStep): Refines types
-    based on constraints from the `annotated-types` library.
-- [`PydanticTypeStep`](api-reference/parsers.md#anyschema.parsers.pydantic.PydanticTypeStep): Handles Pydantic-specific
-    types.
-- [`PyTypeStep`](api-reference/parsers.md#anyschema.parsers.PyTypeStep): Handles basic Python types (fallback).
+- [`ForwardRefStep`][api-forward-ref-step]: Resolves forward references.
+- [`UnionTypeStep`][api-union-types-step]: Handles `Union` and `Optional` types.
+- [`AnnotatedStep`][api-annotated-step]: Extracts metadata from `typing.Annotated`.
+- [`AnnotatedTypesStep`][api-annotated-types-step]: Refines types based on constraints from the `annotated-types`
+    library.
+- [`PydanticTypeStep`][api-pydantic-type-step]: Handles Pydantic-specific types.
+- [`PyTypeStep`][api-py-type-step]: Handles basic Python types (fallback).
 
 Learn more about how these work together in the [Architecture](architecture.md) section.
 
@@ -125,14 +123,10 @@ Learn more about how these work together in the [Architecture](architecture.md) 
 
 Adapters convert input specifications into a common format that the parser pipeline can process:
 
-- [`into_ordered_dict_adapter`](api-reference/adapters.md#anyschema.adapters.into_ordered_dict_adapter): Handles Python
-    dicts and sequences.
-- [`typed_dict_adapter`](api-reference/adapters.md#anyschema.adapters.typed_dict_adapter): Extracts field information from
-    TypedDict classes.
-- [`dataclass_adapter`](api-reference/adapters.md#anyschema.adapters.dataclass_adapter): Extracts field information from
-    dataclasses.
-- [`pydantic_adapter`](api-reference/adapters.md#anyschema.adapters.pydantic_adapter): Extracts field information from
-    Pydantic models.
+- [`into_ordered_dict_adapter`][api-into-ordered-dict-adapter]: Handles Python dicts and sequences.
+- [`typed_dict_adapter`][api-typed-dict-adapter]: Extracts field information from TypedDict classes.
+- [`dataclass_adapter`][api-dataclass-adapter]: Extracts field information from dataclasses.
+- [`pydantic_adapter`][api-pydantic-adapter]: Extracts field information from Pydantic models.
 
 See the [API Reference](api-reference/adapters.md) for detailed documentation.
 
@@ -170,3 +164,14 @@ PyArrow schemas.
 
 This challenge led to a realization: such conversion could be generalized to many dataframe libraries by using Narwhals
 as an intermediate representation. `anyschema` makes this conversion seamless and extensible.
+
+[api-forward-ref-step]: api-reference/parsers.md#anyschema.parsers.ForwardRefStep
+[api-union-types-step]: api-reference/parsers.md#anyschema.parsers.UnionTypeStep
+[api-annotated-step]: api-reference/parsers.md#anyschema.parsers.AnnotatedStep
+[api-annotated-types-step]: api-reference/parsers.md#anyschema.parsers.annotated_types.AnnotatedTypesStep
+[api-pydantic-type-step]: api-reference/parsers.md#anyschema.parsers.pydantic.PydanticTypeStep
+[api-py-type-step]: api-reference/parsers.md#anyschema.parsers.PyTypeStep
+[api-into-ordered-dict-adapter]: api-reference/adapters.md#anyschema.adapters.into_ordered_dict_adapter
+[api-typed-dict-adapter]: api-reference/adapters.md#anyschema.adapters.typed_dict_adapter
+[api-dataclass-adapter]: api-reference/adapters.md#anyschema.adapters.dataclass_adapter
+[api-pydantic-adapter]: api-reference/adapters.md#anyschema.adapters.pydantic_adapter

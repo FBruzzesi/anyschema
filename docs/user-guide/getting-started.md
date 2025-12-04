@@ -180,7 +180,8 @@ the schema.
 
 ## Working with (Integer) Constraints
 
-Constraints are processed by the [`AnnotatedTypesStep`](../api-reference/parsers.md#anyschema.parsers.annotated_types.AnnotatedTypesStep)
+Constraints are processed by the [`AnnotatedTypesStep`][api-annotated-types-step]
+
 parser step, which refines types based on their metadata.
 The following examples demonstrate how constraints are handled.
 
@@ -315,3 +316,5 @@ try:
 except UnsupportedDTypeError as e:
     print(f"Error: {e}")
 ```
+
+[api-annotated-types-step]: ../api-reference/parsers.md#anyschema.parsers.annotated_types.AnnotatedTypesStep

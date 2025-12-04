@@ -6,18 +6,7 @@ import pytest
 
 from anyschema.parsers import ParserPipeline, PyTypeStep
 from anyschema.parsers.attrs import AttrsTypeStep
-
-
-@attrs.define
-class AddressForNested:
-    street: str
-    city: str
-
-
-@attrs.define
-class PersonForNested:
-    name: str
-    address: AddressForNested
+from tests.conftest import AttrsDerived, AttrsPerson, create_missing_decorator_test_case
 
 
 @pytest.fixture(scope="module")
@@ -66,7 +55,7 @@ def test_parse_frozen_attrs_class(attrs_parser: AttrsTypeStep) -> None:
 
 
 def test_parse_nested_attrs_classes(attrs_parser: AttrsTypeStep) -> None:
-    result = attrs_parser.parse(PersonForNested)
+    result = attrs_parser.parse(AttrsPerson)
 
     address_fields = [
         nw.Field(name="street", dtype=nw.String()),
@@ -143,17 +132,7 @@ def test_parse_classic_attr_s_decorator(attrs_parser: AttrsTypeStep) -> None:
 
 def test_parse_attrs_with_inheritance(attrs_parser: AttrsTypeStep) -> None:
     """Test parsing attrs class with inheritance."""
-
-    @attrs.define
-    class Base:
-        foo: str
-        bar: int
-
-    @attrs.define
-    class Derived(Base):
-        baz: float
-
-    result = attrs_parser.parse(Derived)
+    result = attrs_parser.parse(AttrsDerived)
 
     expected_fields = [
         nw.Field(name="foo", dtype=nw.String()),
@@ -166,19 +145,6 @@ def test_parse_attrs_with_inheritance(attrs_parser: AttrsTypeStep) -> None:
 
 def test_parse_attrs_missing_decorator_raises(attrs_parser: AttrsTypeStep) -> None:
     """Test that parser raises helpful error when child class isn't decorated."""
-
-    @attrs.define
-    class Base:
-        foo: str
-
-    class ChildWithoutDecorator(Base):
-        bar: int
-
-    expected_msg = (
-        "Class 'ChildWithoutDecorator' has annotations ('bar') that are not attrs fields. "
-        "If this class inherits from an attrs class, you must also decorate it with @attrs.define "
-        "or @attrs.frozen to properly define these fields."
-    )
-
+    child_cls, expected_msg = create_missing_decorator_test_case()
     with pytest.raises(AssertionError, match=expected_msg.replace("(", r"\(").replace(")", r"\)")):
-        attrs_parser.parse(ChildWithoutDecorator)
+        attrs_parser.parse(child_cls)

@@ -7,6 +7,7 @@ import attrs
 import pytest
 
 from anyschema.adapters import attrs_adapter
+from tests.conftest import AttrsDerived, create_missing_decorator_test_case
 
 if TYPE_CHECKING:
     from anyschema.typing import AttrsClassType
@@ -53,36 +54,13 @@ def test_attrs_adapter_with_metadata() -> None:
 
 def test_attrs_adapter_with_inheritance() -> None:
     """Test that attrs adapter correctly handles inheritance."""
-
-    @attrs.define
-    class Base:
-        foo: str
-        bar: int
-
-    @attrs.define
-    class Derived(Base):
-        baz: float
-
-    result = list(attrs_adapter(Derived))
+    result = list(attrs_adapter(AttrsDerived))
     # Should include all fields: foo, bar from Base and baz from Derived
     assert result == [("foo", str, ()), ("bar", int, ()), ("baz", float, ())]
 
 
 def test_attrs_adapter_missing_decorator_raises() -> None:
     """Test that adapter raises helpful error when child class isn't decorated."""
-
-    @attrs.define
-    class Base:
-        foo: str
-
-    class ChildWithoutDecorator(Base):
-        bar: int
-
-    expected_msg = (
-        "Class 'ChildWithoutDecorator' has annotations ('bar') that are not attrs fields. "
-        "If this class inherits from an attrs class, you must also decorate it with @attrs.define "
-        "or @attrs.frozen to properly define these fields."
-    )
-
+    child_cls, expected_msg = create_missing_decorator_test_case()
     with pytest.raises(AssertionError, match=expected_msg.replace("(", r"\(").replace(")", r"\)")):
-        list(attrs_adapter(ChildWithoutDecorator))
+        list(attrs_adapter(child_cls))

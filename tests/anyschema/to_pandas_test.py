@@ -50,11 +50,11 @@ if TYPE_CHECKING:
     ],
 )
 def test_pydantic_to_pandas(
-    student_cls: type[BaseModel],
+    pydantic_student_cls: type[BaseModel],
     dtype_backend: DTypeBackend,
     expected: dict[str, str | pd.ArrowDtype | type],
 ) -> None:
-    anyschema = AnySchema(spec=student_cls)
+    anyschema = AnySchema(spec=pydantic_student_cls)
     pd_schema = anyschema.to_pandas(dtype_backend=dtype_backend)
     assert isinstance(pd_schema, dict)
     assert pd_schema == expected

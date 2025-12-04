@@ -11,8 +11,8 @@ if TYPE_CHECKING:
     from pydantic import BaseModel
 
 
-def test_pydantic_to_polars(student_cls: type[BaseModel]) -> None:
-    anyschema = AnySchema(spec=student_cls)
+def test_pydantic_to_polars(pydantic_student_cls: type[BaseModel]) -> None:
+    anyschema = AnySchema(spec=pydantic_student_cls)
     pl_schema = anyschema.to_polars()
 
     assert isinstance(pl_schema, pl.Schema)

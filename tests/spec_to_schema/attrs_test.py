@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Literal, Mapping, TypedDict
+from typing import TYPE_CHECKING, Literal, Mapping
 
 import attrs
 import narwhals as nw
@@ -10,13 +10,14 @@ import pytest
 from pydantic import BaseModel, PositiveInt
 
 from anyschema import AnySchema
+from tests.conftest import AttrsDerived, create_missing_decorator_test_case
 
 if TYPE_CHECKING:
     from anyschema.typing import AttrsClassType
 
 
 @attrs.define
-class PersonAttrs:
+class AttrsPerson:
     """Simple attrs class for testing."""
 
     name: str
@@ -25,66 +26,21 @@ class PersonAttrs:
 
 
 @attrs.define
-class AddressAttrs:
-    """Nested attrs class for testing."""
-
-    street: str
-    city: str
-    zipcode: int
-
-
-@attrs.define
-class PersonWithAddressAttrs:
-    """Attrs class with nested attrs class for testing."""
-
-    name: str
-    age: int
-    address: AddressAttrs
-
-
-@attrs.define
-class StudentAttrs:
+class AttrsPersonWithLists:
     """Attrs class with list field for testing."""
 
     name: str
-    age: int
     classes: list[str]
     grades: list[float]
 
 
 @attrs.define
-class UserAttrs:
+class AttrsPersonWithLiterals:
     """Attrs class with Literal fields for testing."""
 
     username: str
     role: Literal["admin", "user", "guest"]
     status: Literal["active", "inactive", "pending"]
-    age: int
-
-
-@attrs.frozen
-class ConfigAttrsFrozen:
-    """Frozen attrs class for testing."""
-
-    name: str
-    log_level: Literal["debug", "info", "warning", "error"]
-    max_retries: Literal[1, 2, 3, 5, 10]
-    enabled: Literal[True, False]
-
-
-class ZipcodeTypedDict(TypedDict):
-    """TypedDict for testing mixed nesting."""
-
-    zipcode: int
-
-
-@attrs.define
-class AddressAttrsWithTypedDict:
-    """Attrs class with nested TypedDict for testing."""
-
-    street: str
-    city: str
-    zipcode: ZipcodeTypedDict
 
 
 class ZipcodeModel(BaseModel):
@@ -94,7 +50,7 @@ class ZipcodeModel(BaseModel):
 
 
 @attrs.define
-class AddressAttrsWithPydantic:
+class AttrsAddressWithPydantic:
     """Attrs class with nested Pydantic model for testing."""
 
     street: str
@@ -102,72 +58,24 @@ class AddressAttrsWithPydantic:
     zipcode: ZipcodeModel
 
 
-@attrs.define
-class BaseAttrs:
-    """Base attrs class for testing inheritance."""
-
-    id: int
-    name: str
-
-
-@attrs.define
-class DerivedAttrs(BaseAttrs):
-    """Derived attrs class for testing inheritance."""
-
-    email: str
-    is_active: bool
-
-
 @pytest.mark.parametrize(
     ("spec", "expected_schema"),
     [
-        (PersonAttrs, {"name": nw.String(), "age": nw.Int64(), "is_active": nw.Boolean()}),
+        (AttrsPerson, {"name": nw.String(), "age": nw.Int64(), "is_active": nw.Boolean()}),
         (
-            PersonWithAddressAttrs,
-            {
-                "name": nw.String(),
-                "age": nw.Int64(),
-                "address": nw.Struct(
-                    [
-                        nw.Field("street", nw.String()),
-                        nw.Field("city", nw.String()),
-                        nw.Field("zipcode", nw.Int64()),
-                    ]
-                ),
-            },
+            AttrsPersonWithLists,
+            {"name": nw.String(), "classes": nw.List(nw.String()), "grades": nw.List(nw.Float64())},
         ),
         (
-            StudentAttrs,
-            {"name": nw.String(), "age": nw.Int64(), "classes": nw.List(nw.String()), "grades": nw.List(nw.Float64())},
-        ),
-        (
-            UserAttrs,
+            AttrsPersonWithLiterals,
             {
                 "username": nw.String(),
                 "role": nw.Enum(["admin", "user", "guest"]),
                 "status": nw.Enum(["active", "inactive", "pending"]),
-                "age": nw.Int64(),
             },
         ),
         (
-            ConfigAttrsFrozen,
-            {
-                "name": nw.String(),
-                "log_level": nw.Enum(["debug", "info", "warning", "error"]),
-                "max_retries": nw.Enum([1, 2, 3, 5, 10]),
-                "enabled": nw.Enum([True, False]),
-            },
-        ),
-        (
-            AddressAttrsWithTypedDict,
-            {
-                "street": nw.String(),
-                "city": nw.String(),
-                "zipcode": nw.Struct([nw.Field("zipcode", nw.Int64())]),
-            },
-        ),
-        (
-            AddressAttrsWithPydantic,
+            AttrsAddressWithPydantic,
             {
                 "street": nw.String(),
                 "city": nw.String(),
@@ -175,12 +83,11 @@ class DerivedAttrs(BaseAttrs):
             },
         ),
         (
-            DerivedAttrs,
+            AttrsDerived,
             {
-                "id": nw.Int64(),
-                "name": nw.String(),
-                "email": nw.String(),
-                "is_active": nw.Boolean(),
+                "foo": nw.String(),
+                "bar": nw.Int64(),
+                "baz": nw.Float64(),
             },
         ),
     ],
@@ -193,19 +100,6 @@ def test_attrs_class(spec: AttrsClassType, expected_schema: Mapping[str, nw.dtyp
 
 def test_attrs_class_missing_decorator_raises() -> None:
     """Test that AnySchema raises helpful error when child class isn't decorated."""
-
-    @attrs.define
-    class Base:
-        foo: str
-
-    class ChildWithoutDecorator(Base):
-        bar: int
-
-    expected_msg = (
-        "Class 'ChildWithoutDecorator' has annotations ('bar') that are not attrs fields. "
-        "If this class inherits from an attrs class, you must also decorate it with @attrs.define "
-        "or @attrs.frozen to properly define these fields."
-    )
-
+    child_cls, expected_msg = create_missing_decorator_test_case()
     with pytest.raises(AssertionError, match=expected_msg.replace("(", r"\(").replace(")", r"\)")):
-        AnySchema(spec=ChildWithoutDecorator)
+        AnySchema(spec=child_cls)

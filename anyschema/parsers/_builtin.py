@@ -42,9 +42,12 @@ class PyTypeStep(ParserStep):
         """
         if isinstance(input_type, type):
             # NOTE: The order is quite important. In fact:
+            #   * issubclass(MyEnum(str, Enum), str) -> True
             #   * issubclass(bool, int) -> True
             #   * issubclass(TypedDict, dict) -> True
             #   * issubclass(datetime, date) -> True
+            if issubclass(input_type, Enum):
+                return nw.Enum(input_type)
             if issubclass(input_type, str):
                 return nw.String()
             if issubclass(input_type, bool):
@@ -65,8 +68,6 @@ class PyTypeStep(ParserStep):
                 return nw.Decimal()
             if issubclass(input_type, bytes):
                 return nw.Binary()
-            if issubclass(input_type, Enum):
-                return nw.Enum(input_type)
             if is_typed_dict(input_type):
                 return self._parse_typed_dict(input_type, metadata)
             if issubclass(input_type, dict):  # Plain dict without type parameters -> Struct with Object fields

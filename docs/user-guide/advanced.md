@@ -9,7 +9,7 @@ It might be useful to review the [Architecture](../architecture.md) and have gon
 ## Custom Parser Steps
 
 Creating custom parser steps allows you to add support for new type systems or handle special types in your own way.
-Parser steps should inherit from the [ParserStep](../api-reference/parsers.md#anyschema.parsers.ParserStep) base class
+Parser steps should inherit from the [ParserStep][api-parser-step] base class
 and implement the `parse` method with the following signature:
 
 ```python
@@ -451,3 +451,5 @@ json_schema = json.dumps(
 schema = AnySchema(spec=json_schema, adapter=json_schema_adapter)
 print(schema.to_arrow())
 ```
+
+[api-parser-step]: ../api-reference/parsers.md#anyschema.parsers.ParserStep

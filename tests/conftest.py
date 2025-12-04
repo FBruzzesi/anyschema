@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from datetime import date  # noqa: TC003
+from typing import TYPE_CHECKING, Literal
 
 import attrs
 import narwhals as nw
@@ -74,7 +75,18 @@ class AttrsAddress:
 @attrs.define
 class AttrsPerson:
     name: str
-    address: AttrsAddress
+    age: int
+    date_of_birth: date
+    is_active: bool
+    classes: list[str]
+    grades: list[float]
+
+
+@attrs.frozen
+class AttrsPersonFrozen:
+    name: str
+    age: int
+    date_of_birth: date
 
 
 @attrs.define
@@ -86,6 +98,30 @@ class AttrsBase:
 @attrs.define
 class AttrsDerived(AttrsBase):
     baz: float
+
+
+@attrs.define
+class AttrsBookWithMetadata:
+    title: str = attrs.field(metadata={"description": "Book title"})
+    author: str = attrs.field(metadata={"max_length": 100})
+
+
+@attrs.define
+class AttrsPersonWithLiterals:
+    username: str
+    role: Literal["admin", "user", "guest"]
+    status: Literal["active", "inactive", "pending"]
+
+
+class PydanticZipcode(BaseModel):
+    zipcode: PositiveInt
+
+
+@attrs.define
+class AttrsAddressWithPydantic:
+    street: str
+    city: str
+    zipcode: PydanticZipcode
 
 
 def create_missing_decorator_test_case() -> tuple[type, str]:

@@ -78,12 +78,11 @@ class PydanticTypeStep(ParserStep):
         Returns:
             A Narwhals Struct dtype.
         """
-        fields = []
-        for field_name, field_info in model.model_fields.items():
-            annotation, metadata = field_info.annotation, tuple(field_info.metadata)
+        from anyschema.adapters import pydantic_adapter
 
-            assert annotation is not None  # noqa: S101
-            field_dtype = self.pipeline.parse(annotation, metadata, strict=True)
-            fields.append(nw.Field(name=field_name, dtype=field_dtype))
-
-        return nw.Struct(fields)
+        return nw.Struct(
+            [
+                nw.Field(name=field_name, dtype=self.pipeline.parse(field_info, field_metadata, strict=True))
+                for field_name, field_info, field_metadata in pydantic_adapter(model)
+            ]
+        )

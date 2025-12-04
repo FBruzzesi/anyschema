@@ -3,7 +3,7 @@ from __future__ import annotations
 from functools import lru_cache
 from typing import TYPE_CHECKING
 
-from anyschema._dependencies import ANNOTATED_TYPES_AVAILABLE, PYDANTIC_AVAILABLE
+from anyschema._dependencies import ANNOTATED_TYPES_AVAILABLE, ATTRS_AVAILABLE, PYDANTIC_AVAILABLE
 from anyschema._utils import qualified_type_name
 from anyschema.parsers._annotated import AnnotatedStep
 from anyschema.parsers._base import ParserPipeline, ParserStep
@@ -51,7 +51,7 @@ def make_pipeline(steps: IntoParserPipeline = "auto") -> ParserPipeline:
 
         >>> pipeline = make_pipeline(steps="auto")
         >>> print(pipeline.steps)
-        (ForwardRefStep, UnionTypeStep, AnnotatedStep, AnnotatedTypesStep, PydanticTypeStep, PyTypeStep)
+        (ForwardRefStep, UnionTypeStep, AnnotatedStep, AnnotatedTypesStep, AttrsTypeStep, PydanticTypeStep, PyTypeStep)
 
     Raises:
         TypeError: If the steps are not a sequence of `ParserStep` instances.
@@ -106,14 +106,20 @@ def _auto_pipeline() -> tuple[ParserStep, ...]:
 
             yield AnnotatedTypesStep()
 
-        # 5. PydanticTypeStep - handles Pydantic-specific types (if pydantic model)
+        # 5. AttrsTypeStep - handles attrs-specific types (if attrs is available)
+        if ATTRS_AVAILABLE:
+            from anyschema.parsers.attrs import AttrsTypeStep
+
+            yield AttrsTypeStep()
+
+        # 6. PydanticTypeStep - handles Pydantic-specific types (if pydantic model)
         #   (if pydantic is available)
         if PYDANTIC_AVAILABLE:
             from anyschema.parsers.pydantic import PydanticTypeStep
 
             yield PydanticTypeStep()
 
-        # 6. PyTypeStep - handles basic Python types (fallback)
+        # 7. PyTypeStep - handles basic Python types (fallback)
         yield PyTypeStep()
 
     return tuple(_generate_steps())

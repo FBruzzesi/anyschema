@@ -5,8 +5,20 @@ from typing import TYPE_CHECKING, Any, cast
 
 from narwhals.schema import Schema
 
-from anyschema._dependencies import is_dataclass, is_into_ordered_dict, is_pydantic_base_model, is_typed_dict
-from anyschema.adapters import dataclass_adapter, into_ordered_dict_adapter, pydantic_adapter, typed_dict_adapter
+from anyschema._dependencies import (
+    is_attrs_class,
+    is_dataclass,
+    is_into_ordered_dict,
+    is_pydantic_base_model,
+    is_typed_dict,
+)
+from anyschema.adapters import (
+    attrs_adapter,
+    dataclass_adapter,
+    into_ordered_dict_adapter,
+    pydantic_adapter,
+    typed_dict_adapter,
+)
 from anyschema.parsers import make_pipeline
 
 if TYPE_CHECKING:
@@ -44,6 +56,8 @@ class AnySchema:
                 The fields are extracted using dataclass introspection.
             - A [Pydantic Model](https://docs.pydantic.dev/latest/concepts/models/) class (not an instance).
                 The fields are extracted using Pydantic's schema introspection.
+            - An [attrs class](https://www.attrs.org/) (not an instance).
+                The fields are extracted using attrs introspection.
 
         steps: Control how types are parsed into Narwhals dtypes. Options:
 
@@ -156,6 +170,8 @@ class AnySchema:
             adapter_f = dataclass_adapter
         elif is_pydantic_base_model(spec):
             adapter_f = pydantic_adapter
+        elif is_attrs_class(spec):
+            adapter_f = attrs_adapter
         elif adapter is not None:
             adapter_f = adapter
         else:

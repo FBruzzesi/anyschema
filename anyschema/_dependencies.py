@@ -13,15 +13,39 @@ if TYPE_CHECKING:
 
     from pydantic import BaseModel
 
-    from anyschema.typing import DataclassType, IntoOrderedDict, TypedDictType
+    from anyschema.typing import AttrsClassType, DataclassType, IntoOrderedDict, TypedDictType
 
 ANNOTATED_TYPES_AVAILABLE = find_spec("annotated_types") is not None
 PYDANTIC_AVAILABLE = find_spec("pydantic") is not None
+ATTRS_AVAILABLE = find_spec("attrs") is not None
 
 
 def get_pydantic() -> ModuleType | None:  # pragma: no cover
     """Get pydantic module (if already imported - else return None)."""
     return sys.modules.get("pydantic", None)
+
+
+def get_attrs() -> ModuleType | None:
+    """Get attrs module (if already imported - else return None)."""
+    return sys.modules.get("attrs", None)
+
+
+def is_into_ordered_dict(obj: object) -> TypeGuard[IntoOrderedDict]:
+    """Check if the object can be converted into a python OrderedDict."""
+    tpl_size = 2
+    return isinstance(obj, Mapping) or (
+        isinstance(obj, Sequence) and all(isinstance(s, tuple) and len(s) == tpl_size for s in obj)
+    )
+
+
+def is_typed_dict(obj: object) -> TypeGuard[TypedDictType]:
+    """Check if the object is a TypedDict and narrows type checkers."""
+    return is_typeddict(obj)
+
+
+def is_dataclass(obj: object) -> TypeGuard[DataclassType]:
+    """Check if the object is a dataclass and narrows type checkers."""
+    return dc_is_dataclass(obj)
 
 
 def is_pydantic_base_model(obj: object) -> TypeGuard[type[BaseModel]]:
@@ -33,19 +57,10 @@ def is_pydantic_base_model(obj: object) -> TypeGuard[type[BaseModel]]:
     )
 
 
-def is_into_ordered_dict(obj: object) -> TypeGuard[IntoOrderedDict]:
-    """Check if the object can be converted into a python OrderedDict."""
-    tpl_size = 2
-    return isinstance(obj, Mapping) or (
-        isinstance(obj, Sequence) and all(isinstance(s, tuple) and len(s) == tpl_size for s in obj)
-    )
+def is_attrs_class(obj: object) -> TypeGuard[AttrsClassType]:
+    """Check if the object is an attrs class.
 
-
-def is_dataclass(obj: object) -> TypeGuard[DataclassType]:
-    """Check if the object is a dataclass and narrows type checkers."""
-    return dc_is_dataclass(obj)
-
-
-def is_typed_dict(obj: object) -> TypeGuard[TypedDictType]:
-    """Check if the object is a TypedDict and narrows type checkers."""
-    return is_typeddict(obj)
+    Uses attrs.has() to check if a class is an attrs class.
+    Supports @attrs.define/@attrs.frozen decorators.
+    """
+    return (attrs := get_attrs()) is not None and attrs.has(obj)

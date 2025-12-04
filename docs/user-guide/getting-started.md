@@ -87,6 +87,27 @@ schema = AnySchema(spec=User)
 print(schema.to_arrow())
 ```
 
+### With attrs classes
+
+[attrs](https://www.attrs.org/en/stable/) provides a powerful way to write classes with less boilerplate:
+
+```python exec="true" source="above" result="python" session="basic-attrs"
+from anyschema import AnySchema
+from attrs import define
+
+
+@define
+class User:
+    id: int
+    username: str
+    email: str
+    is_active: bool
+
+
+schema = AnySchema(spec=User)
+print(schema.to_arrow())
+```
+
 ### With Python Mappings
 
 You can also use plain Python mappings (such as dictionaries):
@@ -165,6 +186,32 @@ You can use nested structures with Pydantic models, dataclasses, or TypedDict:
 
 
     class Person(TypedDict):
+        name: str
+        age: int
+        addresses: list[Address]
+
+
+    schema = AnySchema(spec=Person)
+    pa_schema = schema.to_arrow()
+    print(pa_schema)
+    ```
+
+=== "attrs"
+
+    ```python exec="true" source="above" result="python" session="nested-attrs"
+    from anyschema import AnySchema
+    from attrs import define
+
+
+    @define
+    class Address:
+        street: str
+        city: str
+        country: str
+
+
+    @define
+    class Person:
         name: str
         age: int
         addresses: list[Address]

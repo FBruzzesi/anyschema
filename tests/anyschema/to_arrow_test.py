@@ -11,8 +11,8 @@ if TYPE_CHECKING:
     from pydantic import BaseModel
 
 
-def test_pydantic_to_arrow(student_cls: type[BaseModel]) -> None:
-    anyschema = AnySchema(spec=student_cls)
+def test_pydantic_to_arrow(pydantic_student_cls: type[BaseModel]) -> None:
+    anyschema = AnySchema(spec=pydantic_student_cls)
     pa_schema = anyschema.to_arrow()
 
     assert isinstance(pa_schema, pa.Schema)

@@ -23,19 +23,25 @@ any package manager. For instance:
     uv pip install anyschema
     ```
 
-We suggest to install also `pydantic` to follow along with the examples.
-`anyschema` interoperability with pydantic models requires `pydantic>=2.0.0`.
+We suggest to install also `pydantic` or `attrs` to follow along with the examples.
+
+- `anyschema` interoperability with pydantic models requires `pydantic>=2.0.0`.
+- `anyschema` interoperability with attrs classes requires `attrs>=24.0.0`.
 
 === "pip"
 
     ```bash
     python -m pip install "anyschema[pydantic]"
+    # or
+    python -m pip install "anyschema[attrs]"
     ```
 
 === "uv"
 
     ```bash
     uv pip install "anyschema[pydantic]"
+    # or
+    uv pip install "anyschema[attrs]"
     ```
 
 ## Quick Start
@@ -93,12 +99,12 @@ The typical use cases are: Data pipelines, API to database workflows, schema gen
 
 ## Key Features
 
-- **Multiple Input Formats**: Support for Pydantic models, TypedDict, dataclasses, Python mappings and sequence of field
-    specifications.
+- **Multiple Input Formats**: Support for Pydantic models, attrs classes, TypedDict, dataclasses, Python mappings and
+    sequence of field specifications.
 - **Multiple Output Formats**: Convert to PyArrow, Polars, or Pandas schemas.
 - **Modular Architecture**: Extensible parser pipeline for custom type handling.
-- **Rich Type Support**: Handles complex types including Optional, Union, List, nested structures, and
-    Pydantic-specific types.
+- **Rich Type Support**: Handles complex types including Optional, Union, List, nested structures, Pydantic-specific
+    types, and attrs classes.
 - **Narwhals Integration**: Leverages [Narwhals](https://narwhals-dev.github.io/narwhals/) as the intermediate
     representation.
 
@@ -115,6 +121,7 @@ patterns:
 - [`AnnotatedTypesStep`][api-annotated-types-step]: Refines types based on constraints from the `annotated-types`
     library.
 - [`PydanticTypeStep`][api-pydantic-type-step]: Handles Pydantic-specific types.
+- [`AttrsTypeStep`][api-attrs-type-step]: Handles attrs classes.
 - [`PyTypeStep`][api-py-type-step]: Handles basic Python types (fallback).
 
 Learn more about how these work together in the [Architecture](architecture.md) section.
@@ -126,6 +133,7 @@ Adapters convert input specifications into a common format that the parser pipel
 - [`into_ordered_dict_adapter`][api-into-ordered-dict-adapter]: Handles Python dicts and sequences.
 - [`typed_dict_adapter`][api-typed-dict-adapter]: Extracts field information from TypedDict classes.
 - [`dataclass_adapter`][api-dataclass-adapter]: Extracts field information from dataclasses.
+- [`attrs_adapter`][api-attrs-adapter]: Extracts field information from attrs classes.
 - [`pydantic_adapter`][api-pydantic-adapter]: Extracts field information from Pydantic models.
 
 See the [API Reference](api-reference/adapters.md) for detailed documentation.
@@ -169,9 +177,11 @@ as an intermediate representation. `anyschema` makes this conversion seamless an
 [api-union-types-step]: api-reference/parsers.md#anyschema.parsers.UnionTypeStep
 [api-annotated-step]: api-reference/parsers.md#anyschema.parsers.AnnotatedStep
 [api-annotated-types-step]: api-reference/parsers.md#anyschema.parsers.annotated_types.AnnotatedTypesStep
+[api-attrs-type-step]: api-reference/parsers.md#anyschema.parsers.attrs.AttrsTypeStep
 [api-pydantic-type-step]: api-reference/parsers.md#anyschema.parsers.pydantic.PydanticTypeStep
 [api-py-type-step]: api-reference/parsers.md#anyschema.parsers.PyTypeStep
 [api-into-ordered-dict-adapter]: api-reference/adapters.md#anyschema.adapters.into_ordered_dict_adapter
 [api-typed-dict-adapter]: api-reference/adapters.md#anyschema.adapters.typed_dict_adapter
 [api-dataclass-adapter]: api-reference/adapters.md#anyschema.adapters.dataclass_adapter
 [api-pydantic-adapter]: api-reference/adapters.md#anyschema.adapters.pydantic_adapter
+[api-attrs-adapter]: api-reference/adapters.md#anyschema.adapters.attrs_adapter

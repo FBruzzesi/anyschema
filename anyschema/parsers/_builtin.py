@@ -4,7 +4,6 @@ from collections.abc import Iterable, Mapping, Sequence
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 from enum import Enum
-from inspect import isclass
 from typing import TYPE_CHECKING, Any, Literal
 
 import narwhals as nw
@@ -41,69 +40,77 @@ class PyTypeStep(ParserStep):
         Returns:
             A Narwhals DType if this parser can handle the type, None otherwise.
         """
-        if input_type is int:
-            return nw.Int64()
-        if input_type is float:
-            return nw.Float64()
-        if input_type is str:
-            return nw.String()
-        if input_type is bool:
-            return nw.Boolean()
-        if isinstance(input_type, type) and issubclass(input_type, datetime):
-            return nw.Datetime("us")
-        if isinstance(input_type, type) and issubclass(input_type, date):
-            return nw.Date()
-        if input_type is timedelta:
-            return nw.Duration()
-        if input_type is time:
-            return nw.Time()
-        if input_type is Decimal:
-            return nw.Decimal()
-        if input_type is bytes:
-            return nw.Binary()
+        # Handle generic types first: list[T], tuple[T, ...], Sequence[T], Iterable[T], dict[K, V], Literal[...]
+        # Note: In Python 3.10, generic aliases like list[int] pass isinstance(input_type, type),
+        # but they cannot be used with issubclass() against abstract base classes like Sequence/Iterable.
+        # Checking get_origin() first avoids this issue.
+        if (origin := get_origin(input_type)) is not None:
+            return self._parse_generic(input_type, origin, metadata)
+
+        # Now handle actual classes (not generic aliases)
+        if isinstance(input_type, type):
+            # NOTE: The order is quite important. In fact:
+            #   * issubclass(MyEnum(str, Enum), str) -> True
+            #   * issubclass(bool, int) -> True
+            #   * issubclass(TypedDict, dict) -> True
+            #   * issubclass(datetime, date) -> True
+            if issubclass(input_type, Enum):
+                return nw.Enum(input_type)
+            if issubclass(input_type, str):
+                return nw.String()
+            if issubclass(input_type, bool):
+                return nw.Boolean()
+            if issubclass(input_type, int):
+                return nw.Int64()
+            if issubclass(input_type, float):
+                return nw.Float64()
+            if issubclass(input_type, datetime):
+                return nw.Datetime("us")
+            if issubclass(input_type, date):
+                return nw.Date()
+            if issubclass(input_type, timedelta):
+                return nw.Duration()
+            if issubclass(input_type, time):
+                return nw.Time()
+            if issubclass(input_type, Decimal):
+                return nw.Decimal()
+            if issubclass(input_type, bytes):
+                return nw.Binary()
+            if is_typed_dict(input_type):
+                return self._parse_typed_dict(input_type, metadata)
+            if issubclass(input_type, dict):  # Plain dict without type parameters -> Struct with Object fields
+                return nw.Struct([])
+            # TODO(FBruzzesi): https://github.com/FBruzzesi/anyschema/issues/56
+            if issubclass(input_type, (set, frozenset)):
+                return None
+            if issubclass(input_type, (list, tuple, Sequence, Iterable)):
+                return nw.List(nw.Object())
+
         if input_type is object:
             return nw.Object()
-        if isclass(input_type) and issubclass(input_type, Enum):
-            return nw.Enum(input_type)
-
-        # Handle Literal types
-        if get_origin(input_type) is Literal:
-            return nw.Enum(get_args(input_type))
-
-        # Handle dict types (including TypedDict)
-        if input_type is dict:
-            # Plain dict without type parameters -> Struct with Object fields
-            return nw.Struct([])
-
-        if is_typed_dict(input_type):
-            return self._parse_typed_dict(input_type, metadata)
-
-        # Handle generic type: list[T], tuple[T, ...], Sequence[T], Iterable[T], dict[K, V]
-        if get_origin(input_type) is not None:
-            return self._parse_generic(input_type, metadata)
-
-        if input_type in (list, tuple, Sequence, Iterable):
-            return nw.List(nw.Object())
 
         return None
 
-    def _parse_generic(self, input_type: Any, metadata: tuple) -> DType | None:
+    def _parse_generic(self, input_type: Any, origin: Any, metadata: tuple) -> DType | None:  # noqa: PLR0911
         """Parse generic types like list[int], dict[str, int].
 
         Arguments:
             input_type: The generic type to parse.
+            origin: result of `get_origin(input_type)`, passed to avoid recomputing it.
             metadata: Optional metadata associated with the type.
 
         Returns:
             A Narwhals DType if this parser can handle the type, None otherwise.
         """
-        origin, args = get_origin(input_type), get_args(input_type)
+        if origin is Literal:
+            return nw.Enum(get_args(input_type))
 
         if origin in (dict, Mapping):
             # For now, we treat dict[K, V] as an empty Struct
             # TODO(FBruzzesi): What's a better way to map this? We should introspect the mapping values
             return nw.Struct([])
 
+        args = get_args(input_type)
         inner_dtype = self.pipeline.parse(args[0], metadata=metadata, strict=True)
 
         if inner_dtype is None:  # pragma: no cover

@@ -42,11 +42,12 @@ pydantic = ["pydantic>=2.0.0"]
 [dependency-groups]
 tests = [
   "anyschema[pydantic]",
-  "narwhals[pandas,polars,pyarrow]",
   "covdefaults>=2.3.0",
+  "hypothesis>=6.0.0",
+  "narwhals[pandas,polars,pyarrow]",
+  "pydantic-extra-types[pycountry,phonenumbers]",
   "pytest>=8.0.0",
   "pytest-cov>=6.0.0",
-  "hypothesis>=6.0.0",
 ]
 
 typing = [

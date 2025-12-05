@@ -80,7 +80,8 @@ class PyTypeStep(ParserStep):
                 return self._parse_typed_dict(input_type, metadata)
             if issubclass(input_type, dict):  # Plain dict without type parameters -> Struct with Object fields
                 return nw.Struct([])
-            if issubclass(input_type, (set, frozenset)):  # TODO(FBruzzesi): Decide if we should map these to List
+            # TODO(FBruzzesi): https://github.com/FBruzzesi/anyschema/issues/56
+            if issubclass(input_type, (set, frozenset)):
                 return None
             if issubclass(input_type, (list, tuple, Sequence, Iterable)):
                 return nw.List(nw.Object())

@@ -40,6 +40,14 @@ class PyTypeStep(ParserStep):
         Returns:
             A Narwhals DType if this parser can handle the type, None otherwise.
         """
+        # Handle generic types first: list[T], tuple[T, ...], Sequence[T], Iterable[T], dict[K, V], Literal[...]
+        # Note: In Python 3.9+, generic aliases like list[int] pass isinstance(input_type, type),
+        # but they cannot be used with issubclass() against abstract base classes like Sequence/Iterable.
+        # Checking get_origin() first avoids this issue.
+        if (origin := get_origin(input_type)) is not None:
+            return self._parse_generic(input_type, origin, metadata)
+
+        # Now handle actual classes (not generic aliases)
         if isinstance(input_type, type):
             # NOTE: The order is quite important. In fact:
             #   * issubclass(MyEnum(str, Enum), str) -> True
@@ -76,10 +84,6 @@ class PyTypeStep(ParserStep):
                 return None
             if issubclass(input_type, (list, tuple, Sequence, Iterable)):
                 return nw.List(nw.Object())
-
-        # Handle generic types: list[T], tuple[T, ...], Sequence[T], Iterable[T], dict[K, V], Literal[...]
-        if (origin := get_origin(input_type)) is not None:
-            return self._parse_generic(input_type, origin, metadata)
 
         if input_type is object:
             return nw.Object()

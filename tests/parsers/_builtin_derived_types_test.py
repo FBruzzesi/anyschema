@@ -64,14 +64,14 @@ class Priority(int, Enum):
 
 
 @pytest.fixture(scope="module")
-def py_type_parser() -> PyTypeStep:
-    """Create a PyTypeStep instance with pipeline set."""
+def parser_pipeline() -> ParserPipeline:
+    """Create a parser pipeline with UnionTypeStep and PyTypeStep."""
     union_parser = UnionTypeStep()
     py_parser = PyTypeStep()
     chain = ParserPipeline([union_parser, py_parser])
     union_parser.pipeline = chain
     py_parser.pipeline = chain
-    return py_parser
+    return chain
 
 
 @pytest.mark.parametrize(
@@ -92,6 +92,6 @@ def py_type_parser() -> PyTypeStep:
         (Priority, nw.Enum(Priority)),
     ],
 )
-def test_derived_types(py_type_parser: PyTypeStep, input_type: Any, expected: nw.dtypes.DType) -> None:
-    result = py_type_parser.parse(input_type)
+def test_derived_types(parser_pipeline: ParserPipeline, input_type: Any, expected: nw.dtypes.DType) -> None:
+    result = parser_pipeline.parse(input_type)
     assert result == expected

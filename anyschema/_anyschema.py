@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, overload
 
 from narwhals.schema import Schema
 
@@ -28,9 +28,19 @@ if TYPE_CHECKING:
     import polars as pl
     import pyarrow as pa
     from narwhals.typing import DTypeBackend
+    from pydantic import BaseModel
     from typing_extensions import Self
 
-    from anyschema.typing import Adapter, IntoParserPipeline, Spec
+    from anyschema.typing import (
+        Adapter,
+        AttrsClassType,
+        DataclassType,
+        IntoOrderedDict,
+        IntoParserPipeline,
+        SpecT,
+        TypedDictType,
+        UnknownSpec,
+    )
 
 
 class AnySchema:
@@ -149,19 +159,33 @@ class AnySchema:
 
     _nw_schema: Schema
 
+    @overload
     def __init__(
         self: Self,
-        spec: Spec,
+        spec: Schema | IntoOrderedDict | type[BaseModel] | DataclassType | TypedDictType | AttrsClassType,
         steps: IntoParserPipeline = "auto",
-        adapter: Adapter | None = None,
+        adapter: None = None,
+    ) -> None: ...
+
+    @overload
+    def __init__(
+        self: Self,
+        spec: UnknownSpec,
+        steps: IntoParserPipeline,
+        adapter: Adapter[UnknownSpec],
+    ) -> None: ...
+
+    def __init__(
+        self: Self,
+        spec: SpecT,
+        steps: IntoParserPipeline = "auto",
+        adapter: Adapter[SpecT] | None = None,
     ) -> None:
         if isinstance(spec, Schema):
             self._nw_schema = spec
             return
 
-        pipeline = make_pipeline(steps)
-        adapter_f: Adapter
-
+        adapter_f: Adapter[SpecT]
         if is_into_ordered_dict(spec):
             adapter_f = into_ordered_dict_adapter
         elif is_typed_dict(spec):
@@ -172,14 +196,16 @@ class AnySchema:
             adapter_f = pydantic_adapter
         elif is_attrs_class(spec):
             adapter_f = attrs_adapter
-        elif adapter is not None:
-            adapter_f = adapter
         else:
-            msg = "`spec` type is unknown and `adapter` is not specified."
-            raise ValueError(msg)
+            if adapter is None:
+                msg = "`spec` type is unknown and `adapter` is not specified."
+                raise ValueError(msg)
 
+            adapter_f = adapter
+
+        pipeline = make_pipeline(steps)
         self._nw_schema = Schema(
-            {name: pipeline.parse(input_type, metadata) for name, input_type, metadata in adapter_f(cast("Any", spec))}
+            {name: pipeline.parse(input_type, metadata) for name, input_type, metadata in adapter_f(spec)}
         )
 
     def to_arrow(self: Self) -> pa.Schema:

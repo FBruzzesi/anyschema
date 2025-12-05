@@ -21,14 +21,36 @@ The following built-in adapters are not meant to be used directly. They serve mo
 Adapters must follow this signature:
 
 ```python
-from typing import Iterator, TypeAlias, Callable, Any, Generator
-from anyschema.typing import FieldMetadata, FieldName, FieldType
-
-FieldSpec: TypeAlias = tuple[FieldName, FieldType, FieldMetadata]
+from anyschema.typing import Adapter, FieldSpecIterable
 
 
-def my_custom_adapter(spec: Any) -> Iterator[FieldSpec]:
-    ...
+def my_custom_adapter(spec: MyCustomType) -> FieldSpecIterable:
+    """Adapter for MyCustomType.
+
+    Arguments:
+        spec: The custom specification to adapt.
+
+    Yields:
+        Tuples of (field_name, field_type, metadata) for each field.
+    """
+    for field_name, field_type in spec.fields.items():
+        yield field_name, field_type, ()
 ```
 
-They don't need to be functions; any callable is acceptable.
+The `Adapter` type is a generic Protocol that accepts a spec of type `T` and returns a `FieldSpecIterable`.
+This provides better type safety when creating custom adapters.
+
+**Type Signature:**
+
+```python
+from typing import Protocol, TypeVar
+
+SpecT_contra = TypeVar("SpecT_contra", contravariant=True)
+
+
+class Adapter(Protocol[SpecT_contra]):
+    def __call__(self, spec: SpecT_contra, /) -> FieldSpecIterable:
+        ...
+```
+
+Adapters don't need to be functions; any callable matching this signature is acceptable.

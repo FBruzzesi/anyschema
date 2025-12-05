@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from collections.abc import Callable, Generator, Mapping, Sequence
-from typing import TYPE_CHECKING, Any, Literal, Protocol, TypeAlias
+from collections.abc import Generator, Mapping, Sequence
+from typing import TYPE_CHECKING, Any, Literal, Protocol, TypeAlias, TypeVar
 
 from anyschema.parsers import ParserStep
 
@@ -38,6 +38,9 @@ Spec: TypeAlias = (
 )
 """Input specification supported directly by [`AnySchema`][anyschema.AnySchema]."""
 
+SpecT = TypeVar("SpecT")
+"""Type variable for spec types."""
+
 FieldName: TypeAlias = str
 FieldType: TypeAlias = type
 FieldMetadata: TypeAlias = tuple
@@ -48,11 +51,17 @@ FieldSpec: TypeAlias = tuple[FieldName, FieldType, FieldMetadata]
 FieldSpecIterable: TypeAlias = Generator[FieldSpec, None, None]
 """Return type of an adapter."""
 
-Adapter: TypeAlias = Callable[[Any], FieldSpecIterable]
-"""Adapter expected signature.
 
-An adapter is a callable that adapts a spec into field specifications.
-"""
+SpecT_contra = TypeVar("SpecT_contra", contravariant=True)
+
+
+class Adapter(Protocol[SpecT_contra]):
+    """Adapter protocol with generic spec type.
+
+    An adapter is a callable that adapts a spec into field specifications.
+    """
+
+    def __call__(self, spec: SpecT_contra, /) -> FieldSpecIterable: ...  # noqa: D102
 
 
 class DataclassType(Protocol):

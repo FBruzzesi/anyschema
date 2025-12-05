@@ -68,7 +68,9 @@ class AnnotatedTypesStep(ParserStep):
         if not metadata:
             return None
 
-        if input_type is int:
+        # Check if it's a type/class and if it's int or a subclass of int (but not bool)
+        # Note: bool is a subclass of int, but we don't want to apply integer constraints to booleans
+        if isinstance(input_type, type) and issubclass(input_type, int) and not issubclass(input_type, bool):
             return self._parse_integer_metadata(metadata)
 
         # For other types, we don't refine based on metadata

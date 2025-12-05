@@ -41,7 +41,7 @@ class PyTypeStep(ParserStep):
             A Narwhals DType if this parser can handle the type, None otherwise.
         """
         # Handle generic types first: list[T], tuple[T, ...], Sequence[T], Iterable[T], dict[K, V], Literal[...]
-        # Note: In Python 3.9+, generic aliases like list[int] pass isinstance(input_type, type),
+        # Note: In Python 3.10, generic aliases like list[int] pass isinstance(input_type, type),
         # but they cannot be used with issubclass() against abstract base classes like Sequence/Iterable.
         # Checking get_origin() first avoids this issue.
         if (origin := get_origin(input_type)) is not None:

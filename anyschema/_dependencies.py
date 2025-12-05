@@ -4,9 +4,9 @@ import sys
 from collections.abc import Mapping, Sequence
 from dataclasses import is_dataclass as dc_is_dataclass
 from importlib.util import find_spec
-from typing import TYPE_CHECKING, TypeGuard, cast
+from typing import TYPE_CHECKING, cast
 
-from typing_extensions import is_typeddict
+from typing_extensions import TypeIs, is_typeddict
 
 if TYPE_CHECKING:
     from types import ModuleType
@@ -30,7 +30,7 @@ def get_attrs() -> ModuleType | None:
     return sys.modules.get("attrs", None)
 
 
-def is_into_ordered_dict(obj: object) -> TypeGuard[IntoOrderedDict]:
+def is_into_ordered_dict(obj: object) -> TypeIs[IntoOrderedDict]:
     """Check if the object can be converted into a python OrderedDict."""
     tpl_size = 2
     return isinstance(obj, Mapping) or (
@@ -38,17 +38,17 @@ def is_into_ordered_dict(obj: object) -> TypeGuard[IntoOrderedDict]:
     )
 
 
-def is_typed_dict(obj: object) -> TypeGuard[TypedDictType]:
+def is_typed_dict(obj: object) -> TypeIs[TypedDictType]:
     """Check if the object is a TypedDict and narrows type checkers."""
     return is_typeddict(obj)
 
 
-def is_dataclass(obj: object) -> TypeGuard[DataclassType]:
+def is_dataclass(obj: object) -> TypeIs[DataclassType]:
     """Check if the object is a dataclass and narrows type checkers."""
     return dc_is_dataclass(obj)
 
 
-def is_pydantic_base_model(obj: object) -> TypeGuard[type[BaseModel]]:
+def is_pydantic_base_model(obj: object) -> TypeIs[type[BaseModel]]:
     """Check if the object is a pydantic BaseModel."""
     return (
         (pydantic := get_pydantic()) is not None
@@ -57,7 +57,7 @@ def is_pydantic_base_model(obj: object) -> TypeGuard[type[BaseModel]]:
     )
 
 
-def is_attrs_class(obj: object) -> TypeGuard[AttrsClassType]:
+def is_attrs_class(obj: object) -> TypeIs[AttrsClassType]:
     """Check if the object is an attrs class.
 
     Uses attrs.has() to check if a class is an attrs class.

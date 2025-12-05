@@ -43,7 +43,7 @@ class PydanticTypeStep(ParserStep):
             return None
 
         # Handle AwareDatetime - this is unsupported
-        if issubclass(input_type, AwareDatetime):
+        if issubclass(input_type, AwareDatetime):  # pyright: ignore[reportArgumentType]
             # Pydantic AwareDatetime does not fix a single timezone, but any timezone would work.
             # This cannot be used in nw.Datetime, therefore we raise an exception
             # See https://github.com/pydantic/pydantic/issues/5829
@@ -51,14 +51,14 @@ class PydanticTypeStep(ParserStep):
             raise UnsupportedDTypeError(msg)
 
         # Handle datetime types
-        if issubclass(input_type, (NaiveDatetime, PastDatetime, FutureDatetime)):
+        if issubclass(input_type, (NaiveDatetime, PastDatetime, FutureDatetime)):  # pyright: ignore[reportArgumentType]
             # PastDatetime and FutureDatetime accept both aware and naive datetimes, here we
             # simply return nw.Datetime without timezone info.
             # This means that we won't be able to convert it to a timezone aware data type.
             return nw.Datetime()
 
         # Handle date types
-        if issubclass(input_type, (PastDate, FutureDate)):
+        if issubclass(input_type, (PastDate, FutureDate)):  # pyright: ignore[reportArgumentType]
             return nw.Date()
 
         # Handle Pydantic models (Struct types)

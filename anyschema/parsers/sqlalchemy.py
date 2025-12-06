@@ -56,9 +56,13 @@ class SQLAlchemyTypeStep(ParserStep):
         if not isinstance(input_type, sqltypes.TypeEngine):
             return None
 
-        return self._map_sqlalchemy_type(input_type, metadata)
+        return self._parse_sqlalchemy_type(input_type, metadata)
 
-    def _map_sqlalchemy_type(self, sql_type: sqltypes.TypeEngine, metadata: tuple = ()) -> DType | None:
+    def _parse_sqlalchemy_type(  # noqa: C901, PLR0911, PLR0912
+        self,
+        sql_type: sqltypes.TypeEngine,
+        metadata: tuple = (),
+    ) -> DType | None:
         """Map a SQLAlchemy type to a Narwhals dtype.
 
         Arguments:
@@ -109,7 +113,7 @@ class SQLAlchemyTypeStep(ParserStep):
             return nw.Enum(categories)
 
         if isinstance(sql_type, sqltypes.ARRAY):
-            inner_type = self._map_sqlalchemy_type(sql_type.item_type, metadata=metadata)
+            inner_type = self._parse_sqlalchemy_type(sql_type.item_type, metadata=metadata)
 
             if inner_type is None:
                 msg = (

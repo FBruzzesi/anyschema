@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections import OrderedDict
 from dataclasses import fields as dc_fields
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from typing_extensions import get_type_hints
 
@@ -156,7 +156,7 @@ def pydantic_adapter(spec: type[BaseModel]) -> FieldSpecIterable:
         [('name', <class 'str'>, ()), ('age', ForwardRef('Annotated[int, Field(ge=0)]', is_class=True), ())]
     """
     for field_name, field_info in spec.model_fields.items():
-        yield field_name, field_info.annotation, tuple(field_info.metadata)  # type: ignore[misc]
+        yield field_name, field_info.annotation, tuple(field_info.metadata)
 
 
 def attrs_adapter(spec: AttrsClassType) -> FieldSpecIterable:
@@ -271,7 +271,7 @@ def sqlalchemy_adapter(spec: SQLAlchemyTableType) -> FieldSpecIterable:
     if isinstance(spec, Table):
         table = spec
     elif isinstance(spec, type) and issubclass(spec, DeclarativeBase):
-        table = spec.__table__
+        table = cast("Table", spec.__table__)
     else:  # pragma: no cover
         msg = f"Expected SQLAlchemy Table or DeclarativeBase subclass, got {type(spec)}"
         raise TypeError(msg)

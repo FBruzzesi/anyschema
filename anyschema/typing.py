@@ -40,7 +40,7 @@ Spec: TypeAlias = "Schema | IntoOrderedDict | type[BaseModel] | DataclassType | 
 """Input specification supported directly by [`AnySchema`][anyschema.AnySchema]."""
 
 FieldName: TypeAlias = str
-FieldType: TypeAlias = type
+FieldType: TypeAlias = Any
 FieldMetadata: TypeAlias = tuple
 
 FieldSpec: TypeAlias = tuple[FieldName, FieldType, FieldMetadata]

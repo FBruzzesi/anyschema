@@ -116,8 +116,8 @@ class SQLAlchemyTypeStep(ParserStep):
             inner_type = self.pipeline.parse(sql_type.item_type, metadata=metadata)
             if inner_type is None:  # pragma: no cover
                 msg = (
-                    f"Found unsupported inner type: {sql_type.item_type}.\n\n"
-                    f"Please consider opening a feature request https://github.com/FBruzzesi/anyschema/issues"
+                    f"Found unsupported inner type: {sql_type.item_type}.\n"
+                    "Please consider opening a feature request https://github.com/FBruzzesi/anyschema/issues"
                 )
                 raise UnsupportedDTypeError(msg)
             if sql_type.dimensions is None:

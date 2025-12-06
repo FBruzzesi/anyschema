@@ -151,7 +151,7 @@ class ParserPipeline:
         if strict:
             msg = (
                 f"No parser in the pipeline could handle type: '{qualified_type_name(input_type)}'.\n"
-                f"Please consider reporting a feature request https://github.com/FBruzzesi/anyschema/issues"
+                f"Please consider opening a feature request https://github.com/FBruzzesi/anyschema/issues"
             )
             raise NotImplementedError(msg)
         return None

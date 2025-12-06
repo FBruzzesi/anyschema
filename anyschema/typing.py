@@ -12,8 +12,11 @@ if TYPE_CHECKING:
     from attrs import AttrsInstance
     from narwhals.schema import Schema
     from pydantic import BaseModel
+    from sqlalchemy import Table
+    from sqlalchemy.orm import DeclarativeBase
 
     AttrsClassType: TypeAlias = type[AttrsInstance]
+    SQLAlchemyTableType: TypeAlias = Table | type[DeclarativeBase]
 
 
 IntoOrderedDict: TypeAlias = Mapping[str, type] | Sequence[tuple[str, type]]
@@ -33,9 +36,7 @@ Either "auto" or a sequence of [`ParserStep`][anyschema.parsers.ParserStep].
 UnknownSpec: TypeAlias = Any
 """An unknown specification."""
 
-Spec: TypeAlias = (
-    "Schema |  IntoOrderedDict | type[BaseModel] | DataclassType | TypedDictType | AttrsClassType | UnknownSpec"
-)
+Spec: TypeAlias = "Schema | IntoOrderedDict | type[BaseModel] | DataclassType | TypedDictType | AttrsClassType | SQLAlchemyTableType | UnknownSpec"  # noqa: E501
 """Input specification supported directly by [`AnySchema`][anyschema.AnySchema]."""
 
 FieldName: TypeAlias = str

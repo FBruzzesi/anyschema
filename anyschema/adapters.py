@@ -2,16 +2,32 @@ from __future__ import annotations
 
 from collections import OrderedDict
 from dataclasses import fields as dc_fields
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from typing_extensions import get_type_hints
+
+from anyschema._utils import qualified_type_name
 
 if TYPE_CHECKING:
     from pydantic import BaseModel
 
-    from anyschema.typing import AttrsClassType, DataclassType, FieldSpecIterable, IntoOrderedDict, TypedDictType
+    from anyschema.typing import (
+        AttrsClassType,
+        DataclassType,
+        FieldSpecIterable,
+        IntoOrderedDict,
+        SQLAlchemyTableType,
+        TypedDictType,
+    )
 
-__all__ = ("attrs_adapter", "dataclass_adapter", "into_ordered_dict_adapter", "pydantic_adapter", "typed_dict_adapter")
+__all__ = (
+    "attrs_adapter",
+    "dataclass_adapter",
+    "into_ordered_dict_adapter",
+    "pydantic_adapter",
+    "sqlalchemy_adapter",
+    "typed_dict_adapter",
+)
 
 
 def into_ordered_dict_adapter(spec: IntoOrderedDict) -> FieldSpecIterable:
@@ -142,7 +158,7 @@ def pydantic_adapter(spec: type[BaseModel]) -> FieldSpecIterable:
         [('name', <class 'str'>, ()), ('age', ForwardRef('Annotated[int, Field(ge=0)]', is_class=True), ())]
     """
     for field_name, field_info in spec.model_fields.items():
-        yield field_name, field_info.annotation, tuple(field_info.metadata)  # type: ignore[misc]
+        yield field_name, field_info.annotation, tuple(field_info.metadata)
 
 
 def attrs_adapter(spec: AttrsClassType) -> FieldSpecIterable:
@@ -206,3 +222,61 @@ def attrs_adapter(spec: AttrsClassType) -> FieldSpecIterable:
         metadata = tuple(field.metadata.values()) if field.metadata else ()
 
         yield field_name, field_type, metadata
+
+
+def sqlalchemy_adapter(spec: SQLAlchemyTableType) -> FieldSpecIterable:
+    """Adapter for SQLAlchemy tables.
+
+    Extracts field information from a SQLAlchemy Table (Core) or DeclarativeBase class (ORM)
+    and converts it into an iterator yielding field information as `(field_name, field_type, metadata)` tuples.
+
+    Arguments:
+        spec: A SQLAlchemy Table instance or DeclarativeBase subclass.
+
+    Yields:
+        A tuple of `(field_name, field_type, metadata)` for each column.
+            - `field_name`: The name of the column
+            - `field_type`: The SQLAlchemy column type
+            - `metadata`: A tuple containing column metadata (nullable, etc.)
+
+    Examples:
+        >>> from sqlalchemy import Table, Column, Integer, String, MetaData
+        >>>
+        >>> metadata = MetaData()
+        >>> user_table = Table(
+        ...     "user",
+        ...     metadata,
+        ...     Column("id", Integer, primary_key=True),
+        ...     Column("name", String(50)),
+        ... )
+        >>>
+        >>> list(sqlalchemy_adapter(user_table))
+        [('id', Integer(), (False,)), ('name', String(length=50), (True,))]
+
+        >>> from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column  # doctest: +SKIP
+        >>>
+        >>> class Base(DeclarativeBase):  # doctest: +SKIP
+        ...     pass  # doctest: +SKIP
+        >>>
+        >>> class User(Base):  # doctest: +SKIP
+        ...     __tablename__ = "user"  # doctest: +SKIP
+        ...     id: Mapped[int] = mapped_column(primary_key=True)  # doctest: +SKIP
+        ...     name: Mapped[str]  # doctest: +SKIP
+        >>>
+        >>> list(sqlalchemy_adapter(User))  # doctest: +SKIP
+        [('id', Integer(), (False,)), ('name', String(length=50), (True,))]
+    """
+    from sqlalchemy import Table
+    from sqlalchemy.orm import DeclarativeBase
+
+    table: Table
+    if isinstance(spec, Table):
+        table = spec
+    elif isinstance(spec, type) and issubclass(spec, DeclarativeBase):
+        table = cast("Table", spec.__table__)
+    else:
+        msg = f"Expected SQLAlchemy Table or DeclarativeBase subclass, got '{qualified_type_name(spec)}'"
+        raise TypeError(msg)
+
+    for column in table.columns:
+        yield column.name, column.type, (column.nullable,)

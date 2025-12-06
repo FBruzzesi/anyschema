@@ -3,7 +3,7 @@ from __future__ import annotations
 from functools import lru_cache
 from typing import TYPE_CHECKING
 
-from anyschema._dependencies import ANNOTATED_TYPES_AVAILABLE, ATTRS_AVAILABLE, PYDANTIC_AVAILABLE
+from anyschema._dependencies import ANNOTATED_TYPES_AVAILABLE, ATTRS_AVAILABLE, PYDANTIC_AVAILABLE, SQLALCHEMY_AVAILABLE
 from anyschema._utils import qualified_type_name
 from anyschema.parsers._annotated import AnnotatedStep
 from anyschema.parsers._base import ParserPipeline, ParserStep
@@ -50,8 +50,8 @@ def make_pipeline(steps: IntoParserPipeline = "auto") -> ParserPipeline:
         (UnionTypeStep, AnnotatedStep, PyTypeStep)
 
         >>> pipeline = make_pipeline(steps="auto")
-        >>> print(pipeline.steps)
-        (ForwardRefStep, UnionTypeStep, AnnotatedStep, AnnotatedTypesStep, AttrsTypeStep, PydanticTypeStep, PyTypeStep)
+        >>> print(pipeline.steps)  # doctest: +ELLIPSIS
+        (ForwardRefStep, UnionTypeStep, ..., PydanticTypeStep, SQLAlchemyTypeStep, PyTypeStep)
 
     Raises:
         TypeError: If the steps are not a sequence of `ParserStep` instances.
@@ -119,7 +119,13 @@ def _auto_pipeline() -> tuple[ParserStep, ...]:
 
             yield PydanticTypeStep()
 
-        # 7. PyTypeStep - handles basic Python types (fallback)
+        # 7. SQLAlchemyTypeStep - handles SQLAlchemy-specific types (if sqlalchemy is available)
+        if SQLALCHEMY_AVAILABLE:
+            from anyschema.parsers.sqlalchemy import SQLAlchemyTypeStep
+
+            yield SQLAlchemyTypeStep()
+
+        # 8. PyTypeStep - handles basic Python types (fallback)
         yield PyTypeStep()
 
     return tuple(_generate_steps())

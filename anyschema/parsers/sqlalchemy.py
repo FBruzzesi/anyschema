@@ -73,8 +73,12 @@ class SQLAlchemyTypeStep(ParserStep):
             A Narwhals DType.
         """
         # NOTE: The order is quite important. In fact:
-        #   * issubclass(SmallInteger, Integer) -> True
+        #   * issubclass(Enum(...), String) -> True
+        #   * issubclass(SmallInteger(), Integer) -> True
         #   * issubclass(Double(), Float) -> True
+        if isinstance(sql_type, sqltypes.Enum):
+            categories = sql_type.enum_class if sql_type.enum_class is not None else sql_type.enums
+            return nw.Enum(categories)
         if isinstance(sql_type, STRING_TYPES):
             return nw.String()
         if isinstance(sql_type, sqltypes.Boolean):
@@ -108,14 +112,9 @@ class SQLAlchemyTypeStep(ParserStep):
             return nw.Duration()
         if isinstance(sql_type, BINARY_TYPES):
             return nw.Binary()
-        if isinstance(sql_type, sqltypes.Enum):
-            categories = sql_type.enum_class if sql_type.enum_class is not None else sql_type.enums
-            return nw.Enum(categories)
-
         if isinstance(sql_type, sqltypes.ARRAY):
-            inner_type = self._parse_sqlalchemy_type(sql_type.item_type, metadata=metadata)
-
-            if inner_type is None:
+            inner_type = self.pipeline.parse(sql_type.item_type, metadata=metadata)
+            if inner_type is None:  # pragma: no cover
                 msg = (
                     f"Found unsupported inner type: {sql_type.item_type}.\n\n"
                     f"Please consider opening a feature request https://github.com/FBruzzesi/anyschema/issues"

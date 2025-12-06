@@ -50,8 +50,8 @@ def make_pipeline(steps: IntoParserPipeline = "auto") -> ParserPipeline:
         (UnionTypeStep, AnnotatedStep, PyTypeStep)
 
         >>> pipeline = make_pipeline(steps="auto")
-        >>> print(pipeline.steps)
-        (ForwardRefStep, UnionTypeStep, AnnotatedStep, AnnotatedTypesStep, AttrsTypeStep, PydanticTypeStep, PyTypeStep)
+        >>> print(pipeline.steps)  # doctest: +ELLIPSIS
+        (ForwardRefStep, UnionTypeStep, ..., PydanticTypeStep, SQLAlchemyTypeStep, PyTypeStep)
 
     Raises:
         TypeError: If the steps are not a sequence of `ParserStep` instances.

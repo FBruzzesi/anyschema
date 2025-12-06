@@ -6,6 +6,8 @@ from typing import TYPE_CHECKING, cast
 
 from typing_extensions import get_type_hints
 
+from anyschema._utils import qualified_type_name
+
 if TYPE_CHECKING:
     from pydantic import BaseModel
 
@@ -249,20 +251,20 @@ def sqlalchemy_adapter(spec: SQLAlchemyTableType) -> FieldSpecIterable:
         ... )
         >>>
         >>> list(sqlalchemy_adapter(user_table))
-        [('id', Integer(), ()), ('name', String(50), ())]
+        [('id', Integer(), (False,)), ('name', String(length=50), (True,))]
 
-        >>> from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+        >>> from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column  # doctest: +SKIP
         >>>
-        >>> class Base(DeclarativeBase):
-        ...     pass
+        >>> class Base(DeclarativeBase):  # doctest: +SKIP
+        ...     pass  # doctest: +SKIP
         >>>
-        >>> class User(Base):
-        ...     __tablename__ = "user"
-        ...     id: Mapped[int] = mapped_column(primary_key=True)
-        ...     name: Mapped[str]
+        >>> class User(Base):  # doctest: +SKIP
+        ...     __tablename__ = "user"  # doctest: +SKIP
+        ...     id: Mapped[int] = mapped_column(primary_key=True)  # doctest: +SKIP
+        ...     name: Mapped[str]  # doctest: +SKIP
         >>>
-        >>> list(sqlalchemy_adapter(User))
-        [('id', Integer(), ()), ('name', String(), ())]
+        >>> list(sqlalchemy_adapter(User))  # doctest: +SKIP
+        [('id', Integer(), (False,)), ('name', String(length=50), (True,))]
     """
     from sqlalchemy import Table
     from sqlalchemy.orm import DeclarativeBase
@@ -272,8 +274,8 @@ def sqlalchemy_adapter(spec: SQLAlchemyTableType) -> FieldSpecIterable:
         table = spec
     elif isinstance(spec, type) and issubclass(spec, DeclarativeBase):
         table = cast("Table", spec.__table__)
-    else:  # pragma: no cover
-        msg = f"Expected SQLAlchemy Table or DeclarativeBase subclass, got {type(spec)}"
+    else:
+        msg = f"Expected SQLAlchemy Table or DeclarativeBase subclass, got '{qualified_type_name(spec)}'"
         raise TypeError(msg)
 
     for column in table.columns:

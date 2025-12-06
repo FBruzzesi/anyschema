@@ -3,11 +3,11 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import pytest
-from sqlalchemy import BigInteger, Column, Float, Integer, MetaData, String, Table
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy import BigInteger, Float, Integer, String
 from sqlalchemy.types import TypeEngine
 
 from anyschema.adapters import sqlalchemy_adapter
+from tests.conftest import SimpleUserORM, UserWithTypesORM, numeric_table, user_table
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -28,49 +28,12 @@ def assert_result_equal(result: Iterable[FieldSpec], expected: Iterable[FieldSpe
                 assert lval == rval, f"{left} != {right}"
 
 
-class Base(DeclarativeBase):
-    pass
-
-
-class SimpleUser(Base):
-    __tablename__ = "simple_user"
-    id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str | None]
-
-
-class UserWithTypes(Base):
-    __tablename__ = "user_with_types"
-    id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(String(50))
-    age: Mapped[int] = mapped_column(Integer, nullable=True)
-    score: Mapped[float | None]
-
-
-user_table = Table(
-    "user",
-    MetaData(),
-    Column("id", Integer, primary_key=True, nullable=False),
-    Column("name", String(50)),
-    Column("age", Integer),
-    Column("email", String(100), nullable=True),
-)
-
-numeric_table = Table(
-    "numeric_table",
-    MetaData(),
-    Column("int_col", Integer),
-    Column("bigint_col", BigInteger),
-    Column("string_col", String(100)),
-    Column("float_col", Float),
-)
-
-
 @pytest.mark.parametrize(
     ("spec", "expected"),
     [
-        (SimpleUser, [("id", Integer(), (False,)), ("name", String(), (True,))]),
+        (SimpleUserORM, [("id", Integer(), (False,)), ("name", String(), (True,))]),
         (
-            UserWithTypes,
+            UserWithTypesORM,
             [
                 ("id", Integer(), (False,)),
                 ("name", String(50), (False,)),

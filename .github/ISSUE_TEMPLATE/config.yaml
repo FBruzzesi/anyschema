@@ -1,0 +1,11 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Blank Issue
+    about: Create a new issue
+    url: https://github.com/fbruzzesi/anyschema/issues/new
+  - name: 📖 Documentation
+    url: https://fbruzzesi.github.io/anyschema/
+    about: Read the official documentation
+  - name: 🔍 Search Existing Issues
+    url: https://github.com/fbruzzesi/anyschema/issues
+    about: Search existing issues before creating a new one

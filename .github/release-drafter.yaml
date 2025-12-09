@@ -1,0 +1,156 @@
+# Configuration for Release Drafter
+# Automatically generates release notes from pull requests
+
+name-template: 'v$RESOLVED_VERSION'
+tag-template: 'v$RESOLVED_VERSION'
+
+# Categories for organizing changes in release notes
+categories:
+  - title: '🚀 Features'
+    labels:
+      - 'enhancement'
+      - 'feature'
+  - title: '🐛 Bug Fixes'
+    labels:
+      - 'bug'
+      - 'bugfix'
+      - 'fix'
+  - title: '📚 Documentation'
+    labels:
+      - 'documentation'
+      - 'docs'
+  - title: '🧪 Tests'
+    labels:
+      - 'tests'
+      - 'testing'
+  - title: '⚡ Performance'
+    labels:
+      - 'performance'
+      - 'optimization'
+  - title: '🔧 Maintenance'
+    labels:
+      - 'maintenance'
+      - 'chore'
+      - 'refactor'
+  - title: '🏗️ Build & CI'
+    labels:
+      - 'ci-cd'
+      - 'build'
+      - 'github-actions'
+  - title: '📦 Dependencies'
+    labels:
+      - 'dependencies'
+      - 'deps'
+  - title: '⚠️ Breaking Changes'
+    labels:
+      - 'breaking-change'
+      - 'breaking'
+
+# Exclude certain labels from release notes
+exclude-labels:
+  - 'skip-changelog'
+  - 'duplicate'
+  - 'invalid'
+  - 'wontfix'
+
+# Template for the release body
+template: |
+  ## What's Changed
+
+  $CHANGES
+
+  ## Statistics
+
+  **Full Changelog**: https://github.com/fbruzzesi/anyschema/compare/$PREVIOUS_TAG...v$RESOLVED_VERSION
+
+  ## Installation
+
+  ```bash
+  pip install anyschema==$RESOLVED_VERSION
+  ```
+
+  or with extras:
+
+  ```bash
+  pip install "anyschema[pydantic]==$RESOLVED_VERSION"
+  pip install "anyschema[attrs]==$RESOLVED_VERSION"
+  ```
+
+  ## Contributors
+
+  Thanks to all contributors who made this release possible! 🎉
+
+  $CONTRIBUTORS
+
+# Change template for each PR
+change-template: '- $TITLE (#$NUMBER) @$AUTHOR'
+change-title-escapes: '\<*_&' # You can add # and @ to disable mentions
+
+# Template for contributor list
+contributors-template: '- @$AUTHOR'
+
+# Exclude contributors (bots, etc.)
+exclude-contributors:
+  - 'dependabot'
+  - 'dependabot[bot]'
+  - 'github-actions'
+  - 'github-actions[bot]'
+
+# Automatically label PRs that don't have labels
+autolabeler:
+  - label: 'bug'
+    title:
+      - '/fix(es|ed)?/i'
+  - label: 'enhancement'
+    title:
+      - '/feat(ure)?/i'
+  - label: 'documentation'
+    title:
+      - '/docs?/i'
+      - '/documentation/i'
+  - label: 'tests'
+    title:
+      - '/tests?/i'
+  - label: 'ci-cd'
+    title:
+      - '/ci/i'
+  - label: 'dependencies'
+    title:
+      - '/deps/i'
+  - label: 'performance'
+    title:
+      - '/perf(ormance)?/i'
+  - label: 'breaking-change'
+    title:
+      - '/breaking/i'
+  - label: 'maintenance'
+    title:
+      - '/refactor/i'
+      - '/chore/i'
+
+# Replacers for cleaning up titles
+replacers:
+  - search: '/^(feat|feature)(\(.*\))?:\s*/i'
+    replace: ''
+  - search: '/^fix(\(.*\))?:\s*/i'
+    replace: ''
+  - search: '/^docs?(\(.*\))?:\s*/i'
+    replace: ''
+  - search: '/^test(\(.*\))?:\s*/i'
+    replace: ''
+  - search: '/^chore(\(.*\))?:\s*/i'
+    replace: ''
+  - search: '/^refactor(\(.*\))?:\s*/i'
+    replace: ''
+  - search: '/^perf(\(.*\))?:\s*/i'
+    replace: ''
+  - search: '/^ci(\(.*\))?:\s*/i'
+    replace: ''
+  - search: '/^build(\(.*\))?:\s*/i'
+    replace: ''
+  - search: '/^style(\(.*\))?:\s*/i'
+    replace: ''
+
+# Sort changes by title
+sort-by: title
+sort-direction: ascending

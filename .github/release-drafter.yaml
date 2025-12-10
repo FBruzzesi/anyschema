@@ -69,13 +69,6 @@ template: |
   pip install anyschema==$RESOLVED_VERSION
   ```
 
-  or with extras:
-
-  ```bash
-  pip install "anyschema[pydantic]==$RESOLVED_VERSION"
-  pip install "anyschema[attrs]==$RESOLVED_VERSION"
-  ```
-
   ## Contributors
 
   Thanks to all contributors who made this release possible! 🎉
@@ -148,9 +141,6 @@ replacers:
     replace: ''
   - search: '/^build(\(.*\))?:\s*/i'
     replace: ''
-  - search: '/^style(\(.*\))?:\s*/i'
-    replace: ''
 
-# Sort changes by title
-sort-by: title
+sort-by: merged_at
 sort-direction: ascending

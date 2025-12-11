@@ -28,7 +28,7 @@ class PersonIntoDataclass:
     ],
 )
 def test_dataclass_adapter(spec: DataclassType) -> None:
-    expected = (("name", str, ()), ("age", int, ()), ("date_of_birth", date, ()))
+    expected = (("name", str, (), {}), ("age", int, (), {}), ("date_of_birth", date, (), {}))
     result = tuple(dataclass_adapter(spec))
     assert result == expected
 
@@ -50,4 +50,4 @@ def test_dataclass_adapter_missing_decorator_raises() -> None:
     )
 
     with pytest.raises(AssertionError, match=expected_msg.replace("(", r"\(").replace(")", r"\)")):
-        list(dataclass_adapter(ChildWithoutDecorator))
+        list(dataclass_adapter(ChildWithoutDecorator))  # type: ignore[arg-type]

@@ -16,7 +16,7 @@ from anyschema.parsers._base import ParserStep
 if TYPE_CHECKING:
     from narwhals.dtypes import DType
 
-    from anyschema.typing import TypedDictType
+    from anyschema.typing import FieldConstraints, FieldMetadata, FieldType, TypedDictType
 
 
 class PyTypeStep(ParserStep):
@@ -30,12 +30,13 @@ class PyTypeStep(ParserStep):
     - `dict`,` Mapping[K, V]`, and typed dictionaries (`TypedDict`)
     """
 
-    def parse(self, input_type: Any, metadata: tuple = ()) -> DType | None:  # noqa: C901, PLR0911, PLR0912
+    def parse(self, input_type: FieldType, constraints: FieldConstraints, metadata: FieldMetadata) -> DType | None:  # noqa: C901, PLR0911, PLR0912
         """Parse Python type annotations into Narwhals dtypes.
 
         Arguments:
             input_type: The type to parse.
-            metadata: Optional metadata associated with the type.
+            constraints: Constraints associated with the type.
+            metadata: Custom metadata dictionary.
 
         Returns:
             A Narwhals DType if this parser can handle the type, None otherwise.
@@ -45,7 +46,7 @@ class PyTypeStep(ParserStep):
         # but they cannot be used with issubclass() against abstract base classes like Sequence/Iterable.
         # Checking get_origin() first avoids this issue.
         if (origin := get_origin(input_type)) is not None:
-            return self._parse_generic(input_type, origin, metadata)
+            return self._parse_generic(input_type, origin, constraints, metadata)
 
         # Now handle actual classes (not generic aliases)
         if isinstance(input_type, type):
@@ -65,7 +66,8 @@ class PyTypeStep(ParserStep):
             if issubclass(input_type, float):
                 return nw.Float64()
             if issubclass(input_type, datetime):
-                return nw.Datetime("us")
+                tz = metadata.get("timezone") if metadata is not None else None
+                return nw.Datetime(time_zone=tz)
             if issubclass(input_type, date):
                 return nw.Date()
             if issubclass(input_type, timedelta):
@@ -77,7 +79,7 @@ class PyTypeStep(ParserStep):
             if issubclass(input_type, bytes):
                 return nw.Binary()
             if is_typed_dict(input_type):
-                return self._parse_typed_dict(input_type, metadata)
+                return self._parse_typed_dict(input_type, constraints, metadata)
             if issubclass(input_type, dict):  # Plain dict without type parameters -> Struct with Object fields
                 return nw.Struct([])
             # TODO(FBruzzesi): https://github.com/FBruzzesi/anyschema/issues/56
@@ -91,13 +93,16 @@ class PyTypeStep(ParserStep):
 
         return None
 
-    def _parse_generic(self, input_type: Any, origin: Any, metadata: tuple) -> DType | None:  # noqa: PLR0911
+    def _parse_generic(  # noqa: PLR0911
+        self, input_type: FieldType, origin: Any, constraints: FieldConstraints, metadata: FieldMetadata
+    ) -> DType | None:
         """Parse generic types like list[int], dict[str, int].
 
         Arguments:
             input_type: The generic type to parse.
             origin: result of `get_origin(input_type)`, passed to avoid recomputing it.
-            metadata: Optional metadata associated with the type.
+            constraints: Constraints associated with the type.
+            metadata: Custom metadata dictionary.
 
         Returns:
             A Narwhals DType if this parser can handle the type, None otherwise.
@@ -111,7 +116,7 @@ class PyTypeStep(ParserStep):
             return nw.Struct([])
 
         args = get_args(input_type)
-        inner_dtype = self.pipeline.parse(args[0], metadata=metadata, strict=True)
+        inner_dtype = self.pipeline.parse(args[0], constraints=constraints, metadata=metadata, strict=True)
 
         if inner_dtype is None:  # pragma: no cover
             return None
@@ -132,12 +137,18 @@ class PyTypeStep(ParserStep):
 
         return None
 
-    def _parse_typed_dict(self, typed_dict: TypedDictType, metadata: tuple) -> DType:  # noqa: ARG002
+    def _parse_typed_dict(
+        self,
+        typed_dict: TypedDictType,
+        constraints: FieldConstraints,  # noqa: ARG002
+        metadata: FieldMetadata,  # noqa: ARG002
+    ) -> DType:
         """Parse a TypedDict into a Struct type.
 
         Arguments:
             typed_dict: The TypedDict class.
-            metadata: Optional metadata associated with the type.
+            constraints: Constraints associated with the type.
+            metadata: Custom metadata dictionary.
 
         Returns:
             A Narwhals Struct dtype.
@@ -149,7 +160,7 @@ class PyTypeStep(ParserStep):
             type_hints = getattr(typed_dict, "__annotations__", {})
 
         fields = [
-            nw.Field(name=field_name, dtype=self.pipeline.parse(field_type, metadata=()))
+            nw.Field(name=field_name, dtype=self.pipeline.parse(field_type, constraints=(), metadata={}))
             for field_name, field_type in type_hints.items()
         ]
         return nw.Struct(fields)

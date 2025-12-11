@@ -35,14 +35,19 @@ def pydantic_parser() -> PydanticTypeStep:
     ],
 )
 def test_parse_pydantic_types(pydantic_parser: PydanticTypeStep, input_type: type, expected: nw.dtypes.DType) -> None:
-    result = pydantic_parser.parse(input_type)
+    result = pydantic_parser.parse(input_type, constraints=(), metadata={})
     assert result == expected
 
 
 def test_parse_aware_datetime_raises(pydantic_parser: PydanticTypeStep) -> None:
     expected_msg = "pydantic AwareDatetime does not specify a fixed timezone."
     with pytest.raises(UnsupportedDTypeError, match=expected_msg):
-        pydantic_parser.parse(AwareDatetime)
+        pydantic_parser.parse(AwareDatetime, constraints=(), metadata={})
+
+
+def test_parse_aware_datetime_with_tz(pydantic_parser: PydanticTypeStep) -> None:
+    result = pydantic_parser.parse(AwareDatetime, constraints=(), metadata={"timezone": "Europe/Berlin"})
+    assert result == nw.Datetime(time_zone="Europe/Berlin")
 
 
 def test_parse_model_into_struct(pydantic_parser: PydanticTypeStep) -> None:
@@ -51,7 +56,7 @@ def test_parse_model_into_struct(pydantic_parser: PydanticTypeStep) -> None:
         future_date: FutureDate
         updated_at: NaiveDatetime
 
-    result = pydantic_parser.parse(SomeModel)
+    result = pydantic_parser.parse(SomeModel, constraints=(), metadata={})
 
     expected_fields = [
         nw.Field(name="past_date", dtype=nw.Date()),
@@ -71,7 +76,7 @@ def test_parse_nested_model(pydantic_parser: PydanticTypeStep) -> None:
         name: str
         address: Address
 
-    result = pydantic_parser.parse(Person)
+    result = pydantic_parser.parse(Person, constraints=(), metadata={})
 
     address_fields = [
         nw.Field(name="street", dtype=nw.String()),
@@ -92,7 +97,7 @@ def test_parse_empty_model(pydantic_parser: PydanticTypeStep) -> None:
     class EmptyModel(BaseModel):
         pass
 
-    result = pydantic_parser.parse(EmptyModel)
+    result = pydantic_parser.parse(EmptyModel, constraints=(), metadata={})
 
     expected = nw.Struct([])
     assert result == expected
@@ -100,7 +105,7 @@ def test_parse_empty_model(pydantic_parser: PydanticTypeStep) -> None:
 
 @pytest.mark.parametrize("input_type", [int, float, list[int], date, datetime])
 def parse_non_pydantic_types(pydantic_parser: PydanticTypeStep, input_type: Any) -> None:
-    result = pydantic_parser.parse(input_type)
+    result = pydantic_parser.parse(input_type, constraints=(), metadata={})
     assert result is None
 
 
@@ -110,7 +115,7 @@ def test_parse_custom_class_returns_none(pydantic_parser: PydanticTypeStep) -> N
     class CustomClass:
         pass
 
-    result = pydantic_parser.parse(CustomClass)
+    result = pydantic_parser.parse(CustomClass, constraints=(), metadata={})
     assert result is None
 
 
@@ -120,11 +125,11 @@ def test_parse_model_with_field_metadata(pydantic_parser: PydanticTypeStep) -> N
 
     from pydantic import Field
 
-    class ModelWithMetadata(BaseModel):
+    class ModelWithConstraints(BaseModel):
         name: Annotated[str, Field(min_length=1, max_length=100)]
         age: Annotated[int, Field(gt=0, lt=150)]
 
-    result = pydantic_parser.parse(ModelWithMetadata)
+    result = pydantic_parser.parse(ModelWithConstraints, constraints=(), metadata={})
 
     # The metadata is stored in field_info.metadata but the parsing should still work
     expected_fields = [

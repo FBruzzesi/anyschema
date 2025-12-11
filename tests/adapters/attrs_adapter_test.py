@@ -27,19 +27,19 @@ if TYPE_CHECKING:
 )
 def test_attrs_adapter(spec: AttrsClassType) -> None:
     result = list(attrs_adapter(spec))
-    assert ("name", str, ()) in result
-    assert ("age", int, ()) in result
-    assert ("date_of_birth", date, ()) in result
+    assert ("name", str, (), {}) in result
+    assert ("age", int, (), {}) in result
+    assert ("date_of_birth", date, (), {}) in result
 
 
 def test_attrs_adapter_with_metadata() -> None:
     result = list(attrs_adapter(AttrsBookWithMetadata))
-    assert result == [("title", str, ("Book title",)), ("author", str, (100,))]
+    assert result == [("title", str, (), {"description": "Book title"}), ("author", str, (), {"max_length": 100})]
 
 
 def test_attrs_adapter_with_inheritance() -> None:
     result = list(attrs_adapter(AttrsDerived))
-    assert result == [("foo", str, ()), ("bar", int, ()), ("baz", float, ())]
+    assert result == [("foo", str, (), {}), ("bar", int, (), {}), ("baz", float, (), {})]
 
 
 def test_attrs_adapter_missing_decorator_raises() -> None:

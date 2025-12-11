@@ -17,7 +17,7 @@ class SimpleModel(BaseModel):
     age: int
 
 
-class ModelWithMetadata(BaseModel):
+class ModelWithConstraints(BaseModel):
     name: str
     age: Annotated[int, Field(ge=0)]
 
@@ -25,8 +25,8 @@ class ModelWithMetadata(BaseModel):
 @pytest.mark.parametrize(
     ("spec", "expected"),
     [
-        (SimpleModel, (("name", str, ()), ("age", int, ()))),
-        (ModelWithMetadata, (("name", str, ()), ("age", int, (Ge(ge=0),)))),
+        (SimpleModel, (("name", str, (), {}), ("age", int, (), {}))),
+        (ModelWithConstraints, (("name", str, (), {}), ("age", int, (Ge(ge=0),), {}))),
     ],
 )
 def test_pydantic_adapter(spec: type[BaseModel], expected: tuple[FieldSpec, ...]) -> None:

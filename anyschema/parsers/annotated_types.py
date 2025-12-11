@@ -10,6 +10,8 @@ from anyschema.parsers._base import ParserStep
 if TYPE_CHECKING:
     from narwhals.dtypes import DType
 
+    from anyschema.typing import FieldConstraints, FieldMetadata, FieldType
+
     LowerBound: TypeAlias = int
     UpperBound: TypeAlias = int
     Range: TypeAlias = tuple[LowerBound, UpperBound]
@@ -55,35 +57,41 @@ class AnnotatedTypesStep(ParserStep):
         It requires [annotated-types](https://github.com/annotated-types/annotated-types) to be installed.
     """
 
-    def parse(self, input_type: Any, metadata: tuple = ()) -> DType | None:
-        """Parse types with annotated metadata into refined Narwhals dtypes.
+    def parse(
+        self,
+        input_type: FieldType,
+        constraints: FieldConstraints,
+        metadata: FieldMetadata,  # noqa: ARG002
+    ) -> DType | None:
+        """Parse types with annotated constraints into refined Narwhals dtypes.
 
         Arguments:
             input_type: The type to parse.
-            metadata: Metadata associated with the type (e.g., constraints).
+            constraints: Constraints associated with the type (e.g., Gt, Ge, Lt, Le).
+            metadata: Custom metadata dictionary (not used in this parser).
 
         Returns:
-            A Narwhals DType if this parser can refine the type based on metadata, None otherwise.
+            A Narwhals DType if this parser can refine the type based on constraints, None otherwise.
         """
-        if not metadata:
+        if not constraints:
             return None
 
         # Check if it's a type/class and if it's int or a subclass of int (but not bool)
         # Note: bool is a subclass of int, but we don't want to apply integer constraints to booleans
         if isinstance(input_type, type) and issubclass(input_type, int) and not issubclass(input_type, bool):
-            return self._parse_integer_metadata(metadata)
+            return self._parse_integer_constraints(constraints)
 
-        # For other types, we don't refine based on metadata
+        # For other types, we don't refine based on constraints
         return None
 
-    def _parse_integer_metadata(self, metadata: tuple[Any, ...]) -> DType:  # noqa: C901, PLR0912
-        """Parse integer type constraints from metadata to determine the most appropriate integer dtype.
+    def _parse_integer_constraints(self, constraints: FieldConstraints) -> DType:  # noqa: C901, PLR0912
+        """Parse integer type constraints to determine the most appropriate integer dtype.
 
         This function examines annotated_types constraints (Gt, Ge, Lt, Le, Interval) to determine
         the smallest integer dtype that can accommodate the specified range.
 
         Arguments:
-            metadata: Tuple of metadata objects, potentially containing annotated_types constraints.
+            constraints: Tuple of constraint objects, potentially containing annotated_types constraints.
 
         Returns:
             The most appropriate integer DType based on the constraints.
@@ -91,7 +99,7 @@ class AnnotatedTypesStep(ParserStep):
         # Extract constraint values safely
         lower_bound, upper_bound = MIN_INT, MAX_INT
 
-        for item in metadata:
+        for item in constraints:
             if isinstance(item, Interval):
                 # Handle Interval constraint (e.g., from pydantic conint)
                 if item.gt is not None:

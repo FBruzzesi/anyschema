@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import narwhals as nw
 
@@ -10,7 +10,7 @@ from anyschema.parsers._base import ParserStep
 if TYPE_CHECKING:
     from narwhals.dtypes import DType
 
-    from anyschema.typing import AttrsClassType
+    from anyschema.typing import AttrsClassType, FieldConstraints, FieldMetadata, FieldType
 
 
 __all__ = ("AttrsTypeStep",)
@@ -27,12 +27,18 @@ class AttrsTypeStep(ParserStep):
         It requires [attrs](https://www.attrs.org/) to be installed.
     """
 
-    def parse(self, input_type: Any, metadata: tuple = ()) -> DType | None:  # noqa: ARG002
+    def parse(
+        self,
+        input_type: FieldType,
+        constraints: FieldConstraints,  # noqa: ARG002
+        metadata: FieldMetadata,  # noqa: ARG002
+    ) -> DType | None:
         """Parse attrs-specific types into Narwhals dtypes.
 
         Arguments:
             input_type: The type to parse.
-            metadata: Optional metadata associated with the type.
+            constraints: Constraints associated with the type.
+            metadata: Custom metadata dictionary.
 
         Returns:
             A Narwhals DType if this parser can handle the type, None otherwise.
@@ -56,7 +62,10 @@ class AttrsTypeStep(ParserStep):
 
         return nw.Struct(
             [
-                nw.Field(name=field_name, dtype=self.pipeline.parse(field_type, field_metadata, strict=True))
-                for field_name, field_type, field_metadata in attrs_adapter(attrs_class)
+                nw.Field(
+                    name=field_name,
+                    dtype=self.pipeline.parse(field_type, field_constraints, field_metadata, strict=True),
+                )
+                for field_name, field_type, field_constraints, field_metadata in attrs_adapter(attrs_class)
             ]
         )

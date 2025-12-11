@@ -172,10 +172,10 @@ class CustomConstraintStep(ParserStep):
         Uses constraints to determine whether to use Int32 or Int64.
         """
         if input_type is int and constraints:
-            for item in constraints:
-                if item is SmallInt:
+            for constraint in constraints:
+                if constraint is SmallInt:
                     return nw.Int32()
-                elif item is BigInt:
+                elif constraint is BigInt:
                     return nw.Int64()
 
         return None

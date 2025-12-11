@@ -99,29 +99,29 @@ class AnnotatedTypesStep(ParserStep):
         # Extract constraint values safely
         lower_bound, upper_bound = MIN_INT, MAX_INT
 
-        for item in constraints:
-            if isinstance(item, Interval):
+        for constraint in constraints:
+            if isinstance(constraint, Interval):
                 # Handle Interval constraint (e.g., from pydantic conint)
-                if item.gt is not None:
-                    lower_bound = max(lower_bound, int(self._extract_numeric_value(item.gt)) + 1)
-                if item.ge is not None:
-                    lower_bound = max(lower_bound, int(self._extract_numeric_value(item.ge)))
-                if item.lt is not None:
-                    upper_bound = min(upper_bound, int(self._extract_numeric_value(item.lt)) - 1)
-                if item.le is not None:
-                    upper_bound = min(upper_bound, int(self._extract_numeric_value(item.le)))
+                if constraint.gt is not None:
+                    lower_bound = max(lower_bound, int(self._extract_numeric_value(constraint.gt)) + 1)
+                if constraint.ge is not None:
+                    lower_bound = max(lower_bound, int(self._extract_numeric_value(constraint.ge)))
+                if constraint.lt is not None:
+                    upper_bound = min(upper_bound, int(self._extract_numeric_value(constraint.lt)) - 1)
+                if constraint.le is not None:
+                    upper_bound = min(upper_bound, int(self._extract_numeric_value(constraint.le)))
 
-            elif isinstance(item, Gt):  #  It includes pydantic PositiveInt
-                lower_bound = max(lower_bound, int(self._extract_numeric_value(item.gt)) + 1)
+            elif isinstance(constraint, Gt):  #  It includes pydantic PositiveInt
+                lower_bound = max(lower_bound, int(self._extract_numeric_value(constraint.gt)) + 1)
 
-            elif isinstance(item, Ge):  #  It includes pydantic NonNegativeInt
-                lower_bound = max(lower_bound, int(self._extract_numeric_value(item.ge)))
+            elif isinstance(constraint, Ge):  #  It includes pydantic NonNegativeInt
+                lower_bound = max(lower_bound, int(self._extract_numeric_value(constraint.ge)))
 
-            elif isinstance(item, Lt):
-                upper_bound = min(upper_bound, int(self._extract_numeric_value(item.lt)) - 1)
+            elif isinstance(constraint, Lt):
+                upper_bound = min(upper_bound, int(self._extract_numeric_value(constraint.lt)) - 1)
 
-            elif isinstance(item, Le):
-                upper_bound = min(upper_bound, int(self._extract_numeric_value(item.le)))
+            elif isinstance(constraint, Le):
+                upper_bound = min(upper_bound, int(self._extract_numeric_value(constraint.le)))
 
         # Choose between signed and unsigned based on lower_bound
         if lower_bound >= 0:

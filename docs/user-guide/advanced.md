@@ -13,7 +13,15 @@ Parser steps should inherit from the [ParserStep][api-parser-step] base class
 and implement the `parse` method with the following signature:
 
 ```python
-def parse(self, input_type: Any, metadata: tuple = ()) -> DType | None:
+from anyschema.typing import FieldConstraints, FieldMetadata, FieldType
+
+
+def parse(
+    self,
+    input_type: FieldType,
+    constraints: FieldConstraints,
+    metadata: FieldMetadata,
+) -> DType | None:
     ...
 ```
 
@@ -22,10 +30,9 @@ def parse(self, input_type: Any, metadata: tuple = ()) -> DType | None:
 Here's a simple custom parser for a hypothetical custom type:
 
 ```python exec="true" source="above" result="python" session="custom-parser"
-from typing import Any
-
 import narwhals as nw
 from anyschema.parsers import make_pipeline, ParserStep, PyTypeStep
+from anyschema.typing import FieldConstraints, FieldMetadata, FieldType
 
 
 class Color:
@@ -37,12 +44,18 @@ class Color:
 class ColorStep(ParserStep):
     """Parser for Color types."""
 
-    def parse(self, input_type: Any, metadata: tuple = ()) -> nw.dtypes.DType | None:
+    def parse(
+        self,
+        input_type: FieldType,
+        constraints: FieldConstraints,
+        metadata: FieldMetadata,
+    ) -> DType | None:
         """Parse Color to String dtype.
 
         Arguments:
             input_type: The type to parse.
-            metadata: Optional metadata associated with the type.
+            constraints: Optional constraints associated with the type.
+            metadata: Optional custom metadata dictionary.
 
         Returns:
             String dtype for Color types, None otherwise.
@@ -57,13 +70,14 @@ color_step = ColorStep()
 python_step = PyTypeStep()
 pipeline = make_pipeline(steps=[color_step, python_step])
 
-result = pipeline.parse(Color)
+result = pipeline.parse(Color, constraints=(), metadata={})
 print(result)
 ```
 
 ### Custom Parser with Nested Types
 
-This example shows how to handle a custom generic type. Note how we use `self.pipeline.parse()` for recursion, as
+This example shows how to handle a custom generic type. Note how we use
+`self.pipeline.parse(..., constraints=constraints, metadata=metadata)` for recursion, as
 explained in the [Architecture](../architecture.md#recursion-and-nested-types) page:
 
 ```python exec="true" source="above" result="python" session="custom-parser"
@@ -71,6 +85,8 @@ from typing import Any, TypeVar, get_args, get_origin
 
 import narwhals as nw
 from anyschema.parsers import ParserStep
+
+from anyschema.typing import FieldConstraints, FieldMetadata, FieldType
 
 T = TypeVar("T")
 
@@ -83,7 +99,12 @@ class MyList[T]:
 class MyListStep(ParserStep):
     """Parser for MyList[T] generic types."""
 
-    def parse(self, input_type: Any, metadata: tuple = ()) -> nw.dtypes.DType | None:
+    def parse(
+        self,
+        input_type: FieldType,
+        constraints: FieldConstraints,
+        metadata: FieldMetadata,
+    ) -> nw.dtypes.DType | None:
         """Parse MyList[T] to List dtype.
 
         This parser handles custom generic types by recursively parsing
@@ -97,7 +118,7 @@ class MyListStep(ParserStep):
             if args:
                 inner_type = args[0]
                 # Recursively parse the inner type
-                inner_dtype = self.pipeline.parse(inner_type, metadata=metadata)
+                inner_dtype = self.pipeline.parse(inner_type, constraints=constraints, metadata=metadata)
                 return nw.List(inner_dtype)
             else:
                 # MyList without type parameter
@@ -108,7 +129,7 @@ class MyListStep(ParserStep):
 my_list_step = MyListStep()
 python_step = PyTypeStep()
 pipeline = make_pipeline(steps=[my_list_step, python_step])
-result = pipeline.parse(MyList[int])
+result = pipeline.parse(MyList[int], (), {})
 print(result)
 ```
 
@@ -122,6 +143,7 @@ from typing import Any, Annotated
 
 import narwhals as nw
 from anyschema.parsers import AnnotatedStep, ParserStep, PyTypeStep
+from anyschema.typing import FieldConstraints, FieldMetadata, FieldType
 
 
 class SmallInt:
@@ -137,15 +159,20 @@ class BigInt:
 
 
 class CustomConstraintStep(ParserStep):
-    """Parser that uses metadata to choose integer size."""
+    """Parser that uses constraints to choose integer size."""
 
-    def parse(self, input_type: Any, metadata: tuple = ()) -> nw.dtypes.DType | None:
+    def parse(
+        self,
+        input_type: FieldType,
+        constraints: FieldConstraints,
+        metadata: FieldMetadata,
+    ) -> DType | None:
         """Parse integers with size constraints.
 
-        Uses metadata to determine whether to use Int32 or Int64.
+        Uses constraints to determine whether to use Int32 or Int64.
         """
-        if input_type is int and metadata:
-            for item in metadata:
+        if input_type is int and constraints:
+            for item in constraints:
                 if item is SmallInt:
                     return nw.Int32()
                 elif item is BigInt:
@@ -164,8 +191,8 @@ custom_constraint_step = CustomConstraintStep()
 python_step = PyTypeStep()
 pipeline = make_pipeline(steps=[annotated_step, custom_constraint_step, python_step])
 
-print(f"SmallInteger dtype: {pipeline.parse(SmallInteger)}")
-print(f"BigInteger dtype: {pipeline.parse(BigInteger)}")
+print(f"SmallInteger dtype: {pipeline.parse(SmallInteger, (), {})}")
+print(f"BigInteger dtype: {pipeline.parse(BigInteger, (), {})}")
 ```
 
 ### Combining Multiple Custom Parsers
@@ -239,10 +266,10 @@ def simple_schema_adapter(spec: SimpleSchema) -> FieldSpecIterable:
         spec: A SimpleSchema instance.
 
     Yields:
-        Tuples of (field_name, field_type, metadata).
+        Tuples of (field_name, field_type, constraints, metadata).
     """
     for field in spec.fields:
-        yield field["name"], field["type"], ()
+        yield field["name"], field["type"], (), {}
 
 
 schema_spec = SimpleSchema(
@@ -290,23 +317,23 @@ class SchemaWithConstraints:
 
 
 def constrained_adapter(spec: SchemaWithConstraints) -> FieldSpecIterable:
-    """Adapter that converts constraints to metadata.
+    """Adapter that converts constraints to the constraints tuple.
 
     Arguments:
         spec: A SchemaWithConstraints instance.
 
     Yields:
-        Tuples of (field_name, field_type, metadata).
+        Tuples of (field_name, field_type, constraints, metadata).
     """
     for field in spec.fields:
-        metadata = []
+        constraints = []
 
         if field.min_val is not None:
-            metadata.append(("min", field.min_val))
+            constraints.append(("min", field.min_val))
         if field.max_val is not None:
-            metadata.append(("max", field.max_val))
+            constraints.append(("max", field.max_val))
 
-        yield field.name, field.type, tuple(metadata)
+        yield field.name, field.type, tuple(constraints), {}
 
 
 schema_spec = SchemaWithConstraints(
@@ -351,22 +378,22 @@ def nested_adapter(spec: NestedSchema) -> FieldSpecIterable:
         spec: A NestedSchema instance.
 
     Yields:
-        Tuples of (field_name, field_type, metadata).
+        Tuples of (field_name, field_type, constraints, metadata).
     """
     for field_name, field_value in spec.fields.items():
         if isinstance(field_value, NestedSchema):
             # For nested schemas, create a TypedDict with the proper structure
             nested_dict = {
-                name: type_ for name, type_, _ in nested_adapter(field_value)
+                name: type_ for name, type_, _, _ in nested_adapter(field_value)
             }
             # Create a dynamic TypedDict with the nested fields
             nested_typed_dict = TypedDict(
                 f"{field_name.title()}TypedDict",  # Generate a unique name
                 nested_dict,  # Field name -> type mapping
             )
-            yield field_name, nested_typed_dict, ()
+            yield field_name, nested_typed_dict, (), {}
         else:
-            yield field_name, field_value, ()
+            yield field_name, field_value, (), {}
 
 
 schema_spec = NestedSchema(
@@ -401,7 +428,7 @@ def json_schema_adapter(spec: str) -> FieldSpecIterable:
         spec: A JSON Schema with "type": "object" and "properties".
 
     Yields:
-        Tuples of (field_name, field_type, metadata).
+        Tuples of (field_name, field_type, constraints, metadata).
     """
     spec = json.loads(spec)
     if spec.get("type") != "object":
@@ -432,7 +459,7 @@ def json_schema_adapter(spec: str) -> FieldSpecIterable:
             item_type = type_mapping.get(field_spec["items"].get("type"), object)
             python_type = list[item_type]
 
-        yield field_name, python_type, ()
+        yield field_name, python_type, (), {}
 
 
 json_schema = json.dumps(

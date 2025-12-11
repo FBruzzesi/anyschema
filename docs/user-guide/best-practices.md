@@ -3,8 +3,9 @@
 ## For Custom Parsers
 
 * Return `None` when you can't handle a type to let other parsers in the chain try.
-* Use `self.pipeline.parse()` for recursion. This possibly allows to handle nested types by delegating to the pipeline.
-* Preserve metadata: Pass metadata through when recursively parsing.
+* Use `self.pipeline.parse(inner_type, constraints=..., metadata=...)` for recursion.
+    This possibly allows to handle nested types by delegating to the pipeline.
+* Preserve constraints and metadata: Pass both through when recursively parsing.
 * Order matters: Place specialized parsers before general ones.
 * Document what types the parser can handle: Make it clear in docstrings.
 
@@ -33,7 +34,12 @@ class GoodParserStep(ParserStep):
     - CustomList[T]: converts to List(T)
     """
 
-    def parse(self, input_type: Any, metadata: tuple = ()) -> nw.dtypes.DType | None:
+    def parse(
+        self,
+        input_type: FieldType,
+        constraints: FieldConstraints,
+        metadata: FieldMetadata,
+    ) -> DType | None:
         # Check if we can handle this type
         if input_type is CustomType:
             return nw.String()
@@ -42,7 +48,7 @@ class GoodParserStep(ParserStep):
         if get_origin(input_type) is CustomList:
             inner = get_args(input_type)[0]
             # Delegate to pipeline for recursion
-            inner_dtype = self.pipeline.parse(inner, metadata=metadata)
+            inner_dtype = self.pipeline.parse(inner, constraints=constraints, metadata=metadata)
             return nw.List(inner_dtype)
 
         # Return None if we can't handle it
@@ -54,7 +60,8 @@ class GoodParserStep(ParserStep):
 * Use generators: Yield instead of returning a list for memory efficiency.
 * Handle nested structures: Recursively convert nested schemas.
 * Validate input: Check that the spec is the expected format.
-* Convert metadata consistently: Have a clear mapping from your format to anyschema metadata.
+* Convert constraints and metadata consistently: Have a clear mapping from your format to anyschema constraints
+    and metadata.
 * Document the expected input format: Make it clear what spec format you accept.
 
 ```python exec="true" source="above" session="best-practices"
@@ -77,7 +84,7 @@ def good_adapter(spec: CustomSchemaSpec) -> FieldSpecIterable:
         spec: A CustomSchemaSpec instance.
 
     Yields:
-        Tuples of (field_name, field_type, metadata).
+        Tuples of (field_name, field_type, constraints, metadata).
 
     Raises:
         TypeError: If spec is not a CustomSchemaSpec instance.
@@ -88,15 +95,17 @@ def good_adapter(spec: CustomSchemaSpec) -> FieldSpecIterable:
     for field_name, field_value in spec.fields.items():
         if isinstance(field_value, CustomSchemaSpec):
             # For nested schemas, create a TypedDict with the proper structure
-            nested_dict = {name: type_ for name, type_, _ in good_adapter(field_value)}
+            nested_dict = {
+                name: type_ for name, type_, _, _ in good_adapter(field_value)
+            }
             # Create a dynamic TypedDict with the nested fields
             nested_typed_dict = TypedDict(
                 f"{field_name.title()}TypedDict",
                 nested_dict,
             )
-            yield field_name, nested_typed_dict, ()
+            yield field_name, nested_typed_dict, (), {}
         else:
-            yield field_name, field_value, ()
+            yield field_name, field_value, (), {}
 ```
 
 ## Integration Testing
@@ -132,7 +141,7 @@ def test_custom_step_parse(
     custom_step: GoodParserStep, input_type: Any, expected_dtype: nw.dtypes.DType
 ) -> None:
     """Test that custom parser handles its types correctly."""
-    result = custom_step.parse(CustomType)
+    result = custom_step.parse(CustomType, constraints=(), metadata={})
     assert result == expected_dtype
 
 

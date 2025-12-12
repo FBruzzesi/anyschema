@@ -143,7 +143,7 @@ def pydantic_adapter(spec: type[BaseModel]) -> FieldSpecIterable:
         >>> spec_fields[0]
         ('name', <class 'str'>, (), {'description': 'Student name'})
         >>> spec_fields[1]
-        ('age', ForwardRef('Annotated[int, Field(ge=0)]', is_class=True), (), {})]
+        ('age', ForwardRef('Annotated[int, Field(ge=0)]', is_class=True), (), {})
     """
     for field_name, field_info in spec.model_fields.items():
         # Extract constraints from metadata (these are the annotated-types constraints)

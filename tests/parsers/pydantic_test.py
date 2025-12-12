@@ -46,7 +46,7 @@ def test_parse_aware_datetime_raises(pydantic_parser: PydanticTypeStep) -> None:
 
 
 def test_parse_aware_datetime_with_tz(pydantic_parser: PydanticTypeStep) -> None:
-    result = pydantic_parser.parse(AwareDatetime, constraints=(), metadata={"timezone": "Europe/Berlin"})
+    result = pydantic_parser.parse(AwareDatetime, constraints=(), metadata={"anyschema/time_zone": "Europe/Berlin"})
     assert result == nw.Datetime(time_zone="Europe/Berlin")
 
 

@@ -30,7 +30,7 @@ class PyTypeStep(ParserStep):
     - `dict`,` Mapping[K, V]`, and typed dictionaries (`TypedDict`)
     """
 
-    def parse(self, input_type: FieldType, constraints: FieldConstraints, metadata: FieldMetadata) -> DType | None:  # noqa: C901, PLR0911, PLR0912
+    def parse(self, input_type: FieldType, constraints: FieldConstraints, metadata: FieldMetadata) -> DType | None:  # noqa: C901, PLR0912
         """Parse Python type annotations into Narwhals dtypes.
 
         Arguments:
@@ -66,8 +66,10 @@ class PyTypeStep(ParserStep):
             if issubclass(input_type, float):
                 return nw.Float64()
             if issubclass(input_type, datetime):
-                tz = metadata.get("timezone") if metadata is not None else None
-                return nw.Datetime(time_zone=tz)
+                return nw.Datetime(
+                    time_unit=metadata.get("anyschema/time_unit", "us"),
+                    time_zone=metadata.get("anyschema/time_zone"),
+                )
             if issubclass(input_type, date):
                 return nw.Date()
             if issubclass(input_type, timedelta):
@@ -93,7 +95,7 @@ class PyTypeStep(ParserStep):
 
         return None
 
-    def _parse_generic(  # noqa: PLR0911
+    def _parse_generic(
         self, input_type: FieldType, origin: Any, constraints: FieldConstraints, metadata: FieldMetadata
     ) -> DType | None:
         """Parse generic types like list[int], dict[str, int].

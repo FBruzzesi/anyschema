@@ -53,24 +53,36 @@ class PydanticTypeStep(ParserStep):
         # Handle AwareDatetime
         if issubclass(input_type, AwareDatetime):  # pyright: ignore[reportArgumentType]
             # Pydantic AwareDatetime does not fix a single timezone, but any timezone would work.
-            # This cannot be used in nw.Datetime, therefore we raise an exception
             # See https://github.com/pydantic/pydantic/issues/5829
-            if (timezone := metadata.get("timezone")) is None:
-                # TODO(FBruzzesi): Should we use another convention? A few possible options:
-                #  * "time_zone"
-                #  * "anyschema/timezone"
-                #  * "anyschema/time_zone"
+            # Unless a timezone is specified via "anyschema/time_zone", we raise an error.
+            if (time_zone := metadata.get("anyschema/time_zone")) is None:
                 msg = "pydantic AwareDatetime does not specify a fixed timezone."
                 raise UnsupportedDTypeError(msg)
 
-            return nw.Datetime(time_zone=timezone)
+            return nw.Datetime(
+                time_unit=metadata.get("anyschema/time_unit", "us"),
+                time_zone=time_zone,
+            )
+
+        if issubclass(input_type, NaiveDatetime):  # pyright: ignore[reportArgumentType]
+            # Pydantic NaiveDatetime should not receive a timezone.
+            # If a timezone is specified via "anyschema/time_zone", we raise an error.
+            if (time_zone := metadata.get("anyschema/time_zone")) is not None:
+                msg = f"pydantic NaiveDatetime should not specify a timezone, found {time_zone}."
+                raise UnsupportedDTypeError(msg)
+
+            return nw.Datetime(
+                time_unit=metadata.get("anyschema/time_unit", "us"),
+                time_zone=None,
+            )
 
         # Handle datetime types
-        if issubclass(input_type, (NaiveDatetime, PastDatetime, FutureDatetime)):  # pyright: ignore[reportArgumentType]
-            # PastDatetime and FutureDatetime accept both aware and naive datetimes, here we
-            # simply return nw.Datetime without timezone info.
-            # This means that we won't be able to convert it to a timezone aware data type.
-            return nw.Datetime()
+        if issubclass(input_type, (PastDatetime, FutureDatetime)):  # pyright: ignore[reportArgumentType]
+            # PastDatetime and FutureDatetime accept both aware and naive datetimes.
+            return nw.Datetime(
+                time_unit=metadata.get("anyschema/time_unit", "us"),
+                time_zone=metadata.get("anyschema/time_zone"),
+            )
 
         # Handle date types
         if issubclass(input_type, (PastDate, FutureDate)):  # pyright: ignore[reportArgumentType]
@@ -80,10 +92,8 @@ class PydanticTypeStep(ParserStep):
         if is_pydantic_base_model(input_type):
             return self._parse_pydantic_model(input_type)
 
-        # TODO(FBruzzesi): It's possible to map many more types, however we would lose the information that such type
-        # would want to represent.
-        # See https://docs.pydantic.dev/latest/api/types/ for more pydantic types and
-        # https://docs.pydantic.dev/latest/api/pydantic_extra_types_* for pydantic extra types.
+        # TODO(FBruzzesi): Add support for more pydantic types
+        # https://github.com/FBruzzesi/anyschema/issues/45
 
         # This parser doesn't handle this type
         return None

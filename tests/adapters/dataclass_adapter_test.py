@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, make_dataclass
-from datetime import date
+from datetime import date, datetime
 from typing import TYPE_CHECKING
 
 import pytest
 from pydantic.dataclasses import dataclass as pydantic_dataclass
 
 from anyschema.adapters import dataclass_adapter
+from tests.conftest import DataclassEventWithTimeMetadata
 
 if TYPE_CHECKING:
     from anyschema.typing import DataclassType
@@ -51,3 +52,17 @@ def test_dataclass_adapter_missing_decorator_raises() -> None:
 
     with pytest.raises(AssertionError, match=expected_msg.replace("(", r"\(").replace(")", r"\)")):
         list(dataclass_adapter(ChildWithoutDecorator))  # type: ignore[arg-type]
+
+
+def test_dataclass_adapter_with_time_metadata() -> None:
+    result = list(dataclass_adapter(DataclassEventWithTimeMetadata))
+
+    expected = [
+        ("name", str, (), {}),
+        ("created_at", datetime, (), {}),
+        ("scheduled_at", datetime, (), {"anyschema/time_zone": "UTC"}),
+        ("started_at", datetime, (), {"anyschema/time_unit": "ms"}),
+        ("completed_at", datetime, (), {"anyschema/time_zone": "Europe/Berlin", "anyschema/time_unit": "ns"}),
+    ]
+
+    assert result == expected

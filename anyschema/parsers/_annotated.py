@@ -25,8 +25,8 @@ class AnnotatedStep(ParserStep):
 
         Arguments:
             input_type: The type to parse.
-            constraints: Optional constraints associated with the type.
-            metadata: Optional custom metadata dictionary.
+            constraints: Constraints associated with the type.
+            metadata: Custom metadata dictionary.
 
         Returns:
             A Narwhals DType by extracting the base type and delegating to the chain.

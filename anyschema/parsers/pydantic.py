@@ -40,8 +40,8 @@ class PydanticTypeStep(ParserStep):
 
         Arguments:
             input_type: The type to parse.
-            constraints: Optional constraints associated with the type.
-            metadata: Optional custom metadata dictionary.
+            constraints: Constraints associated with the type.
+            metadata: Custom metadata dictionary.
 
         Returns:
             A Narwhals DType if this parser can handle the type, None otherwise.

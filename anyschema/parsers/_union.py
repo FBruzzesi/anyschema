@@ -28,8 +28,8 @@ class UnionTypeStep(ParserStep):
 
         Arguments:
             input_type: The type to parse.
-            constraints: Optional constraints associated with the type (will be preserved and passed through).
-            metadata: Optional custom metadata dictionary (will be preserved and passed through).
+            constraints: Constraints associated with the type (will be preserved and passed through).
+            metadata: Custom metadata dictionary (will be preserved and passed through).
 
         Returns:
             A Narwhals DType by extracting the non-None type and delegating to the chain.

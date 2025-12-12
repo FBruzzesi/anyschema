@@ -11,10 +11,6 @@ The following built-in adapters are not meant to be used directly. They serve mo
     options:
       show_root_heading: true
       show_source: true
-    members:
-      - dataclass_adapter
-      - into_ordered_dict_adapter
-      - pydantic_adapter
 
 ## Adapters specification
 

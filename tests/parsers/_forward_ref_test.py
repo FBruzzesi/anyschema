@@ -48,7 +48,7 @@ class CustomType:
     ],
 )
 def test_forward_ref(forward_ref_parser: ForwardRefStep, input_type: Any, expected: nw.dtypes.DType) -> None:
-    result = forward_ref_parser.parse(input_type=ForwardRef(input_type))
+    result = forward_ref_parser.parse(input_type=ForwardRef(input_type), constraints=(), metadata={})
     assert result == expected
 
 
@@ -61,7 +61,7 @@ def test_forward_ref(forward_ref_parser: ForwardRefStep, input_type: Any, expect
     ],
 )
 def test_non_forward_ref(forward_ref_parser: ForwardRefStep, input_type: Any) -> None:
-    result = forward_ref_parser.parse(input_type=input_type)
+    result = forward_ref_parser.parse(input_type=input_type, constraints=(), metadata={})
     assert result is None
 
 
@@ -71,10 +71,10 @@ def test_custom_globals() -> None:
         "str": bool,  # don't do this in production
     }
     parser = forward_ref_parser_builder(globalns=custom_globals)
-    result = parser.parse(ForwardRef("CustomType"))
+    result = parser.parse(ForwardRef("CustomType"), constraints=(), metadata={})
     assert result == nw.Int64()
 
-    result = parser.parse(ForwardRef("str"))
+    result = parser.parse(ForwardRef("str"), constraints=(), metadata={})
     assert result == nw.Boolean()
 
 
@@ -83,7 +83,7 @@ def test_custom_local() -> None:
         pass
 
     parser = forward_ref_parser_builder(localns={"LocalClass": int})
-    result = parser.parse(ForwardRef("LocalClass"))
+    result = parser.parse(ForwardRef("LocalClass"), constraints=(), metadata={})
     assert result == nw.Int64()
 
 
@@ -99,7 +99,7 @@ def test_resolution_error(
     forward_ref_parser: ForwardRefStep, input_type: str, context: AbstractContextManager[Any]
 ) -> None:
     with context:
-        forward_ref_parser.parse(ForwardRef(input_type))
+        forward_ref_parser.parse(ForwardRef(input_type), constraints=(), metadata={})
 
 
 def test_build_namespace_default(forward_ref_parser: ForwardRefStep) -> None:

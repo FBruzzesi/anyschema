@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-from datetime import date  # noqa: TC003
+from dataclasses import dataclass, field
+from datetime import date, datetime  # noqa: TC003
 from typing import TYPE_CHECKING, Literal
 
 import attrs
 import narwhals as nw
 import pytest
-from pydantic import BaseModel, PastDate, PositiveInt
+from pydantic import AwareDatetime, BaseModel, Field, FutureDatetime, NaiveDatetime, PastDate, PastDatetime, PositiveInt
 
 from anyschema.parsers import make_pipeline
 
@@ -66,6 +67,30 @@ def pydantic_student_cls() -> type[PydanticStudent]:
     return PydanticStudent
 
 
+class PydanticEventWithTimeMetadata(BaseModel):
+    """Pydantic model with datetime fields that have time metadata."""
+
+    name: str
+    created_at: datetime
+    scheduled_at: datetime = Field(json_schema_extra={"anyschema/time_zone": "UTC"})
+    started_at: datetime = Field(json_schema_extra={"anyschema/time_unit": "ms"})
+    completed_at: datetime = Field(
+        json_schema_extra={"anyschema/time_zone": "Europe/Berlin", "anyschema/time_unit": "ns"}
+    )
+
+
+class PydanticSpecialDatetimeWithMetadata(BaseModel):
+    """Pydantic model with special datetime types and metadata."""
+
+    aware: AwareDatetime = Field(json_schema_extra={"anyschema/time_zone": "UTC"})
+    aware_ms: AwareDatetime = Field(
+        json_schema_extra={"anyschema/time_zone": "Asia/Tokyo", "anyschema/time_unit": "ms"}
+    )
+    naive_ms: NaiveDatetime = Field(json_schema_extra={"anyschema/time_unit": "ms"})
+    past_utc: PastDatetime = Field(json_schema_extra={"anyschema/time_zone": "UTC"})
+    future_ns: FutureDatetime = Field(json_schema_extra={"anyschema/time_unit": "ns"})
+
+
 @attrs.define
 class AttrsAddress:
     street: str
@@ -113,6 +138,17 @@ class AttrsPersonWithLiterals:
     status: Literal["active", "inactive", "pending"]
 
 
+@attrs.define
+class AttrsEventWithTimeMetadata:
+    """Attrs class with datetime fields that have time metadata."""
+
+    name: str
+    created_at: datetime
+    scheduled_at: datetime = attrs.field(metadata={"anyschema/time_zone": "UTC"})
+    started_at: datetime = attrs.field(metadata={"anyschema/time_unit": "ms"})
+    completed_at: datetime = attrs.field(metadata={"anyschema/time_zone": "Europe/Berlin", "anyschema/time_unit": "ns"})
+
+
 class PydanticZipcode(BaseModel):
     zipcode: PositiveInt
 
@@ -122,6 +158,17 @@ class AttrsAddressWithPydantic:
     street: str
     city: str
     zipcode: PydanticZipcode
+
+
+@dataclass
+class DataclassEventWithTimeMetadata:
+    """Dataclass with datetime fields that have time metadata."""
+
+    name: str
+    created_at: datetime
+    scheduled_at: datetime = field(metadata={"anyschema/time_zone": "UTC"})
+    started_at: datetime = field(metadata={"anyschema/time_unit": "ms"})
+    completed_at: datetime = field(metadata={"anyschema/time_zone": "Europe/Berlin", "anyschema/time_unit": "ns"})
 
 
 def create_missing_decorator_test_case() -> tuple[type, str]:

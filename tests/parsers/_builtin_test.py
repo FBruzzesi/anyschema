@@ -67,7 +67,7 @@ def py_type_parser() -> PyTypeStep:
     ],
 )
 def test_parse_non_nested(py_type_parser: PyTypeStep, input_type: Any, expected: nw.dtypes.DType) -> None:
-    result = py_type_parser.parse(input_type)
+    result = py_type_parser.parse(input_type, (), {})
     assert result == expected
 
 
@@ -95,25 +95,48 @@ def test_parse_non_nested(py_type_parser: PyTypeStep, input_type: Any, expected:
     ],
 )
 def test_parse_nested(py_type_parser: PyTypeStep, input_type: Any, expected: nw.dtypes.DType) -> None:
-    result = py_type_parser.parse(input_type)
+    result = py_type_parser.parse(input_type, (), {})
     assert result == expected
 
 
 @pytest.mark.parametrize("input_type", [tuple[int, str], tuple[int, str, float]])
 def test_parse_heterogeneous_tuple_raises(py_type_parser: PyTypeStep, input_type: Any) -> None:
     with pytest.raises(UnsupportedDTypeError, match="Tuple with mixed types is not supported"):
-        py_type_parser.parse(input_type)
+        py_type_parser.parse(input_type, (), {})
 
 
 @pytest.mark.parametrize(("input_type", "expected"), [(int, nw.Int64()), (list[int], nw.List(nw.Int64()))])
 def test_parse_with_metadata(py_type_parser: PyTypeStep, input_type: Any, expected: nw.dtypes.DType) -> None:
-    result = py_type_parser.parse(input_type, metadata=("some", "metadata"))
+    result = py_type_parser.parse(input_type, constraints=("some", "constraints"), metadata={"key": "value"})
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    ("metadata", "expected"),
+    [
+        ({}, nw.Datetime("us")),
+        ({"anyschema/time_unit": "ms"}, nw.Datetime("ms")),
+        ({"anyschema/time_unit": "ns"}, nw.Datetime("ns")),
+        ({"anyschema/time_zone": "UTC"}, nw.Datetime("us", time_zone="UTC")),
+        ({"anyschema/time_zone": "Europe/Rome"}, nw.Datetime("us", time_zone="Europe/Rome")),
+        ({"anyschema/time_unit": "ms", "anyschema/time_zone": "UTC"}, nw.Datetime("ms", time_zone="UTC")),
+        (
+            {"anyschema/time_unit": "ns", "anyschema/time_zone": "America/New_York"},
+            nw.Datetime("ns", time_zone="America/New_York"),
+        ),
+    ],
+)
+def test_parse_datetime_with_time_metadata(
+    py_type_parser: PyTypeStep, metadata: dict[str, Any], expected: nw.dtypes.DType
+) -> None:
+    """Test that datetime parses correctly with anyschema/time_zone and anyschema/time_unit metadata."""
+    result = py_type_parser.parse(datetime, constraints=(), metadata=metadata)
     assert result == expected
 
 
 @pytest.mark.parametrize("input_type", [CustomClass, NoneType, set[int], frozenset])
 def test_unsupported_type(py_type_parser: PyTypeStep, input_type: Any) -> None:
-    result = py_type_parser.parse(input_type)
+    result = py_type_parser.parse(input_type, (), {})
     assert result is None
 
 
@@ -185,5 +208,5 @@ class PersonWithAddressTypedDict(TypedDict):
     ],
 )
 def test_parse_dict_types(py_type_parser: PyTypeStep, input_type: Any, expected: nw.dtypes.DType) -> None:
-    result = py_type_parser.parse(input_type)
+    result = py_type_parser.parse(input_type, (), {})
     assert result == expected

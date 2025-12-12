@@ -62,5 +62,5 @@ def py_type_parser() -> PyTypeStep:
     ],
 )
 def test_pydantic_extra_types(py_type_parser: PyTypeStep, input_type: Any, expected: nw.dtypes.DType) -> None:
-    result = py_type_parser.parse(input_type)
+    result = py_type_parser.parse(input_type, (), {})
     assert result == expected

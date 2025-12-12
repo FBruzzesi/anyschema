@@ -18,6 +18,6 @@ if TYPE_CHECKING:
     ],
 )
 def test_into_ordered_dict_adapter(spec: IntoOrderedDict) -> None:
-    expected = (("name", str, ()), ("age", int, ()))
+    expected = (("name", str, (), {}), ("age", int, (), {}))
     result = tuple(into_ordered_dict_adapter(spec))
     assert result == expected

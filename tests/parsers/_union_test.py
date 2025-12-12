@@ -40,7 +40,7 @@ def union_parser() -> UnionTypeStep:
     ],
 )
 def test_parse_union_types(union_parser: UnionTypeStep, input_type: Any, expected: nw.dtypes.DType) -> None:
-    result = union_parser.parse(input_type)
+    result = union_parser.parse(input_type, (), {})
     assert result == expected
 
 
@@ -54,7 +54,7 @@ def test_parse_union_types(union_parser: UnionTypeStep, input_type: Any, expecte
     ],
 )
 def test_parse_non_union_types(union_parser: UnionTypeStep, input_type: Any) -> None:
-    result = union_parser.parse(input_type)
+    result = union_parser.parse(input_type, (), {})
     assert result is None
 
 
@@ -70,4 +70,4 @@ def test_parse_non_union_types(union_parser: UnionTypeStep, input_type: Any) -> 
 )
 def test_parse_unsupported_unions_parametrized(union_parser: UnionTypeStep, input_type: Any, error_msg: str) -> None:
     with pytest.raises(UnsupportedDTypeError, match=error_msg):
-        union_parser.parse(input_type)
+        union_parser.parse(input_type, (), {})

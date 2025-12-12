@@ -12,30 +12,32 @@ from anyschema.parsers import ParserPipeline, ParserStep
 if TYPE_CHECKING:
     from narwhals.dtypes import DType
 
+    from anyschema.typing import FieldConstraints, FieldMetadata, FieldType
+
 
 class AlwaysNoneStep(ParserStep):
-    def parse(self, input_type: type, metadata: tuple = ()) -> DType | None:
+    def parse(self, input_type: FieldType, constraints: FieldConstraints, metadata: FieldMetadata) -> DType | None:
         return None
 
 
 class StrStep(ParserStep):
-    def parse(self, input_type: type, metadata: tuple = ()) -> DType | None:
+    def parse(self, input_type: FieldType, constraints: FieldConstraints, metadata: FieldMetadata) -> DType | None:
         return nw.String() if input_type is str else None
 
 
 class Int32Step(ParserStep):
-    def parse(self, input_type: type, metadata: tuple = ()) -> DType | None:
+    def parse(self, input_type: FieldType, constraints: FieldConstraints, metadata: FieldMetadata) -> DType | None:
         return nw.Int32() if input_type is int else None
 
 
 class Int64Step(ParserStep):
-    def parse(self, input_type: type, metadata: tuple = ()) -> DType | None:
+    def parse(self, input_type: FieldType, constraints: FieldConstraints, metadata: FieldMetadata) -> DType | None:
         return nw.Int64() if input_type is int else None
 
 
 class MetadataAwareStep(ParserStep):
-    def parse(self, input_type: type, metadata: tuple = ()) -> DType | None:
-        return nw.Int32() if input_type is int and metadata == ("meta1", "meta2") else None
+    def parse(self, input_type: FieldType, constraints: FieldConstraints, metadata: FieldMetadata) -> DType | None:
+        return nw.Int32() if input_type is int and constraints == ("meta1", "meta2") else None
 
 
 def test_pipeline_not_set() -> None:
@@ -99,7 +101,7 @@ def test_pipeline_init_with_steps() -> None:
 def test_pipeline_parse_non_strict(input_type: Any, expected: nw.dtypes.DType | None) -> None:
     pipeline = ParserPipeline([Int64Step(), StrStep()])
 
-    result = pipeline.parse(input_type, strict=False)
+    result = pipeline.parse(input_type, (), {}, strict=False)
     assert result == expected
 
 
@@ -108,17 +110,17 @@ def test_pipeline_parse_strict(input_type: Any) -> None:
     pipeline = ParserPipeline([Int64Step(), StrStep()])
 
     with pytest.raises(NotImplementedError, match="No parser in the pipeline could handle type"):
-        pipeline.parse(input_type, strict=True)
+        pipeline.parse(input_type, (), {}, strict=True)
 
 
 def test_pipeline_parse_with_metadata() -> None:
     step = MetadataAwareStep()
     pipeline = ParserPipeline([step])
 
-    result = pipeline.parse(int, metadata=("meta1", "meta2"), strict=True)
+    result = pipeline.parse(int, constraints=("meta1", "meta2"), metadata={}, strict=True)
     assert result == nw.Int32()
 
-    result = pipeline.parse(int, metadata=("meta1",), strict=False)
+    result = pipeline.parse(int, constraints=("meta1",), metadata={}, strict=False)
     assert result is None
 
 
@@ -128,5 +130,5 @@ def test_pipeline_parse_with_metadata() -> None:
 )
 def test_pipeline_parse_order_matters(steps: tuple[ParserStep, ...], expected: nw.dtypes.DType) -> None:
     pipeline = ParserPipeline(steps=steps)
-    result = pipeline.parse(int, strict=True)
+    result = pipeline.parse(int, (), {}, strict=True)
     assert result == expected

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, ForwardRef
+from typing import TYPE_CHECKING, ForwardRef
 
 from typing_extensions import evaluate_forward_ref
 
@@ -9,6 +9,8 @@ from anyschema.parsers._base import ParserStep
 
 if TYPE_CHECKING:
     from narwhals.dtypes import DType
+
+    from anyschema.typing import FieldConstraints, FieldMetadata, FieldType
 
 
 class ForwardRefStep(ParserStep):
@@ -114,12 +116,13 @@ class ForwardRefStep(ParserStep):
 
         return namespace
 
-    def parse(self, input_type: Any, metadata: tuple = ()) -> DType | None:
+    def parse(self, input_type: FieldType, constraints: FieldConstraints, metadata: FieldMetadata) -> DType | None:
         """Parse ForwardRef types by resolving them and delegating to the chain.
 
         Arguments:
             input_type: The type to parse (may be a ForwardRef).
-            metadata: Optional metadata associated with the type.
+            constraints: Constraints associated with the type.
+            metadata: Custom metadata dictionary.
 
         Returns:
             A Narwhals DType if this is a ForwardRef that can be resolved, None otherwise.
@@ -138,4 +141,4 @@ class ForwardRefStep(ParserStep):
             msg = f"Failed to resolve ForwardRef '{input_type.__forward_arg__}': {e}"
             raise NotImplementedError(msg) from e
 
-        return self.pipeline.parse(resolved_type, metadata, strict=True)
+        return self.pipeline.parse(resolved_type, constraints, metadata, strict=True)

@@ -93,5 +93,5 @@ def parser_pipeline() -> ParserPipeline:
     ],
 )
 def test_derived_types(parser_pipeline: ParserPipeline, input_type: Any, expected: nw.dtypes.DType) -> None:
-    result = parser_pipeline.parse(input_type)
+    result = parser_pipeline.parse(input_type, constraints=(), metadata={})
     assert result == expected

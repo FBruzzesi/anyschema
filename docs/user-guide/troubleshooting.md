@@ -21,10 +21,16 @@ import narwhals as nw
 
 from anyschema import AnySchema
 from anyschema.parsers import ParserStep, PyTypeStep
+from anyschema.typing import FieldConstraints, FieldMetadata, FieldType
 
 
 class MyCustomTypeStep(ParserStep):
-    def parse(self, input_type: Any, metadata: tuple = ()) -> nw.dtypes.DType | None:
+    def parse(
+        self,
+        input_type: FieldType,
+        constraints: FieldConstraints,
+        metadata: FieldMetadata,
+    ) -> nw.dtypes.DType | None:
         if input_type is MyCustomType:
             return nw.String()  # or appropriate dtype
         return None
@@ -72,6 +78,7 @@ pipeline:
 
 ```python
 from anyschema.parsers import AnnotatedStep, make_pipeline
+from anyschema.typing import FieldConstraints, FieldMetadata, FieldType
 
 steps = (
     AnnotatedStep(),  # Must be present to extract metadata
@@ -84,10 +91,17 @@ On top of that, verify metadata are preserved when recursively parsing:
 
 ```python
 class CustomStep(ParserStep):
-    def parse(self, input_type: Any, metadata: tuple = ()) -> nw.dtypes.DType | None:
+    def parse(
+        self,
+        input_type: FieldType,
+        constraints: FieldConstraints,
+        metadata: FieldMetadata,
+    ) -> nw.dtypes.DType | None:
         inner_type = get_args(input_type)[0]
-        # ✅ Pass metadata through
-        return self.pipeline.parse(inner_type, metadata=metadata)
+        # ✅ Pass constraints and metadata through
+        return self.pipeline.parse(
+            inner_type, constraints=constraints, metadata=metadata
+        )
 ```
 
 ### Adapter Not Processing Nested Structures
@@ -104,11 +118,11 @@ def my_adapter(spec: MySchema) -> FieldSpecIterable:
     for field_name, field_value in spec.fields.items():
         if is_nested(field_value):
             # Create a TypedDict for nested structures
-            nested_dict = {name: type_ for name, type_, _ in my_adapter(field_value)}
+            nested_dict = {name: type_ for name, type_, _, _ in my_adapter(field_value)}
             nested_typed_dict = TypedDict(f"{field_name.title()}Schema", nested_dict)
-            yield field_name, nested_typed_dict, ()
+            yield field_name, nested_typed_dict, (), {}
         else:
-            yield field_name, field_value, ()
+            yield field_name, field_value, (), {}
 ```
 
 In general, make sure your adapter recursively processes nested structures.

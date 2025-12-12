@@ -14,6 +14,7 @@ from typing import Any, TypeVar, get_args, get_origin
 
 import narwhals as nw
 from anyschema.parsers import ParserStep
+from anyschema.typing import FieldConstraints, FieldMetadata, FieldType
 
 
 T = TypeVar("T")
@@ -39,7 +40,7 @@ class GoodParserStep(ParserStep):
         input_type: FieldType,
         constraints: FieldConstraints,
         metadata: FieldMetadata,
-    ) -> DType | None:
+    ) -> nw.dtypes.DType | None:
         # Check if we can handle this type
         if input_type is CustomType:
             return nw.String()

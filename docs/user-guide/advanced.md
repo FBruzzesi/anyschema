@@ -13,6 +13,7 @@ Parser steps should inherit from the [ParserStep][api-parser-step] base class
 and implement the `parse` method with the following signature:
 
 ```python
+import narwhals as nw
 from anyschema.typing import FieldConstraints, FieldMetadata, FieldType
 
 
@@ -21,7 +22,7 @@ def parse(
     input_type: FieldType,
     constraints: FieldConstraints,
     metadata: FieldMetadata,
-) -> DType | None:
+) -> nw.dtypes.DType | None:
     ...
 ```
 
@@ -49,7 +50,7 @@ class ColorStep(ParserStep):
         input_type: FieldType,
         constraints: FieldConstraints,
         metadata: FieldMetadata,
-    ) -> DType | None:
+    ) -> nw.dtypes.DType | None:
         """Parse Color to String dtype.
 
         Arguments:
@@ -166,7 +167,7 @@ class CustomConstraintStep(ParserStep):
         input_type: FieldType,
         constraints: FieldConstraints,
         metadata: FieldMetadata,
-    ) -> DType | None:
+    ) -> nw.dtypes.DType | None:
         """Parse integers with size constraints.
 
         Uses constraints to determine whether to use Int32 or Int64.

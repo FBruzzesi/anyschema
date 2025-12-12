@@ -157,8 +157,8 @@ def test_custom_adapter() -> None:
     assert len(result) == len(fields)
 
     expected = [
-        ("id", int, ()),
-        ("name", str, ()),
+        ("id", int, (), {}),
+        ("name", str, (), {}),
     ]
     assert result == expected
 
@@ -177,7 +177,7 @@ def test_custom_adapter_nested() -> None:
     result = list(good_adapter(spec))
 
     assert len(result) == len(fields)
-    assert result[0] == ("id", int, ())
+    assert result[0] == ("id", int, (), {})
 
     # Check that nested field is a TypedDict
     assert result[1][0] == "profile"

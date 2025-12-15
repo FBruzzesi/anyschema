@@ -219,7 +219,15 @@ print(schema._nw_schema)
 
 ### SQLAlchemy Tables
 
-For SQLAlchemy tables and ORM models, use the `info` parameter in `Column()` or `mapped_column()`:
+For SQLAlchemy tables and ORM models, use the `info` parameter in `Column()` or `mapped_column()`.
+
+!!! info "SQLAlchemy DateTime Behavior"
+
+    * Use `DateTime()` (or `DateTime(timezone=False)`) for naive datetimes.
+        You can specify [`anyschema/time_unit`](#anyschematime_unit) metadata but **not**
+        [`anyschema/time_zone`](#anyschematime_zone).
+    * Use `DateTime(timezone=True)` for timezone-aware datetimes. You **must** specify
+        [`anyschema/time_zone`](#anyschematime_zone) metadata via the `info` parameter.
 
 ```python exec="true" source="above" result="python" session="metadata-sqlalchemy"
 from sqlalchemy import Column, DateTime, Integer, MetaData, String, Table

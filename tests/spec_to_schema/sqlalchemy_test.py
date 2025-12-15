@@ -10,12 +10,15 @@ import pytest
 from anyschema import AnySchema
 from tests.conftest import (
     ComplexORM,
+    EventORMWithTimeMetadata,
     ProductORM,
     SimpleUserORM,
     array_fixed_table,
     array_list_table,
     bigint_table,
     complex_table,
+    event_table_with_time_metadata,
+    event_table_with_tz_aware,
     user_table,
 )
 
@@ -107,6 +110,53 @@ if TYPE_CHECKING:
     ],
 )
 def test_sqlalchemy_spec(spec: SQLAlchemyTableType, expected_schema: Mapping[str, nw.dtypes.DType]) -> None:
+    schema = AnySchema(spec=spec)
+    nw_schema = schema._nw_schema
+    assert nw_schema == nw.Schema(expected_schema)
+
+
+@pytest.mark.parametrize(
+    ("spec", "expected_schema"),
+    [
+        # Table with time metadata
+        (
+            event_table_with_time_metadata,
+            {
+                "id": nw.Int32(),
+                "name": nw.String(),
+                "created_at": nw.Datetime(),
+                "scheduled_at": nw.Datetime(time_zone="UTC"),
+                "started_at": nw.Datetime(time_unit="ms"),
+                "completed_at": nw.Datetime(time_unit="ns", time_zone="Europe/Berlin"),
+            },
+        ),
+        # ORM with time metadata
+        (
+            EventORMWithTimeMetadata,
+            {
+                "id": nw.Int32(),
+                "name": nw.String(),
+                "created_at": nw.Datetime(),
+                "scheduled_at": nw.Datetime(time_zone="UTC"),
+                "started_at": nw.Datetime(time_unit="ms"),
+                "completed_at": nw.Datetime(time_unit="ns", time_zone="Europe/Berlin"),
+            },
+        ),
+        # Table with timezone-aware datetime
+        (
+            event_table_with_tz_aware,
+            {
+                "id": nw.Int32(),
+                "timestamp_utc": nw.Datetime(time_zone="UTC"),
+                "timestamp_berlin": nw.Datetime(time_unit="ms", time_zone="Europe/Berlin"),
+            },
+        ),
+    ],
+)
+def test_sqlalchemy_spec_with_time_metadata(
+    spec: SQLAlchemyTableType, expected_schema: Mapping[str, nw.dtypes.DType]
+) -> None:
+    """Test that SQLAlchemy specs with time metadata are correctly converted to narwhals schema."""
     schema = AnySchema(spec=spec)
     nw_schema = schema._nw_schema
     assert nw_schema == nw.Schema(expected_schema)

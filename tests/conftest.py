@@ -302,11 +302,11 @@ event_table_with_time_metadata = Table(
     Column("id", Integer, primary_key=True),
     Column("name", String(100)),
     Column("created_at", DateTime),  # No metadata
-    Column("scheduled_at", DateTime, info={"anyschema/time_zone": "UTC"}),
+    Column("scheduled_at", DateTime(timezone=True), info={"anyschema/time_zone": "UTC"}),
     Column("started_at", DateTime, info={"anyschema/time_unit": "ms"}),
     Column(
         "completed_at",
-        DateTime,
+        DateTime(timezone=True),
         info={"anyschema/time_zone": "Europe/Berlin", "anyschema/time_unit": "ns"},
     ),
 )
@@ -320,10 +320,10 @@ class EventORMWithTimeMetadata(SQLAlchemyBase):
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str]
     created_at: Mapped[DateTime] = mapped_column(DateTime)
-    scheduled_at: Mapped[DateTime] = mapped_column(DateTime, info={"anyschema/time_zone": "UTC"})
+    scheduled_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), info={"anyschema/time_zone": "UTC"})
     started_at: Mapped[DateTime] = mapped_column(DateTime, info={"anyschema/time_unit": "ms"})
     completed_at: Mapped[DateTime] = mapped_column(
-        DateTime, info={"anyschema/time_zone": "Europe/Berlin", "anyschema/time_unit": "ns"}
+        DateTime(timezone=True), info={"anyschema/time_zone": "Europe/Berlin", "anyschema/time_unit": "ns"}
     )
 
 

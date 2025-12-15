@@ -113,7 +113,7 @@ def test_sqlalchemy_adapter_with_time_metadata_table() -> None:
         ),
         (
             "scheduled_at",
-            DateTime(),
+            DateTime(timezone=True),
             (),
             {"anyschema/nullable": True, "anyschema/unique": False, "anyschema/time_zone": "UTC"},
         ),
@@ -125,7 +125,7 @@ def test_sqlalchemy_adapter_with_time_metadata_table() -> None:
         ),
         (
             "completed_at",
-            DateTime(),
+            DateTime(timezone=True),
             (),
             {
                 "anyschema/nullable": True,
@@ -166,7 +166,7 @@ def test_sqlalchemy_adapter_with_time_metadata_orm() -> None:
         ),
         (
             "scheduled_at",
-            DateTime(),
+            DateTime(timezone=True),
             (),
             {"anyschema/nullable": False, "anyschema/unique": False, "anyschema/time_zone": "UTC"},
         ),
@@ -178,7 +178,7 @@ def test_sqlalchemy_adapter_with_time_metadata_orm() -> None:
         ),
         (
             "completed_at",
-            DateTime(),
+            DateTime(timezone=True),
             (),
             {
                 "anyschema/nullable": False,

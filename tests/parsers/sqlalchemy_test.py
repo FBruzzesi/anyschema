@@ -67,7 +67,7 @@ def test_sqlalchemy_parse_step(sqlalchemy_step: SQLAlchemyTypeStep, input_type: 
     assert result == expected
 
 
-@pytest.mark.parametrize(("time_unit"), ["s", "ms", "ns", "us"])
+@pytest.mark.parametrize("time_unit", ["s", "ms", "ns", "us"])
 def test_sqlalchemy_datetime_naive_with_time_unit_metadata(
     sqlalchemy_step: SQLAlchemyTypeStep, time_unit: TimeUnit
 ) -> None:

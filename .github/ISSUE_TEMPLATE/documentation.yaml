@@ -1,0 +1,98 @@
+name: 📚 Documentation Issue
+description: Report an issue with documentation or suggest improvements
+title: "[Docs]: "
+labels: ["documentation", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve anyschema's documentation!
+        Good documentation is crucial for a great developer experience.
+
+  - type: dropdown
+    id: doc-type
+    attributes:
+      label: Documentation Type
+      description: What type of documentation issue is this?
+      options:
+        - Missing documentation
+        - Incorrect/outdated documentation
+        - Unclear/confusing documentation
+        - Typo or grammar issue
+        - Example code issue
+        - API reference issue
+        - Tutorial/guide improvement
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: location
+    attributes:
+      label: Documentation Location
+      description: Where is the documentation issue located?
+      placeholder: e.g., https://fbruzzesi.github.io/anyschema/user-guide/getting-started/ or "API Reference > AnySchema"
+    validations:
+      required: true
+
+  - type: textarea
+    id: issue-description
+    attributes:
+      label: Issue Description
+      description: Describe the documentation issue in detail.
+      placeholder: |
+        What is wrong, missing, or unclear?
+        What did you expect to find?
+        What did you actually find?
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggested-improvement
+    attributes:
+      label: Suggested Improvement
+      description: How would you improve this documentation?
+      placeholder: |
+        Provide suggestions for:
+        - What content should be added or changed
+        - How it could be explained better
+        - What examples would be helpful
+
+  - type: textarea
+    id: example-code
+    attributes:
+      label: Code Example (if applicable)
+      description: If suggesting a code example, provide it here.
+      placeholder: |
+        ```python
+        # Your suggested example code
+        from anyschema import AnySchema
+        # ...
+        ```
+      render: python
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional Context
+      description: Add any other context, screenshots, or information about the documentation issue.
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Contribution
+      description: Would you be willing to help?
+      options:
+        - label: I am willing to submit a PR to improve this documentation
+        - label: I can provide additional examples or use cases
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Checklist
+      description: Please confirm the following
+      options:
+        - label: I have checked that this documentation issue hasn't been reported yet
+          required: true
+        - label: I have reviewed the current documentation at the specified location
+          required: true

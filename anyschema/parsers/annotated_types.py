@@ -135,8 +135,7 @@ class AnnotatedTypesStep(ParserStep):
             for dtype, (_lower, _upper) in INT_RANGES.items():
                 if lower_bound >= _lower and upper_bound <= _upper:
                     return dtype
-            # If no signed type fits, use Int64
-            return nw.Int64()
+            return nw.Int64()  # If no signed type fits, use Int64
 
     @staticmethod
     def _extract_numeric_value(value: Any) -> int | float:

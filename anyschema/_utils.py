@@ -57,17 +57,13 @@ def _get_deps_info() -> dict[str, str]:
         "typing_extensions",
         "attrs",
         "pydantic",
+        "sqlalchemy",
         "pandas",
         "polars",
         "pyarrow",
     )
-    result: dict[str, str] = dict.fromkeys(libs, "")
-
-    for dist in distributions():
-        if (dist_name := dist.name.lower()) in result:  # exact match
-            result[dist_name] = dist.version
-
-    return result
+    dist_map = {dist.name.lower(): dist.version for dist in distributions()}
+    return {lib: dist_map.get(lib, "") for lib in libs}
 
 
 def show_versions() -> None:

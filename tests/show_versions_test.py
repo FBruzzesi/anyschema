@@ -23,6 +23,7 @@ def test_show_versions(capsys: pytest.CaptureFixture) -> None:
     assert "typing_extensions" in out
     assert "attrs" in out
     assert "pydantic" in out
+    assert "sqlalchemy" in out
     assert "pandas" in out
     assert "polars" in out
     assert "pyarrow" in out

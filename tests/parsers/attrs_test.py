@@ -20,7 +20,7 @@ def attrs_parser() -> AttrsTypeStep:
 
 
 def test_parse_attrs_class_into_struct(attrs_parser: AttrsTypeStep) -> None:
-    result = attrs_parser.parse(AttrsPerson)
+    result = attrs_parser.parse(AttrsPerson, (), {})
 
     expected_fields = [
         nw.Field(name="name", dtype=nw.String()),
@@ -35,7 +35,7 @@ def test_parse_attrs_class_into_struct(attrs_parser: AttrsTypeStep) -> None:
 
 
 def test_parse_frozen_attrs_class(attrs_parser: AttrsTypeStep) -> None:
-    result = attrs_parser.parse(AttrsPersonFrozen)
+    result = attrs_parser.parse(AttrsPersonFrozen, (), {})
 
     expected_fields = [
         nw.Field(name="name", dtype=nw.String()),
@@ -51,7 +51,7 @@ def test_parse_empty_attrs_class(attrs_parser: AttrsTypeStep) -> None:
     class EmptyClass:
         pass
 
-    result = attrs_parser.parse(EmptyClass)
+    result = attrs_parser.parse(EmptyClass, (), {})
     expected = nw.Struct([])
     assert result == expected
 
@@ -60,7 +60,7 @@ def test_parse_non_attrs_class_returns_none(attrs_parser: AttrsTypeStep) -> None
     class RegularClass:
         pass
 
-    result = attrs_parser.parse(RegularClass)
+    result = attrs_parser.parse(RegularClass, (), {})
     assert result is None
 
 
@@ -72,7 +72,7 @@ def test_parse_classic_attr_s_decorator(attrs_parser: AttrsTypeStep) -> None:
         name: str
         value: int
 
-    result = attrs_parser.parse(ClassicAttrs)
+    result = attrs_parser.parse(ClassicAttrs, (), {})
 
     expected_fields = [
         nw.Field(name="name", dtype=nw.String()),
@@ -83,7 +83,7 @@ def test_parse_classic_attr_s_decorator(attrs_parser: AttrsTypeStep) -> None:
 
 
 def test_parse_attrs_with_inheritance(attrs_parser: AttrsTypeStep) -> None:
-    result = attrs_parser.parse(AttrsDerived)
+    result = attrs_parser.parse(AttrsDerived, (), {})
 
     expected_fields = [
         nw.Field(name="foo", dtype=nw.String()),
@@ -97,4 +97,4 @@ def test_parse_attrs_with_inheritance(attrs_parser: AttrsTypeStep) -> None:
 def test_parse_attrs_missing_decorator_raises(attrs_parser: AttrsTypeStep) -> None:
     child_cls, expected_msg = create_missing_decorator_test_case()
     with pytest.raises(AssertionError, match=expected_msg.replace("(", r"\(").replace(")", r"\)")):
-        attrs_parser.parse(child_cls)
+        attrs_parser.parse(child_cls, (), {})

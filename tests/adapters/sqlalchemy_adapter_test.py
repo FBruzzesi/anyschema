@@ -31,32 +31,38 @@ def assert_result_equal(result: Iterable[FieldSpec], expected: Iterable[FieldSpe
 @pytest.mark.parametrize(
     ("spec", "expected"),
     [
-        (SimpleUserORM, [("id", Integer(), (False,)), ("name", String(), (True,))]),
+        (
+            SimpleUserORM,
+            [
+                ("id", Integer(), (), {"anyschema/nullable": False, "anyschema/unique": False}),
+                ("name", String(), (), {"anyschema/nullable": True, "anyschema/unique": False}),
+            ],
+        ),
         (
             UserWithTypesORM,
             [
-                ("id", Integer(), (False,)),
-                ("name", String(50), (False,)),
-                ("age", Integer(), (True,)),
-                ("score", Float(), (True,)),
+                ("id", Integer(), (), {"anyschema/nullable": False, "anyschema/unique": False}),
+                ("name", String(50), (), {"anyschema/nullable": False, "anyschema/unique": False}),
+                ("age", Integer(), (), {"anyschema/nullable": True, "anyschema/unique": False}),
+                ("score", Float(), (), {"anyschema/nullable": True, "anyschema/unique": False}),
             ],
         ),
         (
             user_table,
             [
-                ("id", Integer(), (False,)),
-                ("name", String(50), (True,)),
-                ("age", Integer(), (True,)),
-                ("email", String(100), (True,)),
+                ("id", Integer(), (), {"anyschema/nullable": False, "anyschema/unique": False}),
+                ("name", String(50), (), {"anyschema/nullable": True, "anyschema/unique": False}),
+                ("age", Integer(), (), {"anyschema/nullable": True, "anyschema/unique": False}),
+                ("email", String(100), (), {"anyschema/nullable": True, "anyschema/unique": False}),
             ],
         ),
         (
             numeric_table,
             [
-                ("int_col", Integer(), (True,)),
-                ("bigint_col", BigInteger(), (True,)),
-                ("string_col", String(100), (True,)),
-                ("float_col", Float(), (True,)),
+                ("int_col", Integer(), (), {"anyschema/nullable": True, "anyschema/unique": False}),
+                ("bigint_col", BigInteger(), (), {"anyschema/nullable": True, "anyschema/unique": False}),
+                ("string_col", String(100), (), {"anyschema/nullable": True, "anyschema/unique": False}),
+                ("float_col", Float(), (), {"anyschema/nullable": True, "anyschema/unique": False}),
             ],
         ),
     ],

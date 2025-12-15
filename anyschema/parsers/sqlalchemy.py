@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import narwhals as nw
 from sqlalchemy import types as sqltypes
@@ -10,6 +10,8 @@ from anyschema.parsers._base import ParserStep
 
 if TYPE_CHECKING:
     from narwhals.dtypes import DType
+
+    from anyschema.typing import FieldConstraints, FieldMetadata, FieldType
 
 __all__ = ("SQLAlchemyTypeStep",)
 
@@ -43,12 +45,18 @@ class SQLAlchemyTypeStep(ParserStep):
         It requires [sqlalchemy](https://www.sqlalchemy.org/) to be installed.
     """
 
-    def parse(self, input_type: Any, metadata: tuple = ()) -> DType | None:
+    def parse(  # noqa: C901, PLR0912
+        self,
+        input_type: FieldType,
+        constraints: FieldConstraints,
+        metadata: FieldMetadata,
+    ) -> DType | None:
         """Parse SQLAlchemy-specific types into Narwhals dtypes.
 
         Arguments:
-            input_type: The SQLAlchemy type to parse.
-            metadata: Optional metadata associated with the type (e.g., nullable).
+            input_type: The type to parse.
+            constraints: Constraints associated with the type.
+            metadata: Custom metadata dictionary.
 
         Returns:
             A Narwhals DType if this parser can handle the type, None otherwise.
@@ -56,73 +64,57 @@ class SQLAlchemyTypeStep(ParserStep):
         if not isinstance(input_type, sqltypes.TypeEngine):
             return None
 
-        return self._parse_sqlalchemy_type(input_type, metadata)
-
-    def _parse_sqlalchemy_type(  # noqa: C901, PLR0911, PLR0912
-        self,
-        sql_type: sqltypes.TypeEngine,
-        metadata: tuple = (),
-    ) -> DType | None:
-        """Map a SQLAlchemy type to a Narwhals dtype.
-
-        Arguments:
-            sql_type: The SQLAlchemy type instance.
-            metadata: Optional metadata (e.g., nullable).
-
-        Returns:
-            A Narwhals DType.
-        """
         # NOTE: The order is quite important. In fact:
         #   * issubclass(Enum(...), String) -> True
         #   * issubclass(SmallInteger(), Integer) -> True
         #   * issubclass(Double(), Float) -> True
-        if isinstance(sql_type, sqltypes.Enum):
-            categories = sql_type.enum_class if sql_type.enum_class is not None else sql_type.enums
+        if isinstance(input_type, sqltypes.Enum):
+            categories = input_type.enum_class if input_type.enum_class is not None else input_type.enums
             return nw.Enum(categories)
-        if isinstance(sql_type, STRING_TYPES):
+        if isinstance(input_type, STRING_TYPES):
             return nw.String()
-        if isinstance(sql_type, sqltypes.Boolean):
+        if isinstance(input_type, sqltypes.Boolean):
             return nw.Boolean()
-        if isinstance(sql_type, sqltypes.SmallInteger):
+        if isinstance(input_type, sqltypes.SmallInteger):
             return nw.Int16()
-        if isinstance(sql_type, sqltypes.BigInteger):
+        if isinstance(input_type, sqltypes.BigInteger):
             return nw.Int64()
-        if isinstance(sql_type, sqltypes.Integer):
+        if isinstance(input_type, sqltypes.Integer):
             return nw.Int32()
-        if isinstance(sql_type, sqltypes.Double):
+        if isinstance(input_type, sqltypes.Double):
             return nw.Float64()
-        if isinstance(sql_type, (sqltypes.Float, sqltypes.REAL)):
+        if isinstance(input_type, (sqltypes.Float, sqltypes.REAL)):
             return nw.Float32()
-        if isinstance(sql_type, sqltypes.DECIMAL):
+        if isinstance(input_type, sqltypes.DECIMAL):
             return nw.Decimal()
-        if isinstance(sql_type, sqltypes.Numeric):
+        if isinstance(input_type, sqltypes.Numeric):
             # Safest option?
             return nw.Float64()
-        if isinstance(sql_type, sqltypes.Date):
+        if isinstance(input_type, sqltypes.Date):
             return nw.Date()
-        if isinstance(sql_type, sqltypes.DateTime):
+        if isinstance(input_type, sqltypes.DateTime):
             # Check for timezone awareness
-            if hasattr(sql_type, "timezone") and sql_type.timezone:
+            if hasattr(input_type, "timezone") and input_type.timezone:
                 msg = "TODO: How can we extrapolate the timezone value?"
                 raise NotImplementedError(msg)
             return nw.Datetime()
-        if isinstance(sql_type, sqltypes.Time):
+        if isinstance(input_type, sqltypes.Time):
             return nw.Time()
-        if isinstance(sql_type, sqltypes.Interval):
+        if isinstance(input_type, sqltypes.Interval):
             return nw.Duration()
-        if isinstance(sql_type, BINARY_TYPES):
+        if isinstance(input_type, BINARY_TYPES):
             return nw.Binary()
-        if isinstance(sql_type, sqltypes.ARRAY):
-            inner_type = self.pipeline.parse(sql_type.item_type, metadata=metadata)
+        if isinstance(input_type, sqltypes.ARRAY):
+            inner_type = self.pipeline.parse(input_type.item_type, constraints=constraints, metadata=metadata)
             if inner_type is None:  # pragma: no cover
                 msg = (
-                    f"Found unsupported inner type: {sql_type.item_type}.\n"
+                    f"Found unsupported inner type: {input_type.item_type}.\n"
                     "Please consider opening a feature request https://github.com/FBruzzesi/anyschema/issues"
                 )
                 raise UnsupportedDTypeError(msg)
-            if sql_type.dimensions is None:
+            if input_type.dimensions is None:
                 return nw.List(inner=inner_type)
             else:
-                return nw.Array(inner=inner_type, shape=sql_type.dimensions)
+                return nw.Array(inner=inner_type, shape=input_type.dimensions)
 
         return None

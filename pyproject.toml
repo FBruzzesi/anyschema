@@ -118,6 +118,7 @@ ignore = [
   "RET505",
   "FIX002",
   "TD003",
+  "PLR0911", # Too many return statements
 ]
 
 [tool.ruff.lint.per-file-ignores]

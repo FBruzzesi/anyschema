@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Generator, Mapping, Sequence
-from typing import TYPE_CHECKING, Any, Literal, Protocol, TypeAlias
+from typing import TYPE_CHECKING, Annotated, Any, Literal, Protocol, TypeAlias
 
 from anyschema.parsers import ParserStep
 
 if TYPE_CHECKING:
-    from dataclasses import Field
+    from dataclasses import Field as DataclassField
     from typing import ClassVar
 
     from attrs import AttrsInstance
@@ -40,11 +40,12 @@ Spec: TypeAlias = "Schema | IntoOrderedDict | type[BaseModel] | DataclassType | 
 """Input specification supported directly by [`AnySchema`][anyschema.AnySchema]."""
 
 FieldName: TypeAlias = str
-FieldType: TypeAlias = Any
-FieldMetadata: TypeAlias = tuple
+FieldType: TypeAlias = type | Annotated[Any, ...]
+FieldConstraints: TypeAlias = tuple[Any, ...]
+FieldMetadata: TypeAlias = dict[str, Any]
 
-FieldSpec: TypeAlias = tuple[FieldName, FieldType, FieldMetadata]
-"""Field specification: alias for a tuple of `(str, type, tuple(metadata, ...))`."""
+FieldSpec: TypeAlias = tuple[FieldName, FieldType, FieldConstraints, FieldMetadata]
+"""Field specification: alias for a tuple of `(str, type, tuple(constraints, ...), dict(metadata))`."""
 
 FieldSpecIterable: TypeAlias = Generator[FieldSpec, None, None]
 """Return type of an adapter."""
@@ -64,7 +65,7 @@ class DataclassType(Protocol):
     #   with all type checkers
     # code adapted from typeshed:
     # https://github.com/python/typeshed/blob/9ab7fde0a0cd24ed7a72837fcb21093b811b80d8/stdlib/_typeshed/__init__.pyi#L351
-    __dataclass_fields__: ClassVar[dict[str, Field[Any]]]
+    __dataclass_fields__: ClassVar[dict[str, DataclassField[Any]]]
 
 
 class TypedDictType(Protocol):

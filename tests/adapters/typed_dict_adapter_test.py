@@ -24,6 +24,6 @@ class PersonTypedDict(TypedDict):
     ],
 )
 def test_typed_dict_adapter(spec: TypedDictType) -> None:
-    expected = (("name", str, ()), ("age", int, ()), ("date_of_birth", date, ()))
+    expected = (("name", str, (), {}), ("age", int, (), {}), ("date_of_birth", date, (), {}))
     result = tuple(typed_dict_adapter(spec))
     assert result == expected

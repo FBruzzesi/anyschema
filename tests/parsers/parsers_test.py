@@ -101,7 +101,7 @@ def test_caching() -> None:
     ],
 )
 def test_non_nested_parsing(auto_pipeline: ParserPipeline, input_type: type, expected: nw.dtypes.DType) -> None:
-    result = auto_pipeline.parse(input_type)
+    result = auto_pipeline.parse(input_type, (), {})
     assert result == expected
 
 
@@ -129,5 +129,5 @@ def test_non_nested_parsing(auto_pipeline: ParserPipeline, input_type: type, exp
     ],
 )
 def test_nested_parsing(auto_pipeline: ParserPipeline, input_type: type, expected: nw.dtypes.DType) -> None:
-    result = auto_pipeline.parse(input_type)
+    result = auto_pipeline.parse(input_type, (), {})
     assert result == expected

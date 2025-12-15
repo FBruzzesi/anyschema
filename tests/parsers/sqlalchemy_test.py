@@ -59,11 +59,11 @@ class Color(Enum):
     ],
 )
 def test_sqlalchemy_parse_step(sqlalchemy_step: SQLAlchemyTypeStep, input_type: Any, expected: nw.dtypes.DType) -> None:
-    result = sqlalchemy_step.parse(input_type=input_type)
+    result = sqlalchemy_step.parse(input_type=input_type, constraints=(), metadata={})
     assert result == expected
 
 
 def test_sqlalchemy_parse_raise_datetime_with_tz(sqlalchemy_step: SQLAlchemyTypeStep) -> None:
     msg = "TODO: How can we extrapolate the timezone value?"
     with pytest.raises(NotImplementedError, match=re.escape(msg)):
-        sqlalchemy_step.parse(input_type=sqltypes.DateTime(timezone=True))
+        sqlalchemy_step.parse(input_type=sqltypes.DateTime(timezone=True), constraints=(), metadata={})

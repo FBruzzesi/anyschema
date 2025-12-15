@@ -39,10 +39,18 @@ class Currency:
 ## 2. Create custom parser for these such types
 
 ```python exec="true" source="above" session="end-to-end"
+from anyschema.typing import FieldConstraints, FieldMetadata, FieldType
+
+
 class CustomerTypesStep(ParserStep):
     """Parser for custom types."""
 
-    def parse(self, input_type: Any, metadata: tuple = ()) -> DType | None:
+    def parse(
+        self,
+        input_type: FieldType,
+        constraints: FieldConstraints,
+        metadata: FieldMetadata,
+    ) -> DType | None:
         if input_type is Email:
             return nw.String()
         elif input_type is PhoneNumber:
@@ -77,7 +85,7 @@ def customer_schema_adapter(spec: CustomerSchema) -> FieldSpecIterable:
         if not required:
             field_type = field_type | None
 
-        yield field_name, field_type, ()
+        yield field_name, field_type, (), {}
 ```
 
 ## 5. Create pipeline steps with custom parser

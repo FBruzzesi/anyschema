@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from types import NoneType, UnionType
-from typing import TYPE_CHECKING, Any, Union
+from typing import TYPE_CHECKING, Union
 
 from typing_extensions import get_args, get_origin  # noqa: UP035
 
@@ -10,6 +10,8 @@ from anyschema.parsers._base import ParserStep
 
 if TYPE_CHECKING:
     from narwhals.dtypes import DType
+
+    from anyschema.typing import FieldConstraints, FieldMetadata, FieldType
 
 
 class UnionTypeStep(ParserStep):
@@ -21,42 +23,36 @@ class UnionTypeStep(ParserStep):
     - Extracts the non-None type and its metadata for further parsing
     """
 
-    def parse(self, input_type: Any, metadata: tuple = ()) -> DType | None:
+    def parse(self, input_type: FieldType, constraints: FieldConstraints, metadata: FieldMetadata) -> DType | None:
         """Parse Union types, particularly Optional types.
 
         Arguments:
             input_type: The type to parse.
-            metadata: Optional metadata associated with the type (will be preserved and passed through).
+            constraints: Constraints associated with the type (will be preserved and passed through).
+            metadata: Custom metadata dictionary (will be preserved and passed through).
 
         Returns:
             A Narwhals DType by extracting the non-None type and delegating to the chain.
         """
         # Handle Union types from typing module (including Optional)
-        if get_origin(input_type) is Union:
-            args = get_args(input_type)
-            extracted_type, extracted_metadata = self._parse_union(args, metadata)
-            return self.pipeline.parse(extracted_type, extracted_metadata, strict=True)
-
         # Handle UnionType (PEP 604: T | U syntax)
-        if isinstance(input_type, UnionType):
+        if get_origin(input_type) is Union or isinstance(input_type, UnionType):
             args = get_args(input_type)
-            extracted_type, extracted_metadata = self._parse_union(args, metadata)
-            return self.pipeline.parse(extracted_type, extracted_metadata, strict=True)
+            extracted_type = self._parse_union(args)
+            return self.pipeline.parse(extracted_type, constraints, metadata, strict=True)
 
         return None
 
-    def _parse_union(
-        self, union: tuple[type[Any], ...], outer_metadata: tuple = ()
-    ) -> tuple[type[Any], tuple[Any, ...]]:
+    def _parse_union(self, union: tuple[FieldType, ...]) -> FieldType:
         """Extract the non-None type from a Union.
 
         Arguments:
             union: Tuple of types in the Union.
-            outer_metadata: Metadata from the outer type (e.g., from Annotated[Optional[T], ...]).
+            outer_constraints: Constraints from the outer type (e.g., from Annotated[Optional[T], ...]).
 
         Returns:
-            A tuple of (non-None type, preserved metadata tuple).
-            The outer metadata is preserved to ensure constraints aren't lost.
+            A tuple of (non-None type, preserved constraints tuple).
+            The outer constraints are preserved to ensure constraints aren't lost.
 
         Raises:
             UnsupportedDTypeError: If the Union has more than 2 types or both types are not None.
@@ -71,6 +67,4 @@ class UnionTypeStep(ParserStep):
             msg = "Union with mixed types is not supported."
             raise UnsupportedDTypeError(msg)
 
-        # Extract the non-None type. Return the type as-is and preserve the outer metadata
-        extracted_type = field1 if field0 is NoneType else field0
-        return extracted_type, outer_metadata
+        return field1 if field0 is NoneType else field0

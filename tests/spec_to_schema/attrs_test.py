@@ -9,6 +9,7 @@ from anyschema import AnySchema
 from tests.conftest import (
     AttrsAddressWithPydantic,
     AttrsDerived,
+    AttrsEventWithTimeMetadata,
     AttrsPerson,
     AttrsPersonWithLiterals,
     create_missing_decorator_test_case,
@@ -54,6 +55,16 @@ if TYPE_CHECKING:
                 "foo": nw.String(),
                 "bar": nw.Int64(),
                 "baz": nw.Float64(),
+            },
+        ),
+        (
+            AttrsEventWithTimeMetadata,
+            {
+                "name": nw.String(),
+                "created_at": nw.Datetime("us"),
+                "scheduled_at": nw.Datetime("us", time_zone="UTC"),
+                "started_at": nw.Datetime("ms"),
+                "completed_at": nw.Datetime("ns", time_zone="Europe/Berlin"),
             },
         ),
     ],

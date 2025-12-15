@@ -11,10 +11,6 @@ The following built-in adapters are not meant to be used directly. They serve mo
     options:
       show_root_heading: true
       show_source: true
-    members:
-      - dataclass_adapter
-      - into_ordered_dict_adapter
-      - pydantic_adapter
 
 ## Adapters specification
 
@@ -22,12 +18,20 @@ Adapters must follow this signature:
 
 ```python
 from typing import Iterator, TypeAlias, Callable, Any, Generator
-from anyschema.typing import FieldMetadata, FieldName, FieldType
+from anyschema.typing import FieldConstraints, FieldMetadata, FieldName, FieldType
 
-FieldSpec: TypeAlias = tuple[FieldName, FieldType, FieldMetadata]
+FieldSpec: TypeAlias = tuple[FieldName, FieldType, FieldConstraints, FieldMetadata]
 
 
 def my_custom_adapter(spec: Any) -> Iterator[FieldSpec]:
+    """
+    Yields tuples of (field_name, field_type, constraints, metadata).
+
+    - name (str): The name of the field
+    - type (type): The type annotation of the field
+    - constraints (tuple): Type constraints (e.g., Gt(0), Le(100) from annotated-types)
+    - metadata (dict): Custom metadata dictionary for additional information
+    """
     ...
 ```
 

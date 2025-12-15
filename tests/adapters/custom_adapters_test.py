@@ -27,10 +27,10 @@ def simple_dict_adapter(spec: SimpleSchema) -> Generator[FieldSpec, None, None]:
         spec: A SimpleSchema instance.
 
     Yields:
-        Tuples of (field_name, field_type, metadata).
+        Tuples of (field_name, field_type, constraints, metadata).
     """
     for field_name, field_type in spec.fields.items():
-        yield field_name, field_type, ()
+        yield field_name, field_type, (), {}
 
 
 class NestedSchema:
@@ -50,20 +50,20 @@ def nested_adapter(spec: NestedSchema) -> Generator[FieldSpec, None, None]:
         spec: A NestedSchema instance.
 
     Yields:
-        Tuples of (field_name, field_type, metadata).
+        Tuples of (field_name, field_type, constraints, metadata).
     """
     for field_name, field_value in spec.fields.items():
         if isinstance(field_value, NestedSchema):
             # For nested schemas, create a TypedDict with the proper structure
-            nested_dict = {name: type_ for name, type_, _ in nested_adapter(field_value)}
+            nested_dict = {name: type_ for name, type_, *_ in nested_adapter(field_value)}
             # Create a dynamic TypedDict with the nested fields
             nested_typed_dict = TypedDict(  # type: ignore[arg-type]
                 f"{field_name.title()}TypedDict",  # Generate a unique name
                 nested_dict,  # Field name -> type mapping
             )
-            yield field_name, nested_typed_dict, ()
+            yield field_name, nested_typed_dict, (), {}
         else:
-            yield field_name, field_value, ()
+            yield field_name, field_value, (), {}
 
 
 def test_simple_dict_spec() -> None:

@@ -33,7 +33,7 @@ def annotated_parser() -> AnnotatedStep:
     ],
 )
 def test_parse_annotated(annotated_parser: AnnotatedStep, input_type: type, expected: nw.dtypes.DType) -> None:
-    result = annotated_parser.parse(input_type)
+    result = annotated_parser.parse(input_type, (), {})
     assert result == expected
 
 
@@ -51,13 +51,13 @@ def test_parse_annotated(annotated_parser: AnnotatedStep, input_type: type, expe
 def test_parse_annotated_various_metadata(annotated_parser: AnnotatedStep, metadata_items: tuple) -> None:
     """Parametrized test for Annotated with various metadata."""
     input_type = Annotated[int, metadata_items]
-    result = annotated_parser.parse(input_type)
+    result = annotated_parser.parse(input_type, (), {})
     assert result == nw.Int64()
 
 
 @pytest.mark.parametrize("input_type", [int, str, list[int], tuple[str, ...]])
 def test_parse_non_annotated(annotated_parser: AnnotatedStep, input_type: type) -> None:
-    result = annotated_parser.parse(input_type)
+    result = annotated_parser.parse(input_type, (), {})
     assert result is None
 
 
@@ -66,10 +66,10 @@ def test_parse_annotated_with_class_metadata(annotated_parser: AnnotatedStep) ->
         def __init__(self, value: str) -> None:
             self.value = value
 
-    result = annotated_parser.parse(Annotated[int, CustomMetadata("test")])
+    result = annotated_parser.parse(Annotated[int, CustomMetadata("test")], (), {})
     assert result == nw.Int64()
 
 
 def test_parse_annotated_with_callable_metadata(annotated_parser: AnnotatedStep) -> None:
-    result = annotated_parser.parse(Annotated[int, lambda x: x > 0])
+    result = annotated_parser.parse(Annotated[int, lambda x: x > 0], (), {})
     assert result == nw.Int64()

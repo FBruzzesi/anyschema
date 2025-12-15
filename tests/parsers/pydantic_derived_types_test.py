@@ -57,5 +57,5 @@ def parser_pipeline() -> ParserPipeline:
 )
 def test_pydantic_derived_types(parser_pipeline: ParserPipeline, input_type: Any, expected: nw.dtypes.DType) -> None:
     """Test that pydantic parser handles derived types correctly."""
-    result = parser_pipeline.parse(input_type)
+    result = parser_pipeline.parse(input_type, (), {})
     assert result == expected

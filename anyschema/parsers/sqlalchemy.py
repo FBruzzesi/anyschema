@@ -93,11 +93,24 @@ class SQLAlchemyTypeStep(ParserStep):
         if isinstance(input_type, sqltypes.Date):
             return nw.Date()
         if isinstance(input_type, sqltypes.DateTime):
-            # Check for timezone awareness
-            if hasattr(input_type, "timezone") and input_type.timezone:
-                msg = "TODO: How can we extrapolate the timezone value?"
-                raise NotImplementedError(msg)
-            return nw.Datetime()
+            is_tz_aware = input_type.timezone
+            time_zone, time_unit = metadata.get("anyschema/time_zone"), metadata.get("anyschema/time_unit", "us")
+            if is_tz_aware and (time_zone is None):
+                msg = (
+                    "SQLAlchemy `DateTime(timezone=True)` does not specify a fixed timezone.\n\n"
+                    "Hint: You can specify a timezone via `Column(..., info={'anyschema/time_zone': 'UTC'}` "
+                    "or `mapped_column(..., info={'anyschema/time_zone': 'UTC'}`."
+                )
+                raise UnsupportedDTypeError(msg)
+
+            if (not is_tz_aware) and (time_zone is not None):
+                msg = f"SQLAlchemy `DateTime(timezone=False)` should not specify a fixed timezone, found {time_zone}"
+                raise UnsupportedDTypeError(msg)
+
+            return nw.Datetime(
+                time_unit=time_unit,
+                time_zone=time_zone,
+            )
         if isinstance(input_type, sqltypes.Time):
             return nw.Time()
         if isinstance(input_type, sqltypes.Interval):

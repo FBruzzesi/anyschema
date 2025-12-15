@@ -56,7 +56,10 @@ class PydanticTypeStep(ParserStep):
             # See https://github.com/pydantic/pydantic/issues/5829
             # Unless a timezone is specified via "anyschema/time_zone", we raise an error.
             if (time_zone := metadata.get("anyschema/time_zone")) is None:
-                msg = "pydantic AwareDatetime does not specify a fixed timezone."
+                msg = (
+                    "pydantic AwareDatetime does not specify a fixed timezone.\n\n"
+                    "Hint: You can specify a timezone via `Field(..., json_schema_extra={'anyschema/time_zone': 'UTC'}`"
+                )
                 raise UnsupportedDTypeError(msg)
 
             return nw.Datetime(

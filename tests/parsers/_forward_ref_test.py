@@ -155,6 +155,8 @@ def test_build_namespace_includes_pydantic_types() -> None:
         assert "confloat" in parser.globalns
         assert "conlist" in parser.globalns
         assert "conset" in parser.globalns
+    else:  # pragma: no cover
+        ...
 
 
 def test_build_namespace_includes_annotated_types() -> None:
@@ -175,3 +177,5 @@ def test_build_namespace_includes_annotated_types() -> None:
         assert "Len" in parser.globalns
         assert "Timezone" in parser.globalns
         assert "Predicate" in parser.globalns
+    else:  # pragma: no cover
+        ...

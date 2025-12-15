@@ -1,7 +1,7 @@
 # anyschema: From Type Specifications to Dataframe Schemas
 
-`anyschema` is a Python library that enables conversions from type specifications (such as Pydantic models) to native
-dataframe schemas (such as PyArrow, Polars, and Pandas).
+`anyschema` is a Python library that enables conversions from type specifications (such as Pydantic models, SQLAlchemy
+tables, attrs classes, TypedDict, dataclasses) to native dataframe schemas (such as PyArrow, Polars, and Pandas).
 
 !!! warning "Development Status"
     `anyschema` is still in early development and possibly unstable.
@@ -23,10 +23,11 @@ any package manager. For instance:
     uv pip install anyschema
     ```
 
-We suggest to install also `pydantic` or `attrs` to follow along with the examples.
+We suggest to install also `pydantic`, `attrs`, or `sqlalchemy` to follow along with the examples.
 
 - `anyschema` interoperability with pydantic models requires `pydantic>=2.0.0`.
 - `anyschema` interoperability with attrs classes requires `attrs>=24.0.0`.
+- `anyschema` interoperability with SQLAlchemy tables requires `sqlalchemy>=2.0.0`.
 
 === "pip"
 
@@ -34,6 +35,8 @@ We suggest to install also `pydantic` or `attrs` to follow along with the exampl
     python -m pip install "anyschema[pydantic]"
     # or
     python -m pip install "anyschema[attrs]"
+    # or
+    python -m pip install "anyschema[sqlalchemy]"
     ```
 
 === "uv"
@@ -42,6 +45,8 @@ We suggest to install also `pydantic` or `attrs` to follow along with the exampl
     uv pip install "anyschema[pydantic]"
     # or
     uv pip install "anyschema[attrs]"
+    # or
+    uv pip install "anyschema[sqlalchemy]"
     ```
 
 ## Quick Start
@@ -92,19 +97,20 @@ Then, you can convert it to different dataframe schemas:
 
 ## When to use `anyschema`
 
-`anyschema` is designed for scenarios where some type specifications (e.g. a Pydantic Model) want to be used as a single
-source of truth for both validation and (dataframe) schema generation.
+`anyschema` is designed for scenarios where type specifications (e.g., Pydantic models, SQLAlchemy tables) serve as a
+single source of truth for both validation and dataframe schema generation.
 
-The typical use cases are: Data pipelines, API to database workflows, schema generation, type-safe data processing.
+The typical use cases are: Data pipelines, database-to-dataframe workflows, API to database workflows, schema
+generation, type-safe data processing.
 
 ## Key Features
 
-- **Multiple Input Formats**: Support for Pydantic models, attrs classes, TypedDict, dataclasses, Python mappings and
-    sequence of field specifications.
+- **Multiple Input Formats**: Support for Pydantic models, SQLAlchemy tables (ORM and Core), attrs classes, TypedDict,
+    dataclasses, Python mappings and sequence of field specifications.
 - **Multiple Output Formats**: Convert to PyArrow, Polars, or Pandas schemas.
 - **Modular Architecture**: Extensible parser pipeline for custom type handling.
 - **Rich Type Support**: Handles complex types including Optional, Union, List, nested structures, Pydantic-specific
-    types, and attrs classes.
+    types, SQLAlchemy types, and attrs classes.
 - **Narwhals Integration**: Leverages [Narwhals](https://narwhals-dev.github.io/narwhals/) as the intermediate
     representation.
 
@@ -122,6 +128,7 @@ patterns:
     library.
 - [`PydanticTypeStep`][api-pydantic-type-step]: Handles Pydantic-specific types.
 - [`AttrsTypeStep`][api-attrs-type-step]: Handles attrs classes.
+- [`SQLAlchemyTypeStep`][api-sqlalchemy-type-step]: Handles SQLAlchemy column types.
 - [`PyTypeStep`][api-py-type-step]: Handles basic Python types (fallback).
 
 Learn more about how these work together in the [Architecture](architecture.md) section.
@@ -135,6 +142,7 @@ Adapters convert input specifications into a common format that the parser pipel
 - [`dataclass_adapter`][api-dataclass-adapter]: Extracts field information from dataclasses.
 - [`attrs_adapter`][api-attrs-adapter]: Extracts field information from attrs classes.
 - [`pydantic_adapter`][api-pydantic-adapter]: Extracts field information from Pydantic models.
+- [`sqlalchemy_adapter`][api-sqlalchemy-adapter]: Extracts field information from SQLAlchemy tables.
 
 See the [API Reference](api-reference/adapters.md) for detailed documentation.
 
@@ -179,9 +187,11 @@ as an intermediate representation. `anyschema` makes this conversion seamless an
 [api-annotated-types-step]: api-reference/parsers.md#anyschema.parsers.annotated_types.AnnotatedTypesStep
 [api-attrs-type-step]: api-reference/parsers.md#anyschema.parsers.attrs.AttrsTypeStep
 [api-pydantic-type-step]: api-reference/parsers.md#anyschema.parsers.pydantic.PydanticTypeStep
+[api-sqlalchemy-type-step]: api-reference/parsers.md#anyschema.parsers.sqlalchemy.SQLAlchemyTypeStep
 [api-py-type-step]: api-reference/parsers.md#anyschema.parsers.PyTypeStep
 [api-into-ordered-dict-adapter]: api-reference/adapters.md#anyschema.adapters.into_ordered_dict_adapter
 [api-typed-dict-adapter]: api-reference/adapters.md#anyschema.adapters.typed_dict_adapter
 [api-dataclass-adapter]: api-reference/adapters.md#anyschema.adapters.dataclass_adapter
 [api-pydantic-adapter]: api-reference/adapters.md#anyschema.adapters.pydantic_adapter
 [api-attrs-adapter]: api-reference/adapters.md#anyschema.adapters.attrs_adapter
+[api-sqlalchemy-adapter]: api-reference/adapters.md#anyschema.adapters.sqlalchemy_adapter

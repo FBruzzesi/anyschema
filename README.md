@@ -9,8 +9,8 @@
 
 ---
 
-`anyschema` allows you to convert from type specifications (such as Pydantic models, TypedDict, dataclasses, or plain
-Python dicts) to _any_ dataframe schema (by _"any"_ we intend those supported by Narwhals).
+`anyschema` allows you to convert from type specifications (such as Pydantic models, SQLAlchemy tables, TypedDict,
+dataclasses, or plain Python dicts) to _any_ dataframe schema (by _"any"_ we intend those supported by Narwhals).
 
 Let's see how it works in practice with an example:
 
@@ -59,16 +59,19 @@ any package manager. For instance:
 
 ```bash
 uv pip install "anyschema[pydantic]"
+# or with SQLAlchemy support
+uv pip install "anyschema[sqlalchemy]"
 ```
 
-To allow interoperability with pydantic models.
+To allow interoperability with Pydantic models or SQLAlchemy tables.
 
 ## When to use `anyschema`
 
-`anyschema` is designed for scenarios where some type specifications (e.g. a Pydantic Model) want to be used as a single
-source of truth for both validation and (dataframe) schema generation.
+`anyschema` is designed for scenarios where type specifications (e.g., Pydantic models, SQLAlchemy tables) serve as a
+single source of truth for both validation and dataframe schema generation.
 
-The typical use cases are: Data pipelines, API to database workflows, schema generation, type-safe data processing.
+The typical use cases are: Data pipelines, database-to-dataframe workflows, API to database workflows, schema
+generation, type-safe data processing.
 
 ## Why `anyschema`?
 

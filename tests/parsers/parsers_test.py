@@ -20,6 +20,7 @@ from anyschema.parsers import (
 from anyschema.parsers.annotated_types import AnnotatedTypesStep
 from anyschema.parsers.attrs import AttrsTypeStep
 from anyschema.parsers.pydantic import PydanticTypeStep
+from anyschema.parsers.sqlalchemy import SQLAlchemyTypeStep
 
 AUTO_PIPELINE_CLS_ORDER = (
     ForwardRefStep,
@@ -28,6 +29,7 @@ AUTO_PIPELINE_CLS_ORDER = (
     AnnotatedTypesStep,
     AttrsTypeStep,
     PydanticTypeStep,
+    SQLAlchemyTypeStep,
     PyTypeStep,
 )
 

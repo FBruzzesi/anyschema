@@ -217,9 +217,125 @@ schema = AnySchema(spec=PydanticDataclassEvent)
 print(schema._nw_schema)
 ```
 
+### SQLAlchemy Tables
+
+For SQLAlchemy tables and ORM models, use the `info` parameter in `Column()` or `mapped_column()`.
+
+!!! info "SQLAlchemy DateTime Behavior"
+
+    * Use `DateTime()` (or `DateTime(timezone=False)`) for naive datetimes.
+        You can specify [`anyschema/time_unit`](#anyschematime_unit) metadata but **not**
+        [`anyschema/time_zone`](#anyschematime_zone).
+    * Use `DateTime(timezone=True)` for timezone-aware datetimes. You **must** specify
+        [`anyschema/time_zone`](#anyschematime_zone) metadata via the `info` parameter.
+
+```python exec="true" source="above" result="python" session="metadata-sqlalchemy"
+from sqlalchemy import Column, DateTime, Integer, MetaData, String, Table
+from anyschema import AnySchema
+
+metadata = MetaData()
+
+event_table = Table(
+    "events",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("name", String(100)),
+    Column("created_at", DateTime),  # Default datetime (no metadata)
+    Column(
+        "scheduled_at",
+        DateTime(timezone=True),
+        info={"anyschema/time_zone": "UTC"},  # Specify timezone via info
+    ),
+    Column(
+        "started_at",
+        DateTime,
+        info={"anyschema/time_unit": "ms"},  # Specify time precision via info
+    ),
+    Column(
+        "completed_at",
+        DateTime(timezone=True),
+        info={  # Specify both timezone and precision
+            "anyschema/time_zone": "Europe/Berlin",
+            "anyschema/time_unit": "ns",
+        },
+    ),
+)
+
+schema = AnySchema(spec=event_table)
+print(schema._nw_schema)
+```
+
+This also works with SQLAlchemy ORM models using `mapped_column()`:
+
+```python exec="true" source="above" result="python" session="metadata-sqlalchemy"
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+
+
+class Base(DeclarativeBase):
+    pass
+
+
+class EventORM(Base):
+    __tablename__ = "event_orm"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str]
+    created_at: Mapped[DateTime] = mapped_column(DateTime)
+    scheduled_at: Mapped[DateTime] = mapped_column(
+        DateTime(timezone=True), info={"anyschema/time_zone": "UTC"}
+    )
+    started_at: Mapped[DateTime] = mapped_column(
+        DateTime, info={"anyschema/time_unit": "ms"}
+    )
+    completed_at: Mapped[DateTime] = mapped_column(
+        DateTime(timezone=True),
+        info={"anyschema/time_zone": "Europe/Berlin", "anyschema/time_unit": "ns"},
+    )
+
+
+schema = AnySchema(spec=EventORM)
+print(schema._nw_schema)
+```
+
+#### SQLAlchemy Timezone-Aware DateTime
+
+When using `DateTime(timezone=True)` in SQLAlchemy, you **must** specify a timezone via the `info` parameter:
+
+```python exec="true" source="above" result="python" session="metadata-sqlalchemy"
+event_table_tz = Table(
+    "events_tz",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column(
+        "timestamp_utc",
+        DateTime(timezone=True),  # timezone=True requires time_zone in info
+        info={"anyschema/time_zone": "UTC"},
+    ),
+    Column(
+        "timestamp_berlin",
+        DateTime(timezone=True),
+        info={"anyschema/time_zone": "Europe/Berlin", "anyschema/time_unit": "ms"},
+    ),
+)
+
+schema = AnySchema(spec=event_table_tz)
+print(schema._nw_schema)
+```
+
+!!! warning "DateTime(timezone=True) Requires Timezone"
+    SQLAlchemy's `DateTime(timezone=True)` does not specify a fixed timezone value (it only indicates the database
+    should store timezone information).
+
+    You **must** specify a timezone via `info={'anyschema/time_zone': 'UTC'}`, otherwise anyschema will raise an
+    `UnsupportedDTypeError`.
+
+!!! warning "DateTime() Cannot Have Timezone with timezone=False"
+    SQLAlchemy's `DateTime()` or `DateTime(timezone=False)` is for naive datetimes and will raise an
+    `UnsupportedDTypeError` if you specify a timezone in the `info` parameter.
+
 ### TypedDict
 
-!!! note "TypedDict Limitation"
+!!! info "TypedDict Limitation"
     TypedDict classes do not support field metadata at the type annotation level.
     If you need to specify metadata for TypedDict fields, consider using dataclasses, Pydantic models, or attrs classes
     instead.

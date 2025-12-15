@@ -13,11 +13,12 @@ if TYPE_CHECKING:
 
     from pydantic import BaseModel
 
-    from anyschema.typing import AttrsClassType, DataclassType, IntoOrderedDict, TypedDictType
+    from anyschema.typing import AttrsClassType, DataclassType, IntoOrderedDict, SQLAlchemyTableType, TypedDictType
 
 ANNOTATED_TYPES_AVAILABLE = find_spec("annotated_types") is not None
 PYDANTIC_AVAILABLE = find_spec("pydantic") is not None
 ATTRS_AVAILABLE = find_spec("attrs") is not None
+SQLALCHEMY_AVAILABLE = find_spec("sqlalchemy") is not None
 
 
 def get_pydantic() -> ModuleType | None:  # pragma: no cover
@@ -64,3 +65,30 @@ def is_attrs_class(obj: object) -> TypeIs[AttrsClassType]:
     Supports @attrs.define/@attrs.frozen decorators.
     """
     return (attrs := get_attrs()) is not None and attrs.has(obj)
+
+
+def get_sqlalchemy() -> ModuleType | None:
+    """Get sqlalchemy module (if already imported - else return None)."""
+    return sys.modules.get("sqlalchemy", None)
+
+
+def get_sqlalchemy_orm() -> ModuleType | None:
+    """Get sqlalchemy.orm module (if already imported - else return None)."""
+    return sys.modules.get("sqlalchemy.orm", None)
+
+
+def is_sqlalchemy_table(obj: object) -> TypeIs[SQLAlchemyTableType]:
+    """Check if the object is a SQLAlchemy Table or DeclarativeBase class.
+
+    Supports both:
+
+    - SQLAlchemy Table instances (Core)
+    - SQLAlchemy ORM mapped classes (DeclarativeBase subclasses)
+    """
+    is_table = (sql := get_sqlalchemy()) is not None and isinstance(obj, sql.Table)
+    is_declarative_base = (
+        (sql_orm := get_sqlalchemy_orm()) is not None
+        and isinstance(obj, type)
+        and issubclass(obj, sql_orm.DeclarativeBase)
+    )
+    return is_table or is_declarative_base

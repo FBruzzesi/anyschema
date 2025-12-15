@@ -10,6 +10,7 @@ from anyschema._dependencies import (
     is_dataclass,
     is_into_ordered_dict,
     is_pydantic_base_model,
+    is_sqlalchemy_table,
     is_typed_dict,
 )
 from anyschema.adapters import (
@@ -17,6 +18,7 @@ from anyschema.adapters import (
     dataclass_adapter,
     into_ordered_dict_adapter,
     pydantic_adapter,
+    sqlalchemy_adapter,
     typed_dict_adapter,
 )
 from anyschema.parsers import make_pipeline
@@ -58,6 +60,10 @@ class AnySchema:
                 The fields are extracted using Pydantic's schema introspection.
             - An [attrs class](https://www.attrs.org/) (not an instance).
                 The fields are extracted using attrs introspection.
+            - A [SQLAlchemy Table](https://docs.sqlalchemy.org/en/20/core/metadata.html#sqlalchemy.schema.Table)
+                instance or [DeclarativeBase](https://docs.sqlalchemy.org/en/20/orm/mapping_api.html#sqlalchemy.orm.DeclarativeBase)
+                subclass (not an instance).
+                The fields are extracted using SQLAlchemy's schema introspection.
 
         steps: Control how types are parsed into Narwhals dtypes. Options:
 
@@ -175,6 +181,8 @@ class AnySchema:
             adapter_f = pydantic_adapter
         elif is_attrs_class(spec):
             adapter_f = attrs_adapter
+        elif is_sqlalchemy_table(spec):
+            adapter_f = sqlalchemy_adapter
         elif adapter is not None:
             adapter_f = adapter
         else:

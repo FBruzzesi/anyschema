@@ -8,6 +8,8 @@ import attrs
 import narwhals as nw
 import pytest
 from pydantic import AwareDatetime, BaseModel, Field, FutureDatetime, NaiveDatetime, PastDate, PastDatetime, PositiveInt
+from sqlalchemy import ARRAY, BigInteger, Boolean, Column, Date, DateTime, Float, Integer, MetaData, String, Table
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 from anyschema.parsers import make_pipeline
 
@@ -192,3 +194,152 @@ def create_missing_decorator_test_case() -> tuple[type, str]:
     )
 
     return ChildWithoutDecorator, expected_msg
+
+
+class SQLAlchemyBase(DeclarativeBase):
+    pass
+
+
+class SimpleUserORM(SQLAlchemyBase):
+    __tablename__ = "simple_user"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str | None]
+
+
+class UserWithTypesORM(SQLAlchemyBase):
+    __tablename__ = "user_with_types"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(50))
+    age: Mapped[int] = mapped_column(Integer, nullable=True)
+    score: Mapped[float | None]
+
+
+class ProductORM(SQLAlchemyBase):
+    """ORM model with multiple field types for testing."""
+
+    __tablename__ = "product_orm"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str]
+    price: Mapped[float]
+    in_stock: Mapped[bool]
+
+
+class ComplexORM(SQLAlchemyBase):
+    """ORM model with various column types for testing."""
+
+    __tablename__ = "complex_orm"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(50))
+    description: Mapped[str]
+    age: Mapped[int]
+    score: Mapped[float] = mapped_column(Float)
+    is_active: Mapped[bool]
+    created_at: Mapped[DateTime] = mapped_column(DateTime)
+    birth_date: Mapped[Date] = mapped_column(Date)
+
+
+# Core Table instances
+metadata = MetaData()
+
+user_table = Table(
+    "user",
+    metadata,
+    Column("id", Integer, primary_key=True, nullable=False),
+    Column("name", String(50)),
+    Column("age", Integer),
+    Column("email", String(100), nullable=True),
+)
+
+numeric_table = Table(
+    "numeric_table",
+    metadata,
+    Column("int_col", Integer),
+    Column("bigint_col", BigInteger),
+    Column("string_col", String(100)),
+    Column("float_col", Float),
+)
+
+complex_table = Table(
+    "complex_table",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("name", String(50)),
+    Column("description", String),
+    Column("age", Integer),
+    Column("score", Float),
+    Column("is_active", Boolean),
+    Column("created_at", DateTime),
+    Column("birth_date", Date),
+)
+
+bigint_table = Table(
+    "bigint_table",
+    metadata,
+    Column("id", BigInteger, primary_key=True),
+    Column("count", BigInteger),
+)
+
+array_list_table = Table(
+    "array_list_table",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("tags", ARRAY(String)),
+    Column("scores", ARRAY(Float)),
+)
+
+array_fixed_table = Table(
+    "array_fixed_table",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("coordinates", ARRAY(Float, dimensions=3)),
+    Column("matrix", ARRAY(Integer, dimensions=2)),
+)
+
+# Tables with datetime metadata
+event_table_with_time_metadata = Table(
+    "event_with_time_metadata",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("name", String(100)),
+    Column("created_at", DateTime),  # No metadata
+    Column("scheduled_at", DateTime(timezone=True), info={"anyschema/time_zone": "UTC"}),
+    Column("started_at", DateTime, info={"anyschema/time_unit": "ms"}),
+    Column(
+        "completed_at",
+        DateTime(timezone=True),
+        info={"anyschema/time_zone": "Europe/Berlin", "anyschema/time_unit": "ns"},
+    ),
+)
+
+
+# ORM model with datetime metadata
+class EventORMWithTimeMetadata(SQLAlchemyBase):
+    """ORM model with datetime fields that have time metadata."""
+
+    __tablename__ = "event_orm_with_time_metadata"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str]
+    created_at: Mapped[DateTime] = mapped_column(DateTime)
+    scheduled_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), info={"anyschema/time_zone": "UTC"})
+    started_at: Mapped[DateTime] = mapped_column(DateTime, info={"anyschema/time_unit": "ms"})
+    completed_at: Mapped[DateTime] = mapped_column(
+        DateTime(timezone=True), info={"anyschema/time_zone": "Europe/Berlin", "anyschema/time_unit": "ns"}
+    )
+
+
+# Table with timezone-aware datetime (timezone=True)
+event_table_with_tz_aware = Table(
+    "event_with_tz_aware",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column(
+        "timestamp_utc",
+        DateTime(timezone=True),
+        info={"anyschema/time_zone": "UTC"},
+    ),
+    Column(
+        "timestamp_berlin",
+        DateTime(timezone=True),
+        info={"anyschema/time_zone": "Europe/Berlin", "anyschema/time_unit": "ms"},
+    ),
+)

@@ -4,8 +4,10 @@ This guide will help you get started with `anyschema` and explore its core funct
 
 ## Basic Usage
 
-`anyschema` accepts specifications in multiple formats (and more to come, see [anyschema[#11](https://github.com/FBruzzesi/anyschema/issues/11)])
-and converts them to dataframe schemas. Let's explore each approach and when to use it.
+`anyschema` accepts specifications in multiple formats including Pydantic models, SQLAlchemy tables, TypedDict,
+dataclasses, attrs classes, and plain Python dicts (and more to come, see [anyschema#11](https://github.com/FBruzzesi/anyschema/issues/11)).
+
+Let's explore each approach and when to use it.
 
 ### With Pydantic Models
 
@@ -107,6 +109,61 @@ class User:
 schema = AnySchema(spec=User)
 print(schema.to_arrow())
 ```
+
+### With SQLAlchemy Tables
+
+[SQLAlchemy](https://www.sqlalchemy.org/) provides powerful ORM and Core table definitions that can be used directly:
+
+=== "ORM (DeclarativeBase)"
+
+    ```python exec="true" source="above" result="python" session="basic-sqlalchemy-orm"
+    from anyschema import AnySchema
+    from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+    from sqlalchemy import String
+
+
+    class Base(DeclarativeBase):
+        pass
+
+
+    class User(Base):
+        __tablename__ = "user"
+
+        id: Mapped[int] = mapped_column(primary_key=True)
+        username: Mapped[str] = mapped_column(String(50))
+        email: Mapped[str]
+        is_active: Mapped[bool]
+
+
+    schema = AnySchema(spec=User)
+    print(schema.to_arrow())
+    ```
+
+=== "Core (Table)"
+
+    ```python exec="true" source="above" result="python" session="basic-sqlalchemy-core"
+    from anyschema import AnySchema
+    from sqlalchemy import Table, Column, Integer, String, Boolean, MetaData
+
+
+    metadata = MetaData()
+    user_table = Table(
+        "user",
+        metadata,
+        Column("id", Integer, primary_key=True),
+        Column("username", String(50)),
+        Column("email", String(100)),
+        Column("is_active", Boolean),
+    )
+
+    schema = AnySchema(spec=user_table)
+    print(schema.to_arrow())
+    ```
+
+SQLAlchemy support includes comprehensive type mapping for numeric types, strings, dates, binary data, JSON, UUIDs,
+Enums, and PostgreSQL-specific types like `ARRAY`.
+
+Both dynamic-length arrays (converted to `List`) and fixed-dimension  arrays (converted to `Array`) are supported.
 
 ### With Python Mappings
 

@@ -7,7 +7,15 @@ from sqlalchemy import BigInteger, Float, Integer, String
 from sqlalchemy.types import TypeEngine
 
 from anyschema.adapters import sqlalchemy_adapter
-from tests.conftest import SimpleUserORM, UserWithTypesORM, numeric_table, user_table
+from tests.conftest import (
+    EventORMWithTimeMetadata,
+    SimpleUserORM,
+    UserWithTypesORM,
+    event_table_with_time_metadata,
+    event_table_with_tz_aware,
+    numeric_table,
+    user_table,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -76,3 +84,144 @@ def test_sqlalchemy_adapter_invalid_type() -> None:
     msg = "Expected SQLAlchemy Table or DeclarativeBase subclass, got 'str'"
     with pytest.raises(TypeError, match=msg):
         list(sqlalchemy_adapter("not a table"))  # type: ignore[arg-type]
+
+
+def test_sqlalchemy_adapter_with_time_metadata_table() -> None:
+    """Test that SQLAlchemy Table adapter correctly extracts time metadata from column.info."""
+    from sqlalchemy.types import DateTime
+
+    result = list(sqlalchemy_adapter(event_table_with_time_metadata))
+
+    expected = [
+        (
+            "id",
+            Integer(),
+            (),
+            {"anyschema/nullable": False, "anyschema/unique": False},
+        ),
+        (
+            "name",
+            String(100),
+            (),
+            {"anyschema/nullable": True, "anyschema/unique": False},
+        ),
+        (
+            "created_at",
+            DateTime(),
+            (),
+            {"anyschema/nullable": True, "anyschema/unique": False},
+        ),
+        (
+            "scheduled_at",
+            DateTime(),
+            (),
+            {"anyschema/nullable": True, "anyschema/unique": False, "anyschema/time_zone": "UTC"},
+        ),
+        (
+            "started_at",
+            DateTime(),
+            (),
+            {"anyschema/nullable": True, "anyschema/unique": False, "anyschema/time_unit": "ms"},
+        ),
+        (
+            "completed_at",
+            DateTime(),
+            (),
+            {
+                "anyschema/nullable": True,
+                "anyschema/unique": False,
+                "anyschema/time_zone": "Europe/Berlin",
+                "anyschema/time_unit": "ns",
+            },
+        ),
+    ]
+
+    assert_result_equal(result, expected)
+
+
+def test_sqlalchemy_adapter_with_time_metadata_orm() -> None:
+    """Test that SQLAlchemy ORM adapter correctly extracts time metadata from mapped_column info."""
+    from sqlalchemy.types import DateTime
+
+    result = list(sqlalchemy_adapter(EventORMWithTimeMetadata))
+
+    expected = [
+        (
+            "id",
+            Integer(),
+            (),
+            {"anyschema/nullable": False, "anyschema/unique": False},
+        ),
+        (
+            "name",
+            String(),
+            (),
+            {"anyschema/nullable": False, "anyschema/unique": False},
+        ),
+        (
+            "created_at",
+            DateTime(),
+            (),
+            {"anyschema/nullable": False, "anyschema/unique": False},
+        ),
+        (
+            "scheduled_at",
+            DateTime(),
+            (),
+            {"anyschema/nullable": False, "anyschema/unique": False, "anyschema/time_zone": "UTC"},
+        ),
+        (
+            "started_at",
+            DateTime(),
+            (),
+            {"anyschema/nullable": False, "anyschema/unique": False, "anyschema/time_unit": "ms"},
+        ),
+        (
+            "completed_at",
+            DateTime(),
+            (),
+            {
+                "anyschema/nullable": False,
+                "anyschema/unique": False,
+                "anyschema/time_zone": "Europe/Berlin",
+                "anyschema/time_unit": "ns",
+            },
+        ),
+    ]
+
+    assert_result_equal(result, expected)
+
+
+def test_sqlalchemy_adapter_with_tz_aware_datetime() -> None:
+    """Test that SQLAlchemy adapter correctly extracts timezone-aware datetime metadata."""
+    from sqlalchemy.types import DateTime as SQLADateTime
+
+    result = list(sqlalchemy_adapter(event_table_with_tz_aware))
+
+    expected = [
+        (
+            "id",
+            Integer(),
+            (),
+            {"anyschema/nullable": False, "anyschema/unique": False},
+        ),
+        (
+            "timestamp_utc",
+            SQLADateTime(timezone=True),
+            (),
+            {"anyschema/nullable": True, "anyschema/unique": False, "anyschema/time_zone": "UTC"},
+        ),
+        (
+            "timestamp_berlin",
+            SQLADateTime(timezone=True),
+            (),
+            {
+                "anyschema/nullable": True,
+                "anyschema/unique": False,
+                "anyschema/time_zone": "Europe/Berlin",
+                "anyschema/time_unit": "ms",
+            },
+        ),
+    ]
+
+    assert_result_equal(result, expected)

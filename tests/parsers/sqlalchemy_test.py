@@ -2,14 +2,18 @@ from __future__ import annotations
 
 import re
 from enum import Enum
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import narwhals as nw
 import pytest
 from sqlalchemy import types as sqltypes
 
+from anyschema.exceptions import UnsupportedDTypeError
 from anyschema.parsers import make_pipeline
 from anyschema.parsers.sqlalchemy import SQLAlchemyTypeStep
+
+if TYPE_CHECKING:
+    from narwhals.typing import TimeUnit
 
 
 @pytest.fixture
@@ -63,7 +67,50 @@ def test_sqlalchemy_parse_step(sqlalchemy_step: SQLAlchemyTypeStep, input_type: 
     assert result == expected
 
 
-def test_sqlalchemy_parse_raise_datetime_with_tz(sqlalchemy_step: SQLAlchemyTypeStep) -> None:
-    msg = "TODO: How can we extrapolate the timezone value?"
-    with pytest.raises(NotImplementedError, match=re.escape(msg)):
+@pytest.mark.parametrize(("time_unit"), ["s", "ms", "ns", "us"])
+def test_sqlalchemy_datetime_naive_with_time_unit_metadata(
+    sqlalchemy_step: SQLAlchemyTypeStep, time_unit: TimeUnit
+) -> None:
+    result = sqlalchemy_step.parse(
+        input_type=sqltypes.DateTime(), constraints=(), metadata={"anyschema/time_unit": time_unit}
+    )
+    assert result == nw.Datetime(time_unit)
+
+
+def test_sqlalchemy_datetime_tz_aware_without_metadata_raises(sqlalchemy_step: SQLAlchemyTypeStep) -> None:
+    msg = re.escape("SQLAlchemy `DateTime(timezone=True)` does not specify a fixed timezone.")
+    with pytest.raises(UnsupportedDTypeError, match=msg):
         sqlalchemy_step.parse(input_type=sqltypes.DateTime(timezone=True), constraints=(), metadata={})
+
+
+@pytest.mark.parametrize(
+    ("metadata", "expected"),
+    [
+        ({"anyschema/time_zone": "UTC"}, nw.Datetime("us", time_zone="UTC")),
+        ({"anyschema/time_zone": "Europe/Rome"}, nw.Datetime("us", time_zone="Europe/Rome")),
+        ({"anyschema/time_unit": "ms", "anyschema/time_zone": "UTC"}, nw.Datetime("ms", time_zone="UTC")),
+        (
+            {"anyschema/time_unit": "ns", "anyschema/time_zone": "America/New_York"},
+            nw.Datetime("ns", time_zone="America/New_York"),
+        ),
+    ],
+)
+def test_sqlalchemy_datetime_tz_aware_with_metadata(
+    sqlalchemy_step: SQLAlchemyTypeStep, metadata: dict[str, Any], expected: nw.dtypes.DType
+) -> None:
+    result = sqlalchemy_step.parse(
+        input_type=sqltypes.DateTime(timezone=True),
+        constraints=(),
+        metadata=metadata,
+    )
+    assert result == expected
+
+
+def test_sqlalchemy_datetime_naive_with_timezone_raises(sqlalchemy_step: SQLAlchemyTypeStep) -> None:
+    msg = re.escape("SQLAlchemy `DateTime(timezone=False)` should not specify a fixed timezone, found UTC")
+    with pytest.raises(Exception, match=msg):
+        sqlalchemy_step.parse(
+            input_type=sqltypes.DateTime(timezone=False),
+            constraints=(),
+            metadata={"anyschema/time_zone": "UTC"},
+        )

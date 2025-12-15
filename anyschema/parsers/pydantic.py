@@ -62,10 +62,7 @@ class PydanticTypeStep(ParserStep):
                 )
                 raise UnsupportedDTypeError(msg)
 
-            return nw.Datetime(
-                time_unit=metadata.get("anyschema/time_unit", "us"),
-                time_zone=time_zone,
-            )
+            return nw.Datetime(time_unit=metadata.get("anyschema/time_unit", "us"), time_zone=time_zone)
 
         if issubclass(input_type, NaiveDatetime):  # pyright: ignore[reportArgumentType]
             # Pydantic NaiveDatetime should not receive a timezone.
@@ -74,10 +71,7 @@ class PydanticTypeStep(ParserStep):
                 msg = f"pydantic NaiveDatetime should not specify a timezone, found {time_zone}."
                 raise UnsupportedDTypeError(msg)
 
-            return nw.Datetime(
-                time_unit=metadata.get("anyschema/time_unit", "us"),
-                time_zone=None,
-            )
+            return nw.Datetime(time_unit=metadata.get("anyschema/time_unit", "us"), time_zone=None)
 
         # Handle datetime types
         if issubclass(input_type, (PastDatetime, FutureDatetime)):  # pyright: ignore[reportArgumentType]
@@ -95,8 +89,7 @@ class PydanticTypeStep(ParserStep):
         if is_pydantic_base_model(input_type):
             return self._parse_pydantic_model(input_type)
 
-        # TODO(FBruzzesi): Add support for more pydantic types
-        # https://github.com/FBruzzesi/anyschema/issues/45
+        # TODO(FBruzzesi): Add support for more pydantic types. See https://github.com/FBruzzesi/anyschema/issues/45
 
         # This parser doesn't handle this type
         return None

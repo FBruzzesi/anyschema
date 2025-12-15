@@ -13,4 +13,9 @@ if TYPE_CHECKING:
 
 
 def model_to_nw_schema(spec: type[BaseModel], pipeline: ParserPipeline) -> Schema:
-    return Schema({name: pipeline.parse(input_type, metadata) for name, input_type, metadata in pydantic_adapter(spec)})
+    return Schema(
+        {
+            name: pipeline.parse(input_type, constraints, metadata)
+            for name, input_type, constraints, metadata in pydantic_adapter(spec)
+        }
+    )

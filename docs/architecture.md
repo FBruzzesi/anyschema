@@ -7,7 +7,7 @@ Understanding these concepts will help you extend anyschema and troubleshoot iss
 
 * `anyschema` uses a pipeline architecture with two main phases:
 
-    1. Adapters normalize input specs (Pydantic, dict, etc.) into `(field_name, field_type, metadata)` tuples.
+    1. Adapters normalize input specs (Pydantic, dict, etc.) into `(name, type, constraints, metadata)` tuples.
     2. Parser pipeline converts each type to a Narwhals dtype by running parser steps in sequence.
 
 * Parser steps run in order and the first step to handle a type to Narwhals returns:
@@ -22,7 +22,8 @@ Understanding these concepts will help you extend anyschema and troubleshoot iss
 * Key concepts:
 
     * Return `None` if your parser can't handle a type (lets next parser try).
-    * Use `self.pipeline.parse()` for recursion (handles nested types like `list[YourType]`).
+    * Use `self.pipeline.parse(..., constraints=constraints, metadata=metadata)` for recursion (handles nested types
+        like `list[YourType]`).
     * Pass metadata through when recursing (`metadata=metadata`).
     * Order matters - specialized parsers before general ones.
 
@@ -108,7 +109,7 @@ flowchart TD
 ### Spec Adapters
 
 Spec adapters are functions that convert various input formats into a unified representation, namely an iterable of
-`(field_name, field_type, metadata)` tuples.
+`(name, type, constraints, metadata)` tuples.
 
 See the [API Reference](api-reference/adapters.md) for detailed documentation.
 
@@ -122,7 +123,7 @@ from anyschema.parsers import ParserPipeline, PyTypeStep
 
 pipeline = ParserPipeline(steps=[PyTypeStep()])
 
-dtype = pipeline.parse(int)
+dtype = pipeline.parse(int, constraints=(), metadata={})
 print(dtype)
 ```
 
@@ -188,8 +189,8 @@ class Product(BaseModel):
 
 The pipeline processes this as:
 
-1. `pydantic_adapter` extracts: `("price", Annotated[float, Field(gt=0)], (FieldInfo,))`
-2. `AnnotatedStep` extracts: `float` with metadata `(Field(gt=0), FieldInfo)`
+1. `pydantic_adapter` extracts: `("quantity", int, (Gt(gt=0),), {})`
+2. `AnnotatedStep` extracts constraints: `(Gt(gt=0),)` and passes through
 3. `AnnotatedTypesStep` refines based on constraints and converts to `UInt64` (instead of `Int64`)
 
 ## Recursion and Nested Types
@@ -213,8 +214,8 @@ class Person(BaseModel):
 
 Processing flow:
 
-1. `pydantic_adapter` yields: `("addresses", list[Address], ())`
-2. `PyTypeStep` sees `list[T]` and recursively calls: `pipeline.parse(Address, metadata=())`
+1. `pydantic_adapter` yields: `("addresses", list[Address], (), {})`
+2. `PyTypeStep` sees `list[T]` and recursively calls: `pipeline.parse(Address, constraints=(), metadata={})`
 3. The pipeline handles `Address` as a Pydantic model (which is considered a `Struct`)
 4. Result: `List(Struct([('street', String), ('city', String)]))`
 
@@ -239,9 +240,9 @@ schema = AnySchema(spec=Student)
 Complete processing flow:
 
 1. Spec Adapter: (`pydantic_adapter`):
-    * Extracts: `("name", str, ())`
-    * Extracts: `("age", PositiveInt, ())`
-    * Extracts: `("classes", list[str] | None, ())`
+    * Extracts: `("name", str, (), {})`
+    * Extracts: `("age", PositiveInt, (), {})`
+    * Extracts: `("classes", list[str] | None, (), {})`
 
 2. Parser pipeline for `name: str`:
     * `ForwardRefStep`: Not a `ForwardRef` -> returns `None`

@@ -35,14 +35,60 @@ def pydantic_parser() -> PydanticTypeStep:
     ],
 )
 def test_parse_pydantic_types(pydantic_parser: PydanticTypeStep, input_type: type, expected: nw.dtypes.DType) -> None:
-    result = pydantic_parser.parse(input_type)
+    result = pydantic_parser.parse(input_type, constraints=(), metadata={})
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    ("input_type", "metadata", "expected"),
+    [
+        (NaiveDatetime, {"anyschema/time_unit": "ms"}, nw.Datetime("ms")),
+        (NaiveDatetime, {"anyschema/time_unit": "ns"}, nw.Datetime("ns")),
+        (PastDatetime, {"anyschema/time_unit": "ms"}, nw.Datetime("ms")),
+        (PastDatetime, {"anyschema/time_zone": "UTC"}, nw.Datetime("us", time_zone="UTC")),
+        (
+            PastDatetime,
+            {"anyschema/time_unit": "ms", "anyschema/time_zone": "UTC"},
+            nw.Datetime("ms", time_zone="UTC"),
+        ),
+        (FutureDatetime, {"anyschema/time_unit": "ns"}, nw.Datetime("ns")),
+        (FutureDatetime, {"anyschema/time_zone": "Europe/Rome"}, nw.Datetime("us", time_zone="Europe/Rome")),
+        (
+            FutureDatetime,
+            {"anyschema/time_unit": "ns", "anyschema/time_zone": "America/Los_Angeles"},
+            nw.Datetime("ns", time_zone="America/Los_Angeles"),
+        ),
+    ],
+)
+def test_parse_pydantic_datetime_with_metadata(
+    pydantic_parser: PydanticTypeStep,
+    input_type: type,
+    metadata: dict[str, Any],
+    expected: nw.dtypes.DType,
+) -> None:
+    """Test that pydantic datetime types parse correctly with anyschema/time_zone and anyschema/time_unit metadata."""
+    result = pydantic_parser.parse(input_type, constraints=(), metadata=metadata)
     assert result == expected
 
 
 def test_parse_aware_datetime_raises(pydantic_parser: PydanticTypeStep) -> None:
     expected_msg = "pydantic AwareDatetime does not specify a fixed timezone."
     with pytest.raises(UnsupportedDTypeError, match=expected_msg):
-        pydantic_parser.parse(AwareDatetime)
+        pydantic_parser.parse(AwareDatetime, constraints=(), metadata={})
+
+
+def test_parse_aware_datetime_with_tz(pydantic_parser: PydanticTypeStep) -> None:
+    result = pydantic_parser.parse(AwareDatetime, constraints=(), metadata={"anyschema/time_zone": "Europe/Berlin"})
+    assert result == nw.Datetime(time_zone="Europe/Berlin")
+
+
+def test_parse_aware_datetime_with_tz_and_time_unit(pydantic_parser: PydanticTypeStep) -> None:
+    result = pydantic_parser.parse(
+        AwareDatetime,
+        constraints=(),
+        metadata={"anyschema/time_zone": "Europe/Berlin", "anyschema/time_unit": "ms"},
+    )
+    assert result == nw.Datetime(time_unit="ms", time_zone="Europe/Berlin")
 
 
 def test_parse_model_into_struct(pydantic_parser: PydanticTypeStep) -> None:
@@ -51,7 +97,7 @@ def test_parse_model_into_struct(pydantic_parser: PydanticTypeStep) -> None:
         future_date: FutureDate
         updated_at: NaiveDatetime
 
-    result = pydantic_parser.parse(SomeModel)
+    result = pydantic_parser.parse(SomeModel, constraints=(), metadata={})
 
     expected_fields = [
         nw.Field(name="past_date", dtype=nw.Date()),
@@ -71,7 +117,7 @@ def test_parse_nested_model(pydantic_parser: PydanticTypeStep) -> None:
         name: str
         address: Address
 
-    result = pydantic_parser.parse(Person)
+    result = pydantic_parser.parse(Person, constraints=(), metadata={})
 
     address_fields = [
         nw.Field(name="street", dtype=nw.String()),
@@ -92,7 +138,7 @@ def test_parse_empty_model(pydantic_parser: PydanticTypeStep) -> None:
     class EmptyModel(BaseModel):
         pass
 
-    result = pydantic_parser.parse(EmptyModel)
+    result = pydantic_parser.parse(EmptyModel, constraints=(), metadata={})
 
     expected = nw.Struct([])
     assert result == expected
@@ -100,7 +146,7 @@ def test_parse_empty_model(pydantic_parser: PydanticTypeStep) -> None:
 
 @pytest.mark.parametrize("input_type", [int, float, list[int], date, datetime])
 def parse_non_pydantic_types(pydantic_parser: PydanticTypeStep, input_type: Any) -> None:
-    result = pydantic_parser.parse(input_type)
+    result = pydantic_parser.parse(input_type, constraints=(), metadata={})
     assert result is None
 
 
@@ -110,7 +156,7 @@ def test_parse_custom_class_returns_none(pydantic_parser: PydanticTypeStep) -> N
     class CustomClass:
         pass
 
-    result = pydantic_parser.parse(CustomClass)
+    result = pydantic_parser.parse(CustomClass, constraints=(), metadata={})
     assert result is None
 
 
@@ -120,11 +166,11 @@ def test_parse_model_with_field_metadata(pydantic_parser: PydanticTypeStep) -> N
 
     from pydantic import Field
 
-    class ModelWithMetadata(BaseModel):
+    class ModelWithConstraints(BaseModel):
         name: Annotated[str, Field(min_length=1, max_length=100)]
         age: Annotated[int, Field(gt=0, lt=150)]
 
-    result = pydantic_parser.parse(ModelWithMetadata)
+    result = pydantic_parser.parse(ModelWithConstraints, constraints=(), metadata={})
 
     # The metadata is stored in field_info.metadata but the parsing should still work
     expected_fields = [
@@ -134,3 +180,10 @@ def test_parse_model_with_field_metadata(pydantic_parser: PydanticTypeStep) -> N
     expected = nw.Struct(expected_fields)
 
     assert result == expected
+
+
+def test_parse_naive_datetime_with_timezone_raises(pydantic_parser: PydanticTypeStep) -> None:
+    """Test that NaiveDatetime with timezone raises an error."""
+    expected_msg = "pydantic NaiveDatetime should not specify a timezone, found UTC."
+    with pytest.raises(UnsupportedDTypeError, match=expected_msg):
+        pydantic_parser.parse(NaiveDatetime, constraints=(), metadata={"anyschema/time_zone": "UTC"})

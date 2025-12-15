@@ -87,3 +87,10 @@ The following steps are built-in and come dependency-free.
       show_root_heading: true
       show_source: false
       heading_level: 3
+
+::: anyschema.parsers.sqlalchemy.SQLAlchemyTypeStep
+    handler: python
+    options:
+      show_root_heading: true
+      show_source: false
+      heading_level: 3

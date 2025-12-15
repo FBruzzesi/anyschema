@@ -20,6 +20,7 @@ from anyschema.parsers import (
 from anyschema.parsers.annotated_types import AnnotatedTypesStep
 from anyschema.parsers.attrs import AttrsTypeStep
 from anyschema.parsers.pydantic import PydanticTypeStep
+from anyschema.parsers.sqlalchemy import SQLAlchemyTypeStep
 
 AUTO_PIPELINE_CLS_ORDER = (
     ForwardRefStep,
@@ -28,6 +29,7 @@ AUTO_PIPELINE_CLS_ORDER = (
     AnnotatedTypesStep,
     AttrsTypeStep,
     PydanticTypeStep,
+    SQLAlchemyTypeStep,
     PyTypeStep,
 )
 
@@ -99,7 +101,7 @@ def test_caching() -> None:
     ],
 )
 def test_non_nested_parsing(auto_pipeline: ParserPipeline, input_type: type, expected: nw.dtypes.DType) -> None:
-    result = auto_pipeline.parse(input_type)
+    result = auto_pipeline.parse(input_type, (), {})
     assert result == expected
 
 
@@ -127,5 +129,5 @@ def test_non_nested_parsing(auto_pipeline: ParserPipeline, input_type: type, exp
     ],
 )
 def test_nested_parsing(auto_pipeline: ParserPipeline, input_type: type, expected: nw.dtypes.DType) -> None:
-    result = auto_pipeline.parse(input_type)
+    result = auto_pipeline.parse(input_type, (), {})
     assert result == expected

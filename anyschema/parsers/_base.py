@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any, Literal, overload
+from typing import TYPE_CHECKING, Literal, overload
 
 from anyschema._utils import qualified_type_name
 from anyschema.exceptions import UnavailablePipelineError
@@ -10,6 +10,8 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from narwhals.dtypes import DType
+
+    from anyschema.typing import FieldConstraints, FieldMetadata, FieldType
 
 __all__ = ("ParserPipeline", "ParserStep")
 
@@ -36,30 +38,33 @@ class ParserStep(ABC):
         >>> from typing import get_origin, get_args
         >>> import narwhals as nw
         >>> from anyschema.parsers import ParserStep, PyTypeStep, make_pipeline
+        >>> from anyschema.typing import FieldConstraints, FieldMetadata, FieldType
         >>>
         >>> class CustomType: ...
         >>> class CustomList[T]: ...
         >>>
         >>> class CustomParserStep(ParserStep):
-        ...     def parse(self, input_type: Any, metadata: tuple = ()) -> DType | None:
+        ...     def parse(
+        ...         self, input_type: FieldType, constraints: FieldConstraints, metadata: FieldMetadata
+        ...     ) -> DType | None:
         ...         if input_type is CustomType:
         ...             return nw.String()
         ...
         ...         if get_origin(input_type) is CustomList:
         ...             inner = get_args(input_type)[0]
         ...             # Delegate to pipeline for recursion
-        ...             inner_dtype = self.pipeline.parse(inner, metadata=metadata)
+        ...             inner_dtype = self.pipeline.parse(inner, constraints=constraints, metadata=metadata)
         ...             return nw.List(inner_dtype)
         ...
         ...         # Return None if we can't handle it
         ...         return None
         >>>
         >>> pipeline = make_pipeline(steps=[CustomParserStep(), PyTypeStep()])
-        >>> pipeline.parse(CustomType)
+        >>> pipeline.parse(CustomType, constraints=(), metadata={})
         String
-        >>> pipeline.parse(CustomList[int])
+        >>> pipeline.parse(CustomList[int], constraints=(), metadata={})
         List(Int64)
-        >>> pipeline.parse(CustomList[str])
+        >>> pipeline.parse(CustomList[str], constraints=(), metadata={})
         List(String)
     """
 
@@ -99,12 +104,13 @@ class ParserStep(ABC):
         self._pipeline = pipeline
 
     @abstractmethod
-    def parse(self, input_type: Any, metadata: tuple = ()) -> DType | None:
+    def parse(self, input_type: FieldType, constraints: FieldConstraints, metadata: FieldMetadata) -> DType | None:
         """Parse a type annotation into a Narwhals dtype.
 
         Arguments:
             input_type: The type to parse (e.g., int, str, list[int], etc.)
-            metadata: Optional metadata associated with the type (e.g., constraints)
+            constraints: Constraints associated with the type (e.g., Gt, Le from annotated-types)
+            metadata: Custom metadata dictionary
 
         Returns:
             A Narwhals DType if the parser can handle this type, None otherwise.
@@ -128,30 +134,42 @@ class ParserPipeline:
         self.steps = tuple(steps)
 
     @overload
-    def parse(self, input_type: Any, metadata: tuple = (), *, strict: Literal[True] = True) -> DType: ...
+    def parse(
+        self,
+        input_type: FieldType,
+        constraints: FieldConstraints,
+        metadata: FieldMetadata,
+        *,
+        strict: Literal[True] = True,
+    ) -> DType: ...
     @overload
-    def parse(self, input_type: Any, metadata: tuple = (), *, strict: Literal[False]) -> DType | None: ...
+    def parse(
+        self, input_type: FieldType, constraints: FieldConstraints, metadata: FieldMetadata, *, strict: Literal[False]
+    ) -> DType | None: ...
 
-    def parse(self, input_type: Any, metadata: tuple = (), *, strict: bool = True) -> DType | None:
+    def parse(
+        self, input_type: FieldType, constraints: FieldConstraints, metadata: FieldMetadata, *, strict: bool = True
+    ) -> DType | None:
         """Try each parser in sequence until one succeeds.
 
         Arguments:
             input_type: The type to parse.
-            metadata: Optional metadata associated with the type.
+            constraints: Constraints associated with the type.
+            metadata: Custom metadata dictionary.
             strict: Whether or not to raise if unable to parse `input_type`.
 
         Returns:
             A Narwhals DType from the first successful parser, or None if no parser succeeded and `strict=False`.
         """
         for step in self.steps:
-            result = step.parse(input_type, metadata)
+            result = step.parse(input_type, constraints, metadata)
             if result is not None:
                 return result
 
         if strict:
             msg = (
                 f"No parser in the pipeline could handle type: '{qualified_type_name(input_type)}'.\n"
-                f"Please consider reporting a feature request https://github.com/FBruzzesi/anyschema/issues"
+                f"Please consider opening a feature request https://github.com/FBruzzesi/anyschema/issues"
             )
             raise NotImplementedError(msg)
         return None

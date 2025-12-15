@@ -10,6 +10,7 @@ from anyschema._dependencies import (
     is_dataclass,
     is_into_ordered_dict,
     is_pydantic_base_model,
+    is_sqlalchemy_table,
     is_typed_dict,
 )
 from anyschema.adapters import (
@@ -17,6 +18,7 @@ from anyschema.adapters import (
     dataclass_adapter,
     into_ordered_dict_adapter,
     pydantic_adapter,
+    sqlalchemy_adapter,
     typed_dict_adapter,
 )
 from anyschema.parsers import make_pipeline
@@ -58,6 +60,10 @@ class AnySchema:
                 The fields are extracted using Pydantic's schema introspection.
             - An [attrs class](https://www.attrs.org/) (not an instance).
                 The fields are extracted using attrs introspection.
+            - A [SQLAlchemy Table](https://docs.sqlalchemy.org/en/20/core/metadata.html#sqlalchemy.schema.Table)
+                instance or [DeclarativeBase](https://docs.sqlalchemy.org/en/20/orm/mapping_api.html#sqlalchemy.orm.DeclarativeBase)
+                subclass (not an instance).
+                The fields are extracted using SQLAlchemy's schema introspection.
 
         steps: Control how types are parsed into Narwhals dtypes. Options:
 
@@ -70,11 +76,14 @@ class AnySchema:
             This allows for custom type parsing logic and extensibility through user-defined parser steps.
 
         adapter: A custom adapter callable that converts the spec into a sequence of field specifications.
-            The callable should yield tuples of `(field_name, field_type, metadata)` for each field in the spec.
+            The callable should yield tuples of `(name, type, constraints, metadata)` for each field in the spec.
 
-            - `field_name` (str): The name of the field
-            - `field_type` (type): The type annotation of the field
-            - `metadata` (tuple): Metadata associated with the field (e.g., constraints from `Annotated`)
+            - `name` (str): The name of the field
+            - `type/annotation` (type): The type annotation of the field
+            - `constraints` (tuple): Constraints associated with the field
+                (e.g., `Gt`, `Le` constraints from `annotated-types`).
+            - `metadata` (dict): Custom metadata dictionary.
+                (e.g., from `json_schema_extra` in Pydantic Field's, `metadata` in attrs and dataclasses field's)
 
             This allows for custom field specification logic and extensibility from user-defined adapters.
 
@@ -172,6 +181,8 @@ class AnySchema:
             adapter_f = pydantic_adapter
         elif is_attrs_class(spec):
             adapter_f = attrs_adapter
+        elif is_sqlalchemy_table(spec):
+            adapter_f = sqlalchemy_adapter
         elif adapter is not None:
             adapter_f = adapter
         else:
@@ -179,7 +190,10 @@ class AnySchema:
             raise ValueError(msg)
 
         self._nw_schema = Schema(
-            {name: pipeline.parse(input_type, metadata) for name, input_type, metadata in adapter_f(cast("Any", spec))}
+            {
+                name: pipeline.parse(input_type, constraints, metadata)
+                for name, input_type, constraints, metadata in adapter_f(cast("Any", spec))
+            }
         )
 
     def to_arrow(self: Self) -> pa.Schema:

@@ -129,8 +129,7 @@ class AnnotatedTypesStep(ParserStep):
             for dtype, (_, _upper) in UINT_RANGES.items():
                 if upper_bound <= _upper:
                     return dtype
-            # If no unsigned type fits, use UInt64
-            return nw.UInt64()
+            return nw.UInt64()  # If no other unsigned type fits, use UInt64
         else:
             # Range includes negative values, use signed integers
             for dtype, (_lower, _upper) in INT_RANGES.items():

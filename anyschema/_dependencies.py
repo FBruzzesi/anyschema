@@ -21,7 +21,7 @@ ATTRS_AVAILABLE = find_spec("attrs") is not None
 SQLALCHEMY_AVAILABLE = find_spec("sqlalchemy") is not None
 
 
-def get_pydantic() -> ModuleType | None:  # pragma: no cover
+def get_pydantic() -> ModuleType | None:
     """Get pydantic module (if already imported - else return None)."""
     return sys.modules.get("pydantic", None)
 

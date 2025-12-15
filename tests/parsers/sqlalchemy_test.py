@@ -114,3 +114,21 @@ def test_sqlalchemy_datetime_naive_with_timezone_raises(sqlalchemy_step: SQLAlch
             constraints=(),
             metadata={"anyschema/time_zone": "UTC"},
         )
+
+
+@pytest.mark.parametrize("input_type", [int, str, list[int], dict])
+def test_sqlalchemy_non_sqlalchemy_types_return_none(sqlalchemy_step: SQLAlchemyTypeStep, input_type: Any) -> None:
+    result = sqlalchemy_step.parse(input_type=input_type, constraints=(), metadata={})
+    assert result is None
+
+
+@pytest.mark.parametrize(
+    "input_type",
+    [
+        sqltypes.PickleType(),
+        sqltypes.NullType(),
+    ],
+)
+def test_sqlalchemy_unhandled_types_return_none(sqlalchemy_step: SQLAlchemyTypeStep, input_type: Any) -> None:
+    result = sqlalchemy_step.parse(input_type=input_type, constraints=(), metadata={})
+    assert result is None

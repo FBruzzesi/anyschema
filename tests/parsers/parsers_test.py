@@ -81,6 +81,17 @@ def test_caching() -> None:
     assert steps_1 is steps_2
 
 
+def test_make_pipeline_invalid_steps() -> None:
+    class NotAParserStep:
+        """A class that is not a ParserStep."""
+
+    invalid_steps = [PyTypeStep(), NotAParserStep(), "also not a step"]
+    expected_msg = "Expected a sequence of `ParserStep` instances, found.*NotAParserStep.*str"
+
+    with pytest.raises(TypeError, match=expected_msg):
+        make_pipeline(invalid_steps)
+
+
 @pytest.mark.parametrize(
     ("input_type", "expected"),
     [

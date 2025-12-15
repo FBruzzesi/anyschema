@@ -132,3 +132,50 @@ def test_build_namespace_custom() -> None:
     assert parser.globalns["bool"] is str
 
     assert parser.localns == custom_locals
+
+
+def test_build_namespace_includes_pydantic_types() -> None:
+    from anyschema._dependencies import PYDANTIC_AVAILABLE
+
+    parser = forward_ref_parser_builder()
+
+    if PYDANTIC_AVAILABLE:
+        assert "BaseModel" in parser.globalns
+        assert "Field" in parser.globalns
+        assert "PositiveInt" in parser.globalns
+        assert "NegativeInt" in parser.globalns
+        assert "NonPositiveInt" in parser.globalns
+        assert "NonNegativeInt" in parser.globalns
+        assert "PositiveFloat" in parser.globalns
+        assert "NegativeFloat" in parser.globalns
+        assert "NonPositiveFloat" in parser.globalns
+        assert "NonNegativeFloat" in parser.globalns
+        assert "constr" in parser.globalns
+        assert "conint" in parser.globalns
+        assert "confloat" in parser.globalns
+        assert "conlist" in parser.globalns
+        assert "conset" in parser.globalns
+    else:  # pragma: no cover
+        ...
+
+
+def test_build_namespace_includes_annotated_types() -> None:
+    from anyschema._dependencies import ANNOTATED_TYPES_AVAILABLE
+
+    parser = forward_ref_parser_builder()
+
+    if ANNOTATED_TYPES_AVAILABLE:
+        # Check that annotated_types are in the namespace
+        assert "Gt" in parser.globalns
+        assert "Ge" in parser.globalns
+        assert "Lt" in parser.globalns
+        assert "Le" in parser.globalns
+        assert "Interval" in parser.globalns
+        assert "MultipleOf" in parser.globalns
+        assert "MinLen" in parser.globalns
+        assert "MaxLen" in parser.globalns
+        assert "Len" in parser.globalns
+        assert "Timezone" in parser.globalns
+        assert "Predicate" in parser.globalns
+    else:  # pragma: no cover
+        ...

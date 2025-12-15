@@ -145,7 +145,7 @@ def test_parse_empty_model(pydantic_parser: PydanticTypeStep) -> None:
 
 
 @pytest.mark.parametrize("input_type", [int, float, list[int], date, datetime])
-def parse_non_pydantic_types(pydantic_parser: PydanticTypeStep, input_type: Any) -> None:
+def test_parse_non_pydantic_types(pydantic_parser: PydanticTypeStep, input_type: Any) -> None:
     result = pydantic_parser.parse(input_type, constraints=(), metadata={})
     assert result is None
 

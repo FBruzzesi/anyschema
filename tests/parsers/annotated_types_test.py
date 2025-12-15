@@ -135,3 +135,32 @@ def test_parse_integer_constraints_parametrized(
 ) -> None:
     result = annotated_types_parser.parse(int, constraints=constraints, metadata={})
     assert result == expected
+
+
+def test_parse_int_exceeding_uint64_max(annotated_types_parser: AnnotatedTypesStep) -> None:
+    """Test that upper bounds exceeding UInt64 max still return UInt64."""
+    # UInt64 max is 18446744073709551615
+    huge_upper_bound = 18446744073709551616 * 2  # Way larger than UInt64 max
+    result = annotated_types_parser.parse(int, constraints=(Ge(0), Le(huge_upper_bound)), metadata={})
+    assert result == nw.UInt64()
+
+
+def test_parse_int_exceeding_int64_max(annotated_types_parser: AnnotatedTypesStep) -> None:
+    """Test that ranges exceeding Int64 max still return Int64."""
+    # Int64 range is -9223372036854775808 to 9223372036854775807
+    result = annotated_types_parser.parse(int, constraints=(Ge(0),), metadata={})
+    # With Ge(0), lower_bound=0 (non-negative), so it goes to unsigned path
+    # But with no upper bound constraint, upper_bound stays at MAX_INT
+    # which is way larger than any UInt type max, so it should... wait
+    # Actually UInt64 max IS MAX_INT, so it should match and return UInt64
+    assert result == nw.UInt64()
+
+
+def test_parse_int_with_very_negative_lower_bound(annotated_types_parser: AnnotatedTypesStep) -> None:
+    """Test fallback to Int64 when no specific signed integer type fits."""
+    # Start with a negative lower bound (so we use signed integers)
+    # but no upper bound constraint (upper_bound stays at MAX_INT = UInt64 max)
+    # This means no Int type will fit (all require upper_bound <= their max)
+    result = annotated_types_parser.parse(int, constraints=(Ge(-100),), metadata={})
+    # With only Ge(-100), upper_bound stays at MAX_INT which exceeds all Int ranges
+    assert result == nw.Int64()

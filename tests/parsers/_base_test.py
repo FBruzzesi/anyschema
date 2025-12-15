@@ -16,7 +16,12 @@ if TYPE_CHECKING:
 
 
 class AlwaysNoneStep(ParserStep):
-    def parse(self, input_type: FieldType, constraints: FieldConstraints, metadata: FieldMetadata) -> DType | None:
+    def parse(  # pragma: no cover
+        self,
+        input_type: FieldType,
+        constraints: FieldConstraints,
+        metadata: FieldMetadata,
+    ) -> DType | None:
         return None
 
 
@@ -132,3 +137,12 @@ def test_pipeline_parse_order_matters(steps: tuple[ParserStep, ...], expected: n
     pipeline = ParserPipeline(steps=steps)
     result = pipeline.parse(int, (), {}, strict=True)
     assert result == expected
+
+
+def test_parser_step_repr() -> None:
+    """Test that ParserStep has a proper __repr__ method."""
+    step = Int64Step()
+    assert repr(step) == "Int64Step"
+
+    step2 = AlwaysNoneStep()
+    assert repr(step2) == "AlwaysNoneStep"

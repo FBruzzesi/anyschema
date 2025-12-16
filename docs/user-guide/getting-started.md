@@ -54,7 +54,26 @@ The `AnySchema` object also provides access to detailed field information throug
 print(schema.fields["id"])
 ```
 
-See [Metadata](metadata.md#the-anyfield-class) for more details on the `AnyField` class.
+You can also provide field descriptions and other metadata. For Pydantic models, the `description` parameter of
+`Field()` is automatically extracted:
+
+```python exec="true" source="above" result="python" session="basic-pydantic-description"
+from anyschema import AnySchema
+from pydantic import BaseModel, Field
+
+
+class Product(BaseModel):
+    id: int = Field(description="Unique product identifier")
+    name: str = Field(description="Product name")
+    price: float = Field(description="Product price in USD")
+
+
+schema = AnySchema(spec=Product)
+for field_name, field in schema.fields.items():
+    print(f"{field_name}: {field.description!r}")
+```
+
+See [Metadata](metadata.md#the-anyfield-class) for more details on the `AnyField` class and [supported metadata keys](metadata.md#supported-metadata-keys).
 
 ### With TypedDict
 

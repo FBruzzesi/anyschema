@@ -16,6 +16,7 @@ Currently supported special metadata keys:
 
 * `"anyschema/nullable"`: Specifies whether the field can contain null values.
 * `"anyschema/unique"`: Specifies whether all values in the field must be unique.
+* `"anyschema/description"`: Provides a human-readable description of the field.
 * `"anyschema/time_zone"`: Specifies timezone for datetime fields.
 * `"anyschema/time_unit"`: Specifies time precision for datetime fields (default: `"us"`).
 
@@ -30,6 +31,7 @@ When you create an `AnySchema`, it parses each field into a `AnyField` object th
 * `dtype`: The Narwhals data type
 * `nullable`: Whether the field accepts null values
 * `unique`: Whether values must be unique
+* `description`: Human-readable field description
 * `metadata`: Custom metadata dictionary (excluding `anyschema/*` keys)
 
 You can access these fields through the `fields` attribute:
@@ -170,6 +172,82 @@ schema = AnySchema(spec=user_table)
 
 print(f"username unique (from SQLAlchemy): {schema.fields['username'].unique}")
 print(f"email unique (overridden by metadata): {schema.fields['email'].unique}")
+```
+
+### `anyschema/description`
+
+Provides a human-readable description of the field's purpose or content.
+
+* Applicable to: All field types
+* Default: `None`
+* Values: Any string value
+
+**Automatic extraction from:**
+
+1. **Pydantic**: The `description` parameter of `Field()` is automatically extracted
+2. **SQLAlchemy**: The `doc` parameter of `Column()` or `mapped_column()` is automatically extracted
+3. **Dataclasses (Python 3.14+)**: The `doc` parameter of `field()` is automatically extracted
+4. **Explicit metadata**: Set `"anyschema/description"` in field metadata
+
+Example with Pydantic:
+
+```python exec="true" source="above" result="python" session="description-pydantic"
+from pydantic import BaseModel, Field
+from anyschema import AnySchema
+
+
+class User(BaseModel):
+    id: int = Field(description="Unique user identifier")
+    username: str = Field(description="User's login name")
+    email: str
+
+
+schema = AnySchema(spec=User)
+print(f"id description: {schema.fields['id'].description!r}")
+print(f"username description: {schema.fields['username'].description!r}")
+print(f"email description: {schema.fields['email'].description!r}")
+```
+
+Example with SQLAlchemy:
+
+```python exec="true" source="above" result="python" session="description-sqlalchemy"
+from sqlalchemy import Column, Integer, MetaData, String, Table
+from anyschema import AnySchema
+
+metadata_obj = MetaData()
+user_table = Table(
+    "users",
+    metadata_obj,
+    Column("id", Integer, primary_key=True, doc="Primary key identifier"),
+    Column("username", String(50), doc="User's login name"),
+    Column("email", String(100)),
+)
+
+schema = AnySchema(spec=user_table)
+
+print(f"id description: {schema.fields['id'].description!r}")
+print(f"username description: {schema.fields['username'].description!r}")
+print(f"email description: {schema.fields['email'].description!r}")
+```
+
+Example with Dataclasses:
+
+```python exec="true" source="above" result="python" session="description-dataclass"
+from dataclasses import dataclass, field
+from anyschema import AnySchema
+
+
+@dataclass
+class User:
+    id: int = field(metadata={"anyschema/description": "Unique user identifier"})
+    username: str = field(metadata={"anyschema/description": "User's login name"})
+    email: str
+
+
+schema = AnySchema(spec=User)
+print(f"id description: {schema.fields['id'].description!r}")
+print(f"username description: {schema.fields['username'].description!r}")
+print(f"email description: {schema.fields['email'].description!r}")
 ```
 
 ### `anyschema/time_zone`

@@ -225,10 +225,12 @@ class ParserPipeline:
         from anyschema._anyschema import AnyField
 
         dtype = self.parse(input_type, constraints, metadata, strict=True)
+
         return AnyField(
             name=name,
             dtype=dtype,
             nullable=bool(metadata.get("anyschema/nullable", False)),
             unique=bool(metadata.get("anyschema/unique", False)),
+            description=metadata.get("anyschema/description"),
             metadata={k: v for k, v in metadata.items() if not k.startswith("anyschema/")},
         )

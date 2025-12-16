@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 
     from narwhals.dtypes import DType
 
-    from anyschema._anyschema import Field
+    from anyschema._anyschema import AnyField
     from anyschema.typing import FieldConstraints, FieldMetadata, FieldType
 
 __all__ = ("ParserPipeline", "ParserStep")
@@ -181,8 +181,8 @@ class ParserPipeline:
         input_type: FieldType,
         constraints: FieldConstraints,
         metadata: FieldMetadata,
-    ) -> Field:
-        """Parse a field specification into a Field object.
+    ) -> AnyField:
+        """Parse a field specification into a AnyField object.
 
         This is the recommended method for parsing field specifications at the top level.
         It wraps the DType parsing with additional field-level information like nullability,
@@ -222,10 +222,10 @@ class ParserPipeline:
             >>> field.nullable
             True
         """
-        from anyschema._anyschema import Field
+        from anyschema._anyschema import AnyField
 
         dtype = self.parse(input_type, constraints, metadata, strict=True)
-        return Field(
+        return AnyField(
             name=name,
             dtype=dtype,
             nullable=bool(metadata.get("anyschema/nullable", False)),

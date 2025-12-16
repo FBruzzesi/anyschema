@@ -1,5 +1,3 @@
-"""Tests are based on the examples in `docs/user-guide/advanced.md."""
-
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Generator, TypedDict

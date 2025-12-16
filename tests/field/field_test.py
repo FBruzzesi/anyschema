@@ -3,7 +3,7 @@ from __future__ import annotations
 import narwhals as nw
 import pytest
 
-from anyschema import Field
+from anyschema import AnyField
 
 
 @pytest.mark.parametrize(
@@ -37,7 +37,7 @@ def test_field_creation_parameters(  # noqa: PLR0913
     if metadata is not None:
         kwargs["metadata"] = metadata
 
-    field = Field(**kwargs)  # type: ignore[arg-type]
+    field = AnyField(**kwargs)  # type: ignore[arg-type]
 
     assert field.name == name
     assert field.dtype == dtype
@@ -47,14 +47,14 @@ def test_field_creation_parameters(  # noqa: PLR0913
 
 
 def test_field_metadata_default_empty_dict() -> None:
-    field = Field(name="test", dtype=nw.String())
+    field = AnyField(name="test", dtype=nw.String())
     assert field.metadata == {}
     assert isinstance(field.metadata, dict)
 
 
 def test_field_equal_fields() -> None:
-    field1 = Field(name="id", dtype=nw.Int64(), nullable=False, unique=True, metadata={"key": "value"})
-    field2 = Field(name="id", dtype=nw.Int64(), nullable=False, unique=True, metadata={"key": "value"})
+    field1 = AnyField(name="id", dtype=nw.Int64(), nullable=False, unique=True, metadata={"key": "value"})
+    field2 = AnyField(name="id", dtype=nw.Int64(), nullable=False, unique=True, metadata={"key": "value"})
     assert field1 == field2
     assert hash(field1) == hash(field2)
 
@@ -85,13 +85,13 @@ def test_field_equal_fields() -> None:
     ],
 )
 def test_field_unequal_fields(field1_kwargs: dict, field2_kwargs: dict) -> None:
-    field1 = Field(**field1_kwargs)  # type: ignore[arg-type]
-    field2 = Field(**field2_kwargs)  # type: ignore[arg-type]
+    field1 = AnyField(**field1_kwargs)  # type: ignore[arg-type]
+    field2 = AnyField(**field2_kwargs)  # type: ignore[arg-type]
     assert field1 != field2
 
 
 def test_field_equality_with_non_field() -> None:
-    field = Field(name="test", dtype=nw.String())
+    field = AnyField(name="test", dtype=nw.String())
     assert field != "not a field"
     assert field != 42  # noqa: PLR2004
     assert field != None  # noqa: E711
@@ -99,20 +99,20 @@ def test_field_equality_with_non_field() -> None:
 
 
 def test_field_hashable() -> None:
-    field = Field(name="id", dtype=nw.Int64(), nullable=False, unique=True, metadata={"key": "value"})
+    field = AnyField(name="id", dtype=nw.Int64(), nullable=False, unique=True, metadata={"key": "value"})
     assert hash(field)
 
 
 def test_field_equal_fields_same_hash() -> None:
-    field1 = Field(name="id", dtype=nw.Int64(), nullable=False, unique=True, metadata={"key": "value"})
-    field2 = Field(name="id", dtype=nw.Int64(), nullable=False, unique=True, metadata={"key": "value"})
+    field1 = AnyField(name="id", dtype=nw.Int64(), nullable=False, unique=True, metadata={"key": "value"})
+    field2 = AnyField(name="id", dtype=nw.Int64(), nullable=False, unique=True, metadata={"key": "value"})
     assert hash(field1) == hash(field2)
 
 
 def test_field_use_in_set() -> None:
-    field1 = Field(name="id", dtype=nw.Int64())
-    field2 = Field(name="id", dtype=nw.Int64())  # Equal to field1
-    field3 = Field(name="name", dtype=nw.String())
+    field1 = AnyField(name="id", dtype=nw.Int64())
+    field2 = AnyField(name="id", dtype=nw.Int64())  # Equal to field1
+    field3 = AnyField(name="name", dtype=nw.String())
 
     field_set = {field1, field2, field3}
     # field1 and field2 are equal, so only 2 unique items
@@ -122,8 +122,8 @@ def test_field_use_in_set() -> None:
 
 def test_field_use_as_dict_key() -> None:
     """Test that Field can be used as a dictionary key."""
-    field1 = Field(name="id", dtype=nw.Int64())
-    field2 = Field(name="id", dtype=nw.Int64())  # Equal to field1
+    field1 = AnyField(name="id", dtype=nw.Int64())
+    field2 = AnyField(name="id", dtype=nw.Int64())  # Equal to field1
 
     field_dict = {field1: "value1"}
     field_dict[field2] = "value2"  # Should overwrite since field1 == field2
@@ -154,10 +154,10 @@ def test_field_use_as_dict_key() -> None:
     ],
 )
 def test_field_repr_contains_expected_parts(field_kwargs: dict, expected_parts: list[str]) -> None:
-    field = Field(**field_kwargs)  # type: ignore[arg-type]
+    field = AnyField(**field_kwargs)  # type: ignore[arg-type]
     repr_str = repr(field)
 
-    assert repr_str.startswith("Field(")
+    assert repr_str.startswith("AnyField(")
     assert repr_str.endswith(")")
 
     for part in expected_parts:
@@ -165,7 +165,7 @@ def test_field_repr_contains_expected_parts(field_kwargs: dict, expected_parts: 
 
 
 def test_field_repr_roundtrip_information() -> None:
-    field = Field(
+    field = AnyField(
         name="score",
         dtype=nw.Float64(),
         nullable=False,
@@ -184,15 +184,15 @@ def test_field_repr_roundtrip_information() -> None:
 
 
 def test_field_slots_defined() -> None:
-    assert hasattr(Field, "__slots__")
+    assert hasattr(AnyField, "__slots__")
 
 
 def test_field_no_dict_attribute() -> None:
-    field = Field(name="test", dtype=nw.String())
+    field = AnyField(name="test", dtype=nw.String())
     assert not hasattr(field, "__dict__")
 
 
 def test_field_cannot_add_arbitrary_attributes() -> None:
-    field = Field(name="test", dtype=nw.String())
+    field = AnyField(name="test", dtype=nw.String())
     with pytest.raises(AttributeError):
         field.custom_attr = "value"  # type: ignore[attr-defined]

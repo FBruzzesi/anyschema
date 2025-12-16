@@ -54,7 +54,7 @@ The `AnySchema` object also provides access to detailed field information throug
 print(schema.fields["id"])
 ```
 
-See [Metadata](metadata.md#the-field-class) for more details on the `Field` class.
+See [Metadata](metadata.md#the-anyfield-class) for more details on the `AnyField` class.
 
 ### With TypedDict
 

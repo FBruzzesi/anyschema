@@ -36,10 +36,10 @@ if TYPE_CHECKING:
     from anyschema.typing import Adapter, IntoParserPipeline, Spec
 
 
-__all__ = ("AnySchema", "Field")
+__all__ = ("AnyField", "AnySchema")
 
 
-class Field:
+class AnyField:
     """A structured field descriptor.
 
     Arguments:
@@ -65,9 +65,9 @@ class Field:
         Creating a simple field:
 
         >>> import narwhals as nw
-        >>> from anyschema import Field
+        >>> from anyschema import AnyField
         >>>
-        >>> field = Field(
+        >>> field = AnyField(
         ...     name="user_id",
         ...     dtype=nw.Int64(),
         ...     nullable=False,
@@ -75,11 +75,11 @@ class Field:
         ...     metadata={"description": "Primary key"},
         ... )
         >>> field
-        Field(name='user_id', dtype=Int64, nullable=False, unique=True, metadata={'description': 'Primary key'})
+        AnyField(name='user_id', dtype=Int64, nullable=False, unique=True, metadata={'description': 'Primary key'})
 
-        Field with optional type:
+        AnyField with optional type:
 
-        >>> field = Field(
+        >>> field = AnyField(
         ...     name="email",
         ...     dtype=nw.String(),
         ...     nullable=True,
@@ -87,7 +87,7 @@ class Field:
         ...     metadata={"format": "email"},
         ... )
         >>> field
-        Field(name='email', dtype=String, nullable=True, unique=False, metadata={'format': 'email'})
+        AnyField(name='email', dtype=String, nullable=True, unique=False, metadata={'format': 'email'})
     """
 
     __slots__ = ("dtype", "metadata", "name", "nullable", "unique")
@@ -114,7 +114,7 @@ class Field:
         self.metadata = metadata if metadata is not None else {}
 
     def __repr__(self) -> str:
-        """Return a string representation of the Field."""
+        """Return a string representation of the AnyField."""
         parts = (
             f"name={self.name!r}",
             f"dtype={self.dtype!r}",
@@ -122,12 +122,12 @@ class Field:
             f"unique={self.unique}",
             f"metadata={self.metadata!r}",
         )
-        return f"Field({', '.join(parts)})"
+        return f"AnyField({', '.join(parts)})"
 
     def __eq__(self, other: object) -> bool:
-        """Check equality with another Field."""
+        """Check equality with another AnyField."""
         return (
-            isinstance(other, Field)
+            isinstance(other, AnyField)
             and self.name == other.name
             and self.dtype == other.dtype
             and self.nullable == other.nullable
@@ -196,7 +196,7 @@ class AnySchema:
             This allows for custom field specification logic and extensibility from user-defined adapters.
 
     Attributes:
-        fields: A mapping from field names to [`Field`][anyschema.Field] objects,
+        fields: A mapping from field names to [`AnyField`][anyschema.AnyField] objects,
             containing the parsed dtype and field-level metadata (nullable, unique, etc.).
 
     Raises:
@@ -269,7 +269,7 @@ class AnySchema:
     """
 
     _nw_schema: Schema
-    fields: dict[str, Field]
+    fields: dict[str, AnyField]
 
     def __init__(
         self: Self,
@@ -280,7 +280,7 @@ class AnySchema:
         if isinstance(spec, Schema):
             # Create Field objects from the schema with default values as Narwhals Schema's/Dtypes do not carry
             # nullability, uniqueness nor metadata information.
-            self.fields = {name: Field(name=name, dtype=dtype) for name, dtype in spec.items()}
+            self.fields = {name: AnyField(name=name, dtype=dtype) for name, dtype in spec.items()}
             self._nw_schema = spec
             return
 

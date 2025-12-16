@@ -12,7 +12,7 @@ from pydantic import BaseModel
 from pydantic import Field as PydanticField
 from sqlalchemy import Column, Integer, MetaData, String, Table
 
-from anyschema import AnySchema, Field
+from anyschema import AnyField, AnySchema
 from anyschema.parsers import make_pipeline
 from tests.conftest import AttrsBookWithMetadata, AttrsPerson, user_table
 
@@ -33,7 +33,7 @@ def test_parse_field(name: str, py_type: type, expected_dtype: nw.dtypes.DType) 
     pipeline = make_pipeline()
     field = pipeline.parse_field(name, py_type, (), {})
 
-    assert field == Field(name, expected_dtype)
+    assert field == AnyField(name, expected_dtype)
 
 
 @pytest.mark.parametrize(
@@ -51,7 +51,7 @@ def test_parse_field_nullable_type(name: str, py_type: type, expected_dtype: nw.
     pipeline = make_pipeline()
     field = pipeline.parse_field(name, py_type, (), {})
 
-    assert field == Field(name, expected_dtype, nullable=True)
+    assert field == AnyField(name, expected_dtype, nullable=True)
 
 
 @pytest.mark.parametrize(
@@ -73,7 +73,7 @@ def test_parse_field_nullable_metadata_overwrite() -> None:
     pipeline = make_pipeline()
     field = pipeline.parse_field("test", Optional[str], (), {"anyschema/nullable": False})
 
-    assert field == Field("test", nw.String(), nullable=False)
+    assert field == AnyField("test", nw.String(), nullable=False)
 
 
 @pytest.mark.parametrize(
@@ -144,16 +144,16 @@ def test_anyschema_fields_contains_all_spec_fields(spec: dict[str, type], expect
     assert len(schema.fields) == len(expected_field_names)
     for field_name in expected_field_names:
         assert field_name in schema.fields
-        assert isinstance(schema.fields[field_name], Field)
+        assert isinstance(schema.fields[field_name], AnyField)
         assert schema.fields[field_name].name == field_name
 
 
 def test_anyschema_fields_are_field_instances() -> None:
-    """Test that all values in fields dict are Field instances."""
+    """Test that all values in fields dict are AnyField instances."""
     schema = AnySchema(spec={"id": int, "name": str, "email": Optional[str]})
 
     for field_name, field in schema.fields.items():
-        assert isinstance(field, Field)
+        assert isinstance(field, AnyField)
         assert field.name == field_name
 
 

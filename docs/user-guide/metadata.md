@@ -19,12 +19,12 @@ Currently supported special metadata keys:
 * `"anyschema/time_zone"`: Specifies timezone for datetime fields.
 * `"anyschema/time_unit"`: Specifies time precision for datetime fields (default: `"us"`).
 
-## The `Field` Class
+## The `AnyField` Class
 
-Starting from version 0.3.0, `anyschema` provides a [`Field`][anyschema.Field] class that encapsulates detailed
+Starting from version 0.3.0, `anyschema` provides a [`AnyField`][anyschema.AnyField] class that encapsulates detailed
 information about each field in a schema.
 
-When you create an `AnySchema`, it parses each field into a `Field` object that contains:
+When you create an `AnySchema`, it parses each field into a `AnyField` object that contains:
 
 * `name`: The field name
 * `dtype`: The Narwhals data type

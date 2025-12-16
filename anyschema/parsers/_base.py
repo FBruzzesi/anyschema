@@ -11,6 +11,7 @@ if TYPE_CHECKING:
 
     from narwhals.dtypes import DType
 
+    from anyschema._anyschema import Field
     from anyschema.typing import FieldConstraints, FieldMetadata, FieldType
 
 __all__ = ("ParserPipeline", "ParserStep")
@@ -24,8 +25,7 @@ class ParserStep(ABC):
     implementation handles specific type patterns or annotation styles.
 
     Attributes:
-        pipeline: Property to access the `ParserPipeline`, raises `UnavailablePipelineError`
-            if not set.
+        pipeline: Property to access the `ParserPipeline`, raises `UnavailablePipelineError` if not set.
 
     Raises:
         UnavailablePipelineError: When accessing pipeline before it's been set.
@@ -142,6 +142,7 @@ class ParserPipeline:
         *,
         strict: Literal[True] = True,
     ) -> DType: ...
+
     @overload
     def parse(
         self, input_type: FieldType, constraints: FieldConstraints, metadata: FieldMetadata, *, strict: Literal[False]
@@ -173,3 +174,61 @@ class ParserPipeline:
             )
             raise NotImplementedError(msg)
         return None
+
+    def parse_field(
+        self,
+        name: str,
+        input_type: FieldType,
+        constraints: FieldConstraints,
+        metadata: FieldMetadata,
+    ) -> Field:
+        """Parse a field specification into a Field object.
+
+        This is the recommended method for parsing field specifications at the top level.
+        It wraps the DType parsing with additional field-level information like nullability,
+        uniqueness, and custom metadata.
+
+        The metadata dictionary is populated during parsing (e.g., `UnionTypeStep` sets
+        `anyschema/nullable` for `Optional[T]` types), ensuring that forward references
+        are properly evaluated and avoiding code duplication.
+
+        Arguments:
+            name: The name of the field.
+            input_type: The type to parse.
+            constraints: Constraints associated with the type.
+            metadata: Custom metadata dictionary. This dictionary may be modified during
+                parsing to add field-level metadata like `anyschema/nullable`.
+
+        Returns:
+            A [`Field`][anyschema.Field] instance containing the parsed dtype and field-level metadata.
+
+        Examples:
+            >>> from anyschema.parsers import make_pipeline
+            >>> pipeline = make_pipeline()
+            >>> field = pipeline.parse_field("age", int, (), {})
+            >>> field
+            Field(name='age', dtype=Int64, nullable=False, unique=False, metadata={})
+
+            With nullable=True metadata:
+
+            >>> field = pipeline.parse_field("email", str, (), {"anyschema/nullable": True})
+            >>> field.nullable
+            True
+
+            With Optional type (auto-detected as nullable):
+
+            >>> from typing import Optional
+            >>> field = pipeline.parse_field("email", Optional[str], (), {})
+            >>> field.nullable
+            True
+        """
+        from anyschema._anyschema import Field
+
+        dtype = self.parse(input_type, constraints, metadata, strict=True)
+        return Field(
+            name=name,
+            dtype=dtype,
+            nullable=bool(metadata.get("anyschema/nullable", False)),
+            unique=bool(metadata.get("anyschema/unique", False)),
+            metadata={k: v for k, v in metadata.items() if not k.startswith("anyschema/")},
+        )

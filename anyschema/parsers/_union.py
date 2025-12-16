@@ -39,6 +39,12 @@ class UnionTypeStep(ParserStep):
         if get_origin(input_type) is Union or isinstance(input_type, UnionType):
             args = get_args(input_type)
             extracted_type = self._parse_union(args)
+
+            # Set nullable metadata if not already explicitly set
+            # This way Union[T, None] / Optional[T] automatically marks the field as nullable
+            # We mutate the metadata dict in-place so parse_field can read it
+            if "anyschema/nullable" not in metadata:
+                metadata["anyschema/nullable"] = True
             return self.pipeline.parse(extracted_type, constraints, metadata, strict=True)
 
         return None

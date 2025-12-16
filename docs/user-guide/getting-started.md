@@ -48,6 +48,14 @@ Convert to different schema formats:
     print(schema.to_pandas())
     ```
 
+The `AnySchema` object also provides access to detailed field information through the `fields` attribute:
+
+```python exec="true" source="above" result="python" session="basic-pydantic"
+print(schema.fields["id"])
+```
+
+See [Metadata](metadata.md#the-field-class) for more details on the `Field` class.
+
 ### With TypedDict
 
 You can use `TypedDict` for a lightweight way to define typed structures:

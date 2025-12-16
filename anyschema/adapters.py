@@ -127,6 +127,7 @@ def dataclass_adapter(spec: DataclassType) -> FieldSpecIterable:
 
     for field in dataclass_fields:
         # Extract metadata dict from dataclass field
+        # Create a copy to avoid mutating the original dataclass field metadata
         metadata = dict(field.metadata) if field.metadata else {}
         yield field.name, annot_map[field.name], (), metadata
 
@@ -166,7 +167,8 @@ def pydantic_adapter(spec: type[BaseModel]) -> FieldSpecIterable:
         constraints = tuple(field_info.metadata)
 
         json_schema_extra = field_info.json_schema_extra
-        metadata = json_schema_extra if json_schema_extra and not callable(json_schema_extra) else {}
+        # Create a copy of metadata to avoid mutating the original Pydantic Field
+        metadata = dict(json_schema_extra) if json_schema_extra and not callable(json_schema_extra) else {}
 
         yield field_name, field_info.annotation, constraints, metadata
 
@@ -229,6 +231,7 @@ def attrs_adapter(spec: AttrsClassType) -> FieldSpecIterable:
         field_type = annot_map.get(field_name, field.type)
 
         # Extract metadata if present - attrs stores it as a mapping
+        # Create a copy to avoid mutating the original attrs field metadata
         metadata = dict(field.metadata) if field.metadata else {}
 
         yield field_name, field_type, (), metadata
@@ -299,4 +302,6 @@ def sqlalchemy_adapter(spec: SQLAlchemyTableType) -> FieldSpecIterable:
             "anyschema/nullable": column.nullable or False,
             "anyschema/unique": column.unique or False,
         }
-        yield (column.name, column.type, (), anyschema_metadata | column.info)
+        # Create a copy of column.info to avoid mutating the original SQLAlchemy column
+        metadata = anyschema_metadata | dict(column.info)
+        yield (column.name, column.type, (), metadata)

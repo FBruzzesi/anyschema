@@ -29,10 +29,118 @@ if TYPE_CHECKING:
     import pandas as pd
     import polars as pl
     import pyarrow as pa
+    from narwhals.dtypes import DType
     from narwhals.typing import DTypeBackend
     from typing_extensions import Self
 
     from anyschema.typing import Adapter, IntoParserPipeline, Spec
+
+
+__all__ = ("AnySchema", "Field")
+
+
+class Field:
+    """A structured field descriptor.
+
+    Arguments:
+        name: The name of the field.
+        dtype: The Narwhals data type.
+        nullable: Whether the field accepts null values.
+        unique: Whether values must be unique.
+        metadata: Custom metadata dictionary.
+
+    Attributes:
+        name: The name of the field.
+        dtype: The Narwhals data type of the field.
+        nullable: Whether the field can contain null values. Defaults to False.
+            Parsing a type specification will flag this as True if:
+
+            - The `anyschema/nullable` metadata key is explicitly set to True, or
+            - The type is `Optional[T]` or `T | None` (which automatically sets the metadata)
+        unique: Whether all values in this field must be unique. Defaults to False.
+            Determined by the `anyschema/unique` metadata key or SQLAlchemy column unique argument.
+        metadata: Custom metadata dict containing any metadata that is not under the `anyschema/*` namespace.
+
+    Examples:
+        Creating a simple field:
+
+        >>> import narwhals as nw
+        >>> from anyschema import Field
+        >>>
+        >>> field = Field(
+        ...     name="user_id",
+        ...     dtype=nw.Int64(),
+        ...     nullable=False,
+        ...     unique=True,
+        ...     metadata={"description": "Primary key"},
+        ... )
+        >>> field
+        Field(name='user_id', dtype=Int64, nullable=False, unique=True, metadata={'description': 'Primary key'})
+
+        Field with optional type:
+
+        >>> field = Field(
+        ...     name="email",
+        ...     dtype=nw.String(),
+        ...     nullable=True,
+        ...     unique=False,
+        ...     metadata={"format": "email"},
+        ... )
+        >>> field
+        Field(name='email', dtype=String, nullable=True, unique=False, metadata={'format': 'email'})
+    """
+
+    __slots__ = ("dtype", "metadata", "name", "nullable", "unique")
+
+    name: str
+    dtype: DType
+    nullable: bool
+    unique: bool
+    metadata: dict[str, Any]
+
+    def __init__(
+        self,
+        name: str,
+        dtype: DType,
+        *,
+        nullable: bool = False,
+        unique: bool = False,
+        metadata: dict[str, Any] | None = None,
+    ) -> None:
+        self.name = name
+        self.dtype = dtype
+        self.nullable = nullable
+        self.unique = unique
+        self.metadata = metadata if metadata is not None else {}
+
+    def __repr__(self) -> str:
+        """Return a string representation of the Field."""
+        parts = (
+            f"name={self.name!r}",
+            f"dtype={self.dtype!r}",
+            f"nullable={self.nullable}",
+            f"unique={self.unique}",
+            f"metadata={self.metadata!r}",
+        )
+        return f"Field({', '.join(parts)})"
+
+    def __eq__(self, other: object) -> bool:
+        """Check equality with another Field."""
+        return (
+            isinstance(other, Field)
+            and self.name == other.name
+            and self.dtype == other.dtype
+            and self.nullable == other.nullable
+            and self.unique == other.unique
+            and self.metadata == other.metadata
+        )
+
+    def __hash__(self) -> int:
+        """Return hash of the Field."""
+        # Create a hashable tuple representation
+        # metadata is a dict and not hashable, we convert it to a sorted tuple of items
+        metadata_tuple = tuple(sorted(self.metadata.items()))
+        return hash((self.name, self.dtype, self.nullable, self.unique, metadata_tuple))
 
 
 class AnySchema:
@@ -86,6 +194,10 @@ class AnySchema:
                 (e.g., from `json_schema_extra` in Pydantic Field's, `metadata` in attrs and dataclasses field's)
 
             This allows for custom field specification logic and extensibility from user-defined adapters.
+
+    Attributes:
+        fields: A mapping from field names to [`Field`][anyschema.Field] objects,
+            containing the parsed dtype and field-level metadata (nullable, unique, etc.).
 
     Raises:
         ValueError: If `spec` type is unknown and `adapter` is not specified.
@@ -157,6 +269,7 @@ class AnySchema:
     """
 
     _nw_schema: Schema
+    fields: dict[str, Field]
 
     def __init__(
         self: Self,
@@ -165,6 +278,9 @@ class AnySchema:
         adapter: Adapter | None = None,
     ) -> None:
         if isinstance(spec, Schema):
+            # Create Field objects from the schema with default values as Narwhals Schema's/Dtypes do not carry
+            # nullability, uniqueness nor metadata information.
+            self.fields = {name: Field(name=name, dtype=dtype) for name, dtype in spec.items()}
             self._nw_schema = spec
             return
 
@@ -189,12 +305,11 @@ class AnySchema:
             msg = "`spec` type is unknown and `adapter` is not specified."
             raise ValueError(msg)
 
-        self._nw_schema = Schema(
-            {
-                name: pipeline.parse(input_type, constraints, metadata)
-                for name, input_type, constraints, metadata in adapter_f(cast("Any", spec))
-            }
-        )
+        self.fields = {
+            name: pipeline.parse_field(name, input_type, constraints, metadata)
+            for name, input_type, constraints, metadata in adapter_f(cast("Any", spec))
+        }
+        self._nw_schema = Schema({name: field.dtype for name, field in self.fields.items()})
 
     def to_arrow(self: Self) -> pa.Schema:
         """Converts input model into pyarrow schema.

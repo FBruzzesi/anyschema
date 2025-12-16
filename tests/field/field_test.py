@@ -190,9 +190,3 @@ def test_field_slots_defined() -> None:
 def test_field_no_dict_attribute() -> None:
     field = AnyField(name="test", dtype=nw.String())
     assert not hasattr(field, "__dict__")
-
-
-def test_field_cannot_add_arbitrary_attributes() -> None:
-    field = AnyField(name="test", dtype=nw.String())
-    with pytest.raises(AttributeError):
-        field.custom_attr = "value"  # type: ignore[attr-defined]

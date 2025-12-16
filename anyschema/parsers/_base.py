@@ -200,14 +200,14 @@ class ParserPipeline:
                 parsing to add field-level metadata like `anyschema/nullable`.
 
         Returns:
-            A [`Field`][anyschema.Field] instance containing the parsed dtype and field-level metadata.
+            A [`AnyField`][anyschema.AnyField] instance containing the parsed dtype and field-level metadata.
 
         Examples:
             >>> from anyschema.parsers import make_pipeline
             >>> pipeline = make_pipeline()
             >>> field = pipeline.parse_field("age", int, (), {})
             >>> field
-            Field(name='age', dtype=Int64, nullable=False, unique=False, metadata={})
+            AnyField(name='age', dtype=Int64, nullable=False, unique=False, description=None, metadata={})
 
             With nullable=True metadata:
 

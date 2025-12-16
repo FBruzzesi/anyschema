@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, cast
 
 from narwhals.schema import Schema
@@ -24,7 +25,7 @@ from anyschema.adapters import (
 from anyschema.parsers import make_pipeline
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from collections.abc import Iterable, Mapping
 
     import pandas as pd
     import polars as pl
@@ -39,6 +40,7 @@ if TYPE_CHECKING:
 __all__ = ("AnyField", "AnySchema")
 
 
+@dataclass(frozen=True, slots=True, kw_only=True)
 class AnyField:
     """A structured field descriptor.
 
@@ -47,6 +49,7 @@ class AnyField:
         dtype: The Narwhals data type.
         nullable: Whether the field accepts null values.
         unique: Whether values must be unique.
+        description: Optional field description.
         metadata: Custom metadata dictionary.
 
     Attributes:
@@ -59,6 +62,7 @@ class AnyField:
             - The type is `Optional[T]` or `T | None` (which automatically sets the metadata)
         unique: Whether all values in this field must be unique. Defaults to False.
             Determined by the `anyschema/unique` metadata key or SQLAlchemy column unique argument.
+        description: Human-readable field description.
         metadata: Custom metadata dict containing any metadata that is not under the `anyschema/*` namespace.
 
     Examples:
@@ -72,10 +76,10 @@ class AnyField:
         ...     dtype=nw.Int64(),
         ...     nullable=False,
         ...     unique=True,
-        ...     metadata={"description": "Primary key"},
+        ...     description="Primary key",
         ... )
         >>> field
-        AnyField(name='user_id', dtype=Int64, nullable=False, unique=True, metadata={'description': 'Primary key'})
+        AnyField(name='user_id', dtype=Int64, nullable=False, unique=True, description='Primary key', metadata={})
 
         AnyField with optional type:
 
@@ -84,63 +88,27 @@ class AnyField:
         ...     dtype=nw.String(),
         ...     nullable=True,
         ...     unique=False,
-        ...     metadata={"format": "email"},
+        ...     metadata={"fmt": "email"},
         ... )
         >>> field
-        AnyField(name='email', dtype=String, nullable=True, unique=False, metadata={'format': 'email'})
+        AnyField(name='email', dtype=String, nullable=True, unique=False, description=None, metadata={'fmt': 'email'})
     """
-
-    __slots__ = ("dtype", "metadata", "name", "nullable", "unique")
 
     name: str
     dtype: DType
-    nullable: bool
-    unique: bool
-    metadata: dict[str, Any]
-
-    def __init__(
-        self,
-        name: str,
-        dtype: DType,
-        *,
-        nullable: bool = False,
-        unique: bool = False,
-        metadata: dict[str, Any] | None = None,
-    ) -> None:
-        self.name = name
-        self.dtype = dtype
-        self.nullable = nullable
-        self.unique = unique
-        self.metadata = metadata if metadata is not None else {}
-
-    def __repr__(self) -> str:
-        """Return a string representation of the AnyField."""
-        parts = (
-            f"name={self.name!r}",
-            f"dtype={self.dtype!r}",
-            f"nullable={self.nullable}",
-            f"unique={self.unique}",
-            f"metadata={self.metadata!r}",
-        )
-        return f"AnyField({', '.join(parts)})"
-
-    def __eq__(self, other: object) -> bool:
-        """Check equality with another AnyField."""
-        return (
-            isinstance(other, AnyField)
-            and self.name == other.name
-            and self.dtype == other.dtype
-            and self.nullable == other.nullable
-            and self.unique == other.unique
-            and self.metadata == other.metadata
-        )
+    nullable: bool = False
+    unique: bool = False
+    description: str | None = None
+    metadata: Mapping[str, Any] = field(default_factory=dict)
 
     def __hash__(self) -> int:
-        """Return hash of the Field."""
-        # Create a hashable tuple representation
-        # metadata is a dict and not hashable, we convert it to a sorted tuple of items
+        """Return hash of the instance.
+
+        Creates a hashable tuple representation.
+        `metadata` is a dict and not hashable, we convert it to a sorted tuple of items
+        """
         metadata_tuple = tuple(sorted(self.metadata.items()))
-        return hash((self.name, self.dtype, self.nullable, self.unique, metadata_tuple))
+        return hash((self.name, self.dtype, self.nullable, self.unique, self.description, metadata_tuple))
 
 
 class AnySchema:

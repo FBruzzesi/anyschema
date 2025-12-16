@@ -33,7 +33,7 @@ def test_parse_field(name: str, py_type: type, expected_dtype: nw.dtypes.DType) 
     pipeline = make_pipeline()
     field = pipeline.parse_field(name, py_type, (), {})
 
-    assert field == AnyField(name, expected_dtype)
+    assert field == AnyField(name=name, dtype=expected_dtype)
 
 
 @pytest.mark.parametrize(
@@ -51,7 +51,7 @@ def test_parse_field_nullable_type(name: str, py_type: type, expected_dtype: nw.
     pipeline = make_pipeline()
     field = pipeline.parse_field(name, py_type, (), {})
 
-    assert field == AnyField(name, expected_dtype, nullable=True)
+    assert field == AnyField(name=name, dtype=expected_dtype, nullable=True)
 
 
 @pytest.mark.parametrize(
@@ -73,7 +73,7 @@ def test_parse_field_nullable_metadata_overwrite() -> None:
     pipeline = make_pipeline()
     field = pipeline.parse_field("test", Optional[str], (), {"anyschema/nullable": False})
 
-    assert field == AnyField("test", nw.String(), nullable=False)
+    assert field == AnyField(name="test", dtype=nw.String(), nullable=False)
 
 
 @pytest.mark.parametrize(

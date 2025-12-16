@@ -213,7 +213,7 @@ class AnySchema:
         >>> class Student(BaseModel):
         ...     name: str
         ...     age: PositiveInt
-        ...     classes: list[str]
+        ...     classes: list[str] | None
         >>>
         >>> schema = AnySchema(spec=Student)
 
@@ -221,8 +221,8 @@ class AnySchema:
 
         >>> pa_schema = schema.to_arrow()
         >>> print(pa_schema)
-        name: string
-        age: uint64
+        name: string not null
+        age: uint64 not null
         classes: list<item: string>
           child 0, item: string
 
@@ -242,9 +242,9 @@ class AnySchema:
 
         >>> schema = AnySchema(spec={"id": int, "name": str, "active": bool})
         >>> print(schema.to_arrow())
-        id: int64
-        name: string
-        active: bool
+        id: int64 not null
+        name: string not null
+        active: bool not null
 
         Using a TypedDict:
 
@@ -253,12 +253,12 @@ class AnySchema:
         >>> class Product(TypedDict):
         ...     id: int
         ...     name: str
-        ...     price: float
+        ...     price: float | None
         >>>
         >>> schema = AnySchema(spec=Product)
         >>> print(schema.to_arrow())
-        id: int64
-        name: string
+        id: int64 not null
+        name: string not null
         price: double
 
     Tip: See also
@@ -325,17 +325,24 @@ class AnySchema:
             >>> class User(BaseModel):
             ...     id: int
             ...     username: str
-            ...     email: str
+            ...     email: str | None
             ...     is_active: bool
             >>>
             >>> schema = AnySchema(spec=User)
             >>> schema.to_arrow()
-            id: int64
-            username: string
+            id: int64 not null
+            username: string not null
             email: string
-            is_active: bool
+            is_active: bool not null
         """
-        return self._nw_schema.to_arrow()
+        import pyarrow as pa
+
+        return pa.schema(
+            pa_field.with_nullable(field.nullable).with_metadata({k: str(v) for k, v in field.metadata.items()})
+            if field.metadata
+            else pa_field.with_nullable(field.nullable)
+            for pa_field, field in zip(self._nw_schema.to_arrow(), self.fields.values(), strict=True)
+        )
 
     def to_pandas(
         self: Self, *, dtype_backend: DTypeBackend | Iterable[DTypeBackend] = None

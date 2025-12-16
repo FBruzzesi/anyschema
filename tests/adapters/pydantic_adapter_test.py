@@ -48,3 +48,24 @@ def test_pydantic_adapter_with_json_schema_extra() -> None:
     ]
 
     assert result == expected
+
+
+def test_pydantic_adapter_with_description() -> None:
+    """Test that description from Field is extracted along with other metadata."""
+
+    class Product(BaseModel):
+        id: int = Field(description="Product ID")
+        name: str = Field(description="Product name", json_schema_extra={"format": "name"})
+        price: float
+        tags: list[str] = Field(json_schema_extra={"anyschema/description": "Override desc"})
+
+    result = list(pydantic_adapter(Product))
+
+    expected = [
+        ("id", int, (), {"anyschema/description": "Product ID"}),
+        ("name", str, (), {"anyschema/description": "Product name", "format": "name"}),
+        ("price", float, (), {}),
+        ("tags", list[str], (), {"anyschema/description": "Override desc"}),
+    ]
+
+    assert result == expected

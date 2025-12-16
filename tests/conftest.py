@@ -57,9 +57,9 @@ def nw_schema() -> nw.Schema:
 
 
 class PydanticStudent(BaseModel):
-    name: str
+    name: str = Field(description="Student full name")
     date_of_birth: PastDate
-    age: PositiveInt
+    age: PositiveInt = Field(description="Student age in years")
     classes: list[str]
     has_graduated: bool
 
@@ -166,9 +166,9 @@ class AttrsAddressWithPydantic:
 class DataclassEventWithTimeMetadata:
     """Dataclass with datetime fields that have time metadata."""
 
-    name: str
+    name: str = field(metadata={"anyschema/description": "Event name"})
     created_at: datetime
-    scheduled_at: datetime = field(metadata={"anyschema/time_zone": "UTC"})
+    scheduled_at: datetime = field(metadata={"anyschema/time_zone": "UTC", "anyschema/description": "Scheduled time"})
     started_at: datetime = field(metadata={"anyschema/time_unit": "ms"})
     completed_at: datetime = field(metadata={"anyschema/time_zone": "Europe/Berlin", "anyschema/time_unit": "ns"})
 
@@ -244,9 +244,9 @@ metadata = MetaData()
 user_table = Table(
     "user",
     metadata,
-    Column("id", Integer, primary_key=True, nullable=False),
+    Column("id", Integer, primary_key=True, nullable=False, doc="Primary key"),
     Column("name", String(50)),
-    Column("age", Integer),
+    Column("age", Integer, doc="User age"),
     Column("email", String(100), nullable=True),
 )
 

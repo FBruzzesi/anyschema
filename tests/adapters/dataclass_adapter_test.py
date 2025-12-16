@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, make_dataclass
+import sys
+from dataclasses import dataclass, field, make_dataclass
 from datetime import date, datetime
 from typing import TYPE_CHECKING
 
@@ -58,11 +59,48 @@ def test_dataclass_adapter_with_time_metadata() -> None:
     result = list(dataclass_adapter(DataclassEventWithTimeMetadata))
 
     expected = [
-        ("name", str, (), {}),
+        ("name", str, (), {"anyschema/description": "Event name"}),
         ("created_at", datetime, (), {}),
-        ("scheduled_at", datetime, (), {"anyschema/time_zone": "UTC"}),
+        ("scheduled_at", datetime, (), {"anyschema/time_zone": "UTC", "anyschema/description": "Scheduled time"}),
         ("started_at", datetime, (), {"anyschema/time_unit": "ms"}),
         ("completed_at", datetime, (), {"anyschema/time_zone": "Europe/Berlin", "anyschema/time_unit": "ns"}),
+    ]
+
+    assert result == expected
+
+
+@pytest.mark.skipif(sys.version_info < (3, 14), reason="doc parameter requires Python 3.14+")
+def test_dataclass_adapter_with_doc_argument() -> None:
+    @dataclass
+    class Product:
+        name: str = field(doc="Product name")  # type: ignore[call-arg]
+        price: float = field(doc="Product price")  # type: ignore[call-arg]
+        in_stock: bool
+
+    result = list(dataclass_adapter(Product))
+
+    expected = [
+        ("name", str, (), {"anyschema/description": "Product name"}),
+        ("price", float, (), {"anyschema/description": "Product price"}),
+        ("in_stock", bool, (), {}),
+    ]
+
+    assert result == expected
+
+
+@pytest.mark.skipif(sys.version_info < (3, 14), reason="doc parameter requires Python 3.14+")
+def test_dataclass_adapter_doc_metadata_precedence() -> None:
+    @dataclass
+    class Product:
+        # metadata anyschema/description should take precedence
+        name: str = field(  # type: ignore[call-arg]
+            doc="From doc argument", metadata={"anyschema/description": "From metadata"}
+        )
+
+    result = list(dataclass_adapter(Product))
+
+    expected = [
+        ("name", str, (), {"anyschema/description": "From metadata"}),
     ]
 
     assert result == expected

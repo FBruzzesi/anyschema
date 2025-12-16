@@ -476,3 +476,28 @@ def test_field_ordering_preserved() -> None:
     # Field order should match spec order
     field_names = list(schema.fields.keys())
     assert field_names == ["z_field", "a_field", "m_field"]
+
+
+def test_description_end_to_end(pydantic_student_cls: type) -> None:
+    """Test that descriptions from various sources make it to AnyField."""
+    # Test Pydantic with existing fixture
+    schema = AnySchema(spec=pydantic_student_cls)
+    assert schema.fields["name"].description == "Student full name"
+    assert schema.fields["age"].description == "Student age in years"
+    assert schema.fields["date_of_birth"].description is None
+
+    # Test SQLAlchemy
+    from tests.conftest import user_table
+
+    schema = AnySchema(spec=user_table)
+    assert schema.fields["id"].description == "Primary key"
+    assert schema.fields["age"].description == "User age"
+    assert schema.fields["name"].description is None
+
+    # Test dataclass
+    from tests.conftest import DataclassEventWithTimeMetadata
+
+    schema = AnySchema(spec=DataclassEventWithTimeMetadata)
+    assert schema.fields["name"].description == "Event name"
+    assert schema.fields["scheduled_at"].description == "Scheduled time"
+    assert schema.fields["created_at"].description is None

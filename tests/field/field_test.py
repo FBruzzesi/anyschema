@@ -137,19 +137,19 @@ def test_field_use_as_dict_key() -> None:
     [
         (
             {"name": "email", "dtype": nw.String()},
-            ["name='email'", "dtype=String", "nullable=False", "unique=False", "metadata={}"],
+            ["name='email'", "dtype=String", "nullable=False", "unique=False", "description=None"],
         ),
         (
             {"name": "optional_field", "dtype": nw.String(), "nullable": True},
-            ["name='optional_field'", "dtype=String", "nullable=True", "unique=False", "metadata={}"],
+            ["name='optional_field'", "dtype=String", "nullable=True", "unique=False", "description=None"],
         ),
         (
             {"name": "username", "dtype": nw.String(), "unique": True},
-            ["name='username'", "dtype=String", "nullable=False", "unique=True", "metadata={}"],
+            ["name='username'", "dtype=String", "nullable=False", "unique=True", "description=None"],
         ),
         (
             {"name": "age", "dtype": nw.Int32(), "metadata": {"min": 0}},
-            ["name='age'", "dtype=Int32", "nullable=False", "unique=False", "metadata={'min': 0}"],
+            ["name='age'", "dtype=Int32", "nullable=False", "unique=False", "description=None", "min"],
         ),
     ],
 )
@@ -190,3 +190,43 @@ def test_field_slots_defined() -> None:
 def test_field_no_dict_attribute() -> None:
     field = AnyField(name="test", dtype=nw.String())
     assert not hasattr(field, "__dict__")
+
+
+def test_field_with_description() -> None:
+    """Test Field creation with description."""
+    field = AnyField(name="user_id", dtype=nw.Int64(), description="Unique user identifier")
+    assert field.description == "Unique user identifier"
+
+
+def test_field_with_none_description() -> None:
+    """Test Field creation with None description."""
+    field = AnyField(name="user_id", dtype=nw.Int64(), description=None)
+    assert field.description is None
+
+
+def test_field_description_default_none() -> None:
+    """Test that description defaults to None."""
+    field = AnyField(name="test", dtype=nw.String())
+    assert field.description is None
+
+
+def test_field_equality_with_description() -> None:
+    """Test that fields with same description are equal."""
+    field1 = AnyField(name="id", dtype=nw.Int64(), description="User ID")
+    field2 = AnyField(name="id", dtype=nw.Int64(), description="User ID")
+    assert field1 == field2
+    assert hash(field1) == hash(field2)
+
+
+def test_field_inequality_with_different_description() -> None:
+    """Test that fields with different descriptions are not equal."""
+    field1 = AnyField(name="id", dtype=nw.Int64(), description="User ID")
+    field2 = AnyField(name="id", dtype=nw.Int64(), description="Product ID")
+    assert field1 != field2
+
+
+def test_field_inequality_with_one_none_description() -> None:
+    """Test that fields with one None description are not equal."""
+    field1 = AnyField(name="id", dtype=nw.Int64(), description="User ID")
+    field2 = AnyField(name="id", dtype=nw.Int64(), description=None)
+    assert field1 != field2

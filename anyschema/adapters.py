@@ -1,4 +1,3 @@
-# ruff: noqa: E501
 from __future__ import annotations
 
 from collections import OrderedDict
@@ -276,9 +275,9 @@ def sqlalchemy_adapter(spec: SQLAlchemyTableType) -> FieldSpecIterable:
         >>>
         >>> spec_fields = list(sqlalchemy_adapter(user_table))
         >>> spec_fields[0]
-        ('id', Integer(), (), {'anyschema/nullable': False, 'anyschema/unique': False, 'anyschema/description': None})
+        ('id', Integer(), (), {})
         >>> spec_fields[1]
-        ('name', String(length=50), (), {'anyschema/nullable': True, 'anyschema/unique': False, 'anyschema/description': None})
+        ('name', String(length=50), (), {'anyschema/nullable': True})
 
         >>> from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column  # doctest: +SKIP
         >>>
@@ -292,9 +291,9 @@ def sqlalchemy_adapter(spec: SQLAlchemyTableType) -> FieldSpecIterable:
         >>>
         >>> spec_fields = list(sqlalchemy_adapter(User))  # doctest: +SKIP
         >>> spec_fields[0]  # doctest: +SKIP
-        ('id', Integer(), (), {'anyschema/nullable': False, 'anyschema/unique': False, 'anyschema/description': None})
+        ('id', Integer(), (), {})
         >>> spec_fields[1]  # doctest: +SKIP
-        ('name', String(length=50), (), {'anyschema/nullable': True, 'anyschema/unique': False, 'anyschema/description': None})
+        ('name', String(length=50), (), {'anyschema/nullable': True})
     """
     from sqlalchemy import Table
     from sqlalchemy.orm import DeclarativeBase
@@ -308,12 +307,15 @@ def sqlalchemy_adapter(spec: SQLAlchemyTableType) -> FieldSpecIterable:
         msg = f"Expected SQLAlchemy Table or DeclarativeBase subclass, got '{qualified_type_name(spec)}'"
         raise TypeError(msg)
 
+    meta_mapping = {
+        "anyschema/nullable": "nullable",
+        "anyschema/unique": "unique",
+        "anyschema/description": "doc",
+    }
+
     for column in table.columns:
-        anyschema_metadata: dict[str, bool | str | None] = {
-            "anyschema/nullable": column.nullable or False,
-            "anyschema/unique": column.unique or False,
-            "anyschema/description": column.doc or None,
-        }
+        anyschema_metadata = {key: val for key, attr in meta_mapping.items() if (val := getattr(column, attr, None))}
+
         # Create a copy of column.info to avoid mutating the original SQLAlchemy column
         metadata = anyschema_metadata | dict(column.info)
         yield (column.name, column.type, (), metadata)

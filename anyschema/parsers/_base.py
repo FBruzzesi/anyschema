@@ -229,8 +229,8 @@ class ParserPipeline:
         return AnyField(
             name=name,
             dtype=dtype,
-            nullable=bool(metadata.get("anyschema/nullable", False)),
-            unique=bool(metadata.get("anyschema/unique", False)),
+            nullable=metadata.get("anyschema/nullable", False),
+            unique=metadata.get("anyschema/unique", False),
             description=metadata.get("anyschema/description"),
             metadata={k: v for k, v in metadata.items() if not k.startswith("anyschema/")},
         )

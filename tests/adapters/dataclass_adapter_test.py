@@ -73,34 +73,14 @@ def test_dataclass_adapter_with_time_metadata() -> None:
 def test_dataclass_adapter_with_doc_argument() -> None:
     @dataclass
     class Product:
-        name: str = field(doc="Product name")  # type: ignore[call-arg]
-        price: float = field(doc="Product price")  # type: ignore[call-arg]
+        name: str = field(doc="Product name")
+        price: float = field(doc="Product price", metadata={"anyschema/description": "From metadata"})  # precedence
         in_stock: bool
 
     result = list(dataclass_adapter(Product))
-
     expected = [
         ("name", str, (), {"anyschema/description": "Product name"}),
-        ("price", float, (), {"anyschema/description": "Product price"}),
+        ("price", float, (), {"anyschema/description": "From metadata"}),
         ("in_stock", bool, (), {}),
     ]
-
-    assert result == expected
-
-
-@pytest.mark.skipif(sys.version_info < (3, 14), reason="doc parameter requires Python 3.14+")
-def test_dataclass_adapter_doc_metadata_precedence() -> None:
-    @dataclass
-    class Product:
-        # metadata anyschema/description should take precedence
-        name: str = field(  # type: ignore[call-arg]
-            doc="From doc argument", metadata={"anyschema/description": "From metadata"}
-        )
-
-    result = list(dataclass_adapter(Product))
-
-    expected = [
-        ("name", str, (), {"anyschema/description": "From metadata"}),
-    ]
-
     assert result == expected

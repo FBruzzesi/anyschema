@@ -58,8 +58,8 @@ To read more about `anyschema` functionalities and features consider checking ou
 any package manager. For instance:
 
 ```bash
+uv pip install "anyschema[attrs]"
 uv pip install "anyschema[pydantic]"
-# or with SQLAlchemy support
 uv pip install "anyschema[sqlalchemy]"
 ```
 

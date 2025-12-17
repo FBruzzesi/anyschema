@@ -24,11 +24,25 @@ class ModelWithConstraints(BaseModel):
     age: Annotated[int, Field(ge=0)]
 
 
+class ModelWithDescriptions(BaseModel):
+    id: int = Field(description="ID")
+    name: str = Field(description="Product name", json_schema_extra={"format": "name"})
+    tags: list[str] = Field(description="tags", json_schema_extra={"anyschema/description": "Override"})
+
+
 @pytest.mark.parametrize(
     ("spec", "expected"),
     [
         (SimpleModel, (("name", str, (), {}), ("age", int, (), {}))),
         (ModelWithConstraints, (("name", str, (), {}), ("age", int, (Ge(ge=0),), {}))),
+        (
+            ModelWithDescriptions,
+            (
+                ("id", int, (), {"anyschema/description": "ID"}),
+                ("name", str, (), {"anyschema/description": "Product name", "format": "name"}),
+                ("tags", list[str], (), {"anyschema/description": "Override"}),
+            ),
+        ),
     ],
 )
 def test_pydantic_adapter(spec: type[BaseModel], expected: tuple[FieldSpec, ...]) -> None:
@@ -45,27 +59,6 @@ def test_pydantic_adapter_with_json_schema_extra() -> None:
         ("scheduled_at", datetime, (), {"anyschema/time_zone": "UTC"}),
         ("started_at", datetime, (), {"anyschema/time_unit": "ms"}),
         ("completed_at", datetime, (), {"anyschema/time_zone": "Europe/Berlin", "anyschema/time_unit": "ns"}),
-    ]
-
-    assert result == expected
-
-
-def test_pydantic_adapter_with_description() -> None:
-    """Test that description from Field is extracted along with other metadata."""
-
-    class Product(BaseModel):
-        id: int = Field(description="Product ID")
-        name: str = Field(description="Product name", json_schema_extra={"format": "name"})
-        price: float
-        tags: list[str] = Field(json_schema_extra={"anyschema/description": "Override desc"})
-
-    result = list(pydantic_adapter(Product))
-
-    expected = [
-        ("id", int, (), {"anyschema/description": "Product ID"}),
-        ("name", str, (), {"anyschema/description": "Product name", "format": "name"}),
-        ("price", float, (), {}),
-        ("tags", list[str], (), {"anyschema/description": "Override desc"}),
     ]
 
     assert result == expected

@@ -68,7 +68,7 @@ Specifies whether the field can contain null values.
 2. Type inference (`Optional[T]` or `T | None`)
 3. Default: `False` (non-nullable by default)
 
-Example:
+Let's take a look at an example:
 
 ```python exec="true" source="above" result="python" session="nullable-example"
 from pydantic import BaseModel, Field
@@ -83,9 +83,8 @@ class User(BaseModel):
 
 schema = AnySchema(spec=User)
 
-print(f"id nullable (explicit metadata): {schema.fields['id'].nullable}")
-print(f"username nullable (default): {schema.fields['username'].nullable}")
-print(f"email nullable (type inference): {schema.fields['email'].nullable}")
+for field in schema.fields.values():
+    print(f"field '{field.name}' nullable: {field.nullable}")
 ```
 
 **Overriding type inference with explicit metadata:**
@@ -107,9 +106,102 @@ class Config(BaseModel):
 
 schema = AnySchema(spec=Config)
 
-print("required_field", schema.fields["required_field"].nullable)
-print("optional_field", schema.fields["optional_field"].nullable)
+for field in schema.fields.values():
+    print(f"field '{field.name}' nullable: {field.nullable}")
 ```
+
+#### Understanding nullable semantics
+
+The nullable property reflects whether a field **accepts null values according to the type specification**.
+This is particularly important when converting validated data (from Pydantic, attrs, dataclasses) to dataframe schemas.
+
+Consider this example:
+
+```python exec="true" source="above" result="python" session="nullable-semantics"
+from pydantic import BaseModel
+from anyschema import AnySchema
+
+
+class User(BaseModel):
+    name: str  # Non-nullable: validation will reject None
+    email: str | None  # Nullable: None is explicitly allowed
+
+
+schema = AnySchema(spec=User)
+
+for field in schema.fields.values():
+    print(f"field '{field.name}' nullable: {field.nullable}")
+```
+
+**Why this matters:**
+
+When you use Pydantic to validate data, attempting to pass `None` for a non optional field will raise a validation
+error:
+
+```python exec="true" source="above" result="python" session="nullable-semantics"
+# This works
+user1 = User(name="Alice", email="alice@example.com")
+user2 = User(name="Bob", email=None)  # email can be None
+
+try:
+    user3 = User(name=None, email="nobody@example.com")  # This raises ValidationError
+except Exception as e:
+    print(f"ValidationError: {type(e).__name__}")
+```
+
+The schema accurately reflects this constraint: `name` is not nullable, while `email` is nullable.
+
+#### PyArrow schema generation with nullability
+
+One powerful use case for explicit nullability is generating **PyArrow schemas with `not null` constraints**.
+PyArrow (and many database systems) can distinguish between nullable and non-nullable columns, which provides:
+
+* Data validation: Catch null values in supposedly non-nullable columns
+* Performance optimizations: Some engines can optimize non-nullable columns
+* Clear data contracts: Document which fields are guaranteed to have values
+
+**Without anyschema** (default PyArrow behavior):
+
+```python exec="true" source="above" result="python" session="pyarrow-nullability"
+import pyarrow as pa
+from pydantic import BaseModel
+
+
+class User(BaseModel):
+    name: str
+    email: str | None
+
+
+users = [
+    User(name="Alice", email="alice@example.com"),
+    User(name="Bob", email=None),
+]
+
+# PyArrow's default: both fields are nullable
+default_table = pa.Table.from_pylist([user.model_dump() for user in users])
+print("Default PyArrow schema:")
+print(default_table.schema)
+```
+
+**With anyschema** (explicit nullability):
+
+```python exec="true" source="above" result="python" session="pyarrow-nullability"
+from anyschema import AnySchema
+
+# Generate schema with explicit nullability from Pydantic model
+anyschema_obj = AnySchema(spec=User)
+arrow_schema = anyschema_obj.to_arrow()
+
+# Create table with explicit schema
+explicit_table = pa.Table.from_pylist(
+    [user.model_dump() for user in users], schema=arrow_schema
+)
+print("anyschema-generated PyArrow schema:")
+print(explicit_table.schema)
+```
+
+Notice that `name` is now marked as `not null` in the schema, accurately reflecting the type constraint from the
+Pydantic model!
 
 ### `anyschema/unique`
 

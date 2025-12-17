@@ -228,7 +228,61 @@ schema = AnySchema(spec=spec)
 print(schema.to_polars())
 ```
 
-### Nested Types
+## Understanding nullability
+
+One of the key features of `anyschema` is accurate nullability tracking:
+
+* When you declare a field as `str`, it's non-nullable.
+* When you declare it as `str | None` (or `Optional[str]`), it's nullable.
+
+This distinction is especially valuable when working with PyArrow, which supports `not null` constraints:
+
+```python exec="true" source="above" result="python" session="nullability-intro"
+from pydantic import BaseModel
+from anyschema import AnySchema
+import pyarrow as pa
+
+
+class User(BaseModel):
+    name: str  # Non-nullable
+    email: str | None  # Nullable
+
+
+users = [
+    User(name="Alice", email="alice@example.com"),
+    User(name="Bob", email=None),
+]
+
+# Without anyschema: both fields nullable (PyArrow default)
+default_table = pa.Table.from_pylist([user.model_dump() for user in users])
+print("Default PyArrow schema: both fields are nullable")
+print(default_table.schema)
+
+# With anyschema: explicit nullability from type annotations
+schema = AnySchema(spec=User)
+explicit_table = pa.Table.from_pylist(
+    [user.model_dump() for user in users],
+    schema=schema.to_arrow(),
+)
+print("\nWith anyschema: name is not nullable, email is")
+print(explicit_table.schema)
+```
+
+Notice how `name` is now marked as `not null`, accurately reflecting the constraint from your Pydantic model!
+
+This also means that if you try to validate data with `name=None`, Pydantic will reject it:
+
+```python exec="true" source="above" result="python" session="nullability-intro"
+try:
+    User(name=None, email="nobody@example.com")
+except Exception as e:
+    print(f"Validation error: {e}")
+```
+
+See the [Metadata guide](metadata.md#anyschemanullable) for more details on nullable semantics and how to override
+type-based inference.
+
+## Nested Types
 
 You can use nested structures with Pydantic models, dataclasses, or TypedDict:
 

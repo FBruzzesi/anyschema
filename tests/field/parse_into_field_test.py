@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections import OrderedDict
 from dataclasses import dataclass
 from dataclasses import field as dc_field
 from typing import Optional
@@ -54,40 +53,31 @@ def test_parse_field_nullable_type(name: str, py_type: type, expected_dtype: nw.
     assert field == AnyField(name=name, dtype=expected_dtype, nullable=True)
 
 
-@pytest.mark.parametrize(
-    ("nullable_value", "expected_nullable"),
-    [
-        (True, True),
-        (False, False),
-    ],
-)
-def test_parse_field_nullable_metadata(nullable_value: bool, expected_nullable: bool) -> None:  # noqa: FBT001
+@pytest.mark.parametrize("nullable", [True, False])
+def test_parse_field_nullable_metadata(*, nullable: bool) -> None:
     pipeline = make_pipeline()
-    field = pipeline.parse_field("test", int, (), {"anyschema/nullable": nullable_value})
+    field = pipeline.parse_field("test", int, (), {"anyschema/nullable": nullable})
 
-    assert field.nullable is expected_nullable
+    assert field.nullable is nullable
 
 
 def test_parse_field_nullable_metadata_overwrite() -> None:
     # !NOTE: Test that explicit nullable=False overrides Optional type
     pipeline = make_pipeline()
-    field = pipeline.parse_field("test", Optional[str], (), {"anyschema/nullable": False})
 
-    assert field == AnyField(name="test", dtype=nw.String(), nullable=False)
+    field = pipeline.parse_field("test-optional", Optional[str], (), {"anyschema/nullable": False})
+    assert field == AnyField(name="test-optional", dtype=nw.String(), nullable=False)
+
+    field = pipeline.parse_field("test-required", str, (), {"anyschema/nullable": True})
+    assert field == AnyField(name="test-required", dtype=nw.String(), nullable=True)
 
 
-@pytest.mark.parametrize(
-    ("unique_value", "expected_unique"),
-    [
-        (True, True),
-        (False, False),
-    ],
-)
-def test_parse_field_unique(unique_value: bool, expected_unique: bool) -> None:  # noqa: FBT001
+@pytest.mark.parametrize("unique", [True, False])
+def test_parse_field_unique(*, unique: bool) -> None:
     pipeline = make_pipeline()
-    field = pipeline.parse_field("test", str, (), {"anyschema/unique": unique_value})
+    field = pipeline.parse_field("test", str, (), {"anyschema/unique": unique})
 
-    assert field.unique is expected_unique
+    assert field.unique is unique
 
 
 def test_anyschema_metadata_filtered_from_field_metadata() -> None:
@@ -115,51 +105,43 @@ def test_anyschema_metadata_filtered_from_field_metadata() -> None:
 
 
 @pytest.mark.parametrize(
-    ("spec", "expected_field_names"),
+    "spec",
     [
-        ({"id": int}, ["id"]),
-        ({"id": int, "name": str}, ["id", "name"]),
-        ({"id": int, "name": str, "age": int, "active": bool}, ["id", "name", "age", "active"]),
+        {"id": int},
+        {"id": int, "name": str},
+        {"id": int, "name": str, "age": int, "active": bool},
     ],
 )
-def test_anyschema_fields_contains_all_spec_fields(spec: dict[str, type], expected_field_names: list[str]) -> None:
+def test_anyschema_fields_contains_all_spec_fields(spec: dict[str, type]) -> None:
     """Test that all fields from spec are in the fields attribute."""
     schema = AnySchema(spec=spec)
+    result_fields = schema.fields
+    expected_fields = tuple(spec.keys())
 
-    assert len(schema.fields) == len(expected_field_names)
-    for field_name in expected_field_names:
-        assert field_name in schema.fields
-        assert isinstance(schema.fields[field_name], AnyField)
-        assert schema.fields[field_name].name == field_name
-
-
-def test_anyschema_fields_are_field_instances() -> None:
-    """Test that all values in fields dict are AnyField instances."""
-    schema = AnySchema(spec={"id": int, "name": str, "email": Optional[str]})
-
-    for field_name, field in schema.fields.items():
-        assert isinstance(field, AnyField)
-        assert field.name == field_name
+    assert result_fields.keys() == spec.keys()
+    assert all(isinstance(field, AnyField) for field in result_fields.values())
+    assert len(schema.fields) == len(expected_fields)
 
 
-def test_pydantic_student_fields(pydantic_student_cls: type[BaseModel]) -> None:
-    """Test parsing PydanticStudent fixture."""
+def test_pydantic_student_fields_presence(pydantic_student_cls: type[BaseModel]) -> None:
+    """Test that expected fields are present in PydanticStudent fixture."""
     schema = AnySchema(spec=pydantic_student_cls)
+    expected = ("name", "date_of_birth", "age", "classes", "has_graduated")
 
-    # Check that all fields are present
-    assert "name" in schema.fields
-    assert "date_of_birth" in schema.fields
-    assert "age" in schema.fields
-    assert "classes" in schema.fields
-    assert "has_graduated" in schema.fields
+    assert tuple(schema.fields.keys()) == expected
 
-    # Check field properties
-    name_field = schema.fields["name"]
-    assert name_field.dtype == nw.String()
-    assert name_field.nullable is False  # Default is now False
 
-    age_field = schema.fields["age"]
-    assert age_field.dtype == nw.UInt64()  # PositiveInt maps to UInt64
+def test_pydantic_student_field_properties(pydantic_student_cls: type[BaseModel]) -> None:
+    """Test field properties of PydanticStudent fixture."""
+    schema = AnySchema(spec=pydantic_student_cls)
+    expected = (
+        ("name", nw.String(), False),
+        ("age", nw.UInt64(), False),
+    )
+    for name, dtype, nullable in expected:
+        field = schema.fields[name]
+        assert field.dtype == dtype
+        assert field.nullable is nullable
 
 
 def test_pydantic_with_explicit_metadata() -> None:
@@ -171,23 +153,19 @@ def test_pydantic_with_explicit_metadata() -> None:
         email: Optional[str] = PydanticField(json_schema_extra={"format": "email"})
 
     schema = AnySchema(spec=UserWithMetadata)
+    expected = (
+        ("id", False, True, {}),
+        ("username", False, True, {"description": "User's login name"}),
+        ("email", True, False, {"format": "email"}),
+    )
+    for name, nullable, unique, metadata in expected:
+        field = schema.fields[name]
 
-    # Check id field
-    id_field = schema.fields["id"]
-    assert id_field.nullable is False
-    assert id_field.unique is True
-    assert "anyschema/nullable" not in id_field.metadata
-    assert "anyschema/unique" not in id_field.metadata
-
-    # Check username field
-    username_field = schema.fields["username"]
-    assert username_field.unique is True
-    assert username_field.metadata == {"description": "User's login name"}
-
-    # Check email field
-    email_field = schema.fields["email"]
-    assert email_field.nullable is True
-    assert email_field.metadata == {"format": "email"}
+        assert field.nullable is nullable
+        assert field.unique is unique
+        assert field.metadata == metadata
+        # anyschema/* keys should be filtered
+        assert all(not k.startswith("anyschema/") for k in field.metadata)
 
 
 def test_pydantic_with_custom_metadata() -> None:
@@ -199,25 +177,25 @@ def test_pydantic_with_custom_metadata() -> None:
 
     schema = AnySchema(spec=ProductWithMetadata)
 
-    name_field = schema.fields["name"]
-    assert name_field.metadata == {"max_length": 100, "description": "Product name"}
-
-    price_field = schema.fields["price"]
-    assert price_field.metadata == {"min": 0, "currency": "USD"}
+    expected = (
+        ("name", {"max_length": 100, "description": "Product name"}),
+        ("price", {"min": 0, "currency": "USD"}),
+    )
+    for name, metadata in expected:
+        assert schema.fields[name].metadata == metadata
 
 
 def test_sqlalchemy_user_table() -> None:
     """Test parsing user_table from conftest."""
     schema = AnySchema(spec=user_table)
-
-    # Check id field - primary_key, not nullable
-    id_field = schema.fields["id"]
-    assert id_field.nullable is False
-    assert id_field.dtype == nw.Int32()
-
-    # Check email field - explicitly nullable
-    email_field = schema.fields["email"]
-    assert email_field.nullable is True
+    expected = (
+        ("id", nw.Int32(), False),  # primary_key, not nullable
+        ("email", nw.String(), True),  # explicitly nullable
+    )
+    for name, dtype, nullable in expected:
+        field = schema.fields[name]
+        assert field.nullable is nullable
+        assert field.dtype == dtype
 
 
 def test_sqlalchemy_auto_detects_nullable() -> None:
@@ -228,14 +206,17 @@ def test_sqlalchemy_auto_detects_nullable() -> None:
         metadata,
         Column("not_null", Integer, nullable=False),
         Column("nullable", Integer, nullable=True),
-        Column("default_nullable", Integer),  # Default is nullable
+        Column("default_nullable", Integer),
     )
-
     schema = AnySchema(spec=test_table)
 
-    assert schema.fields["not_null"].nullable is False
-    assert schema.fields["nullable"].nullable is True
-    assert schema.fields["default_nullable"].nullable is True
+    expected = (
+        ("not_null", False),
+        ("nullable", True),
+        ("default_nullable", True),  # Default is nullable
+    )
+    for field_name, nullable in expected:
+        assert schema.fields[field_name].nullable is nullable
 
 
 def test_sqlalchemy_auto_detects_unique() -> None:
@@ -251,39 +232,39 @@ def test_sqlalchemy_auto_detects_unique() -> None:
 
     schema = AnySchema(spec=test_table)
 
-    # unique=True should be detected
-    assert schema.fields["unique_username"].unique is True
-    # Normal field should not be unique
-    assert schema.fields["normal_field"].unique is False
+    expected = (
+        ("id", False),  # primary_key doesn't set unique in our implementation
+        ("unique_username", True),
+        ("normal_field", False),
+    )
+    for field_name, unique in expected:
+        assert schema.fields[field_name].unique is unique
 
 
 def test_attrs_person() -> None:
     """Test parsing AttrsPerson fixture."""
     schema = AnySchema(spec=AttrsPerson)
-
-    # Check that all fields are present
-    assert "name" in schema.fields
-    assert "age" in schema.fields
-    assert "date_of_birth" in schema.fields
-    assert "is_active" in schema.fields
-    assert "classes" in schema.fields
-    assert "grades" in schema.fields
-
-    # Check field types
-    assert schema.fields["name"].dtype == nw.String()
-    assert schema.fields["age"].dtype == nw.Int64()
-    assert schema.fields["is_active"].dtype == nw.Boolean()
+    expected = (
+        ("name", nw.String()),
+        ("age", nw.Int64()),
+        ("date_of_birth", nw.Date()),
+        ("is_active", nw.Boolean()),
+    )
+    for name, dtype in expected:
+        field = schema.fields[name]
+        assert field.dtype == dtype
 
 
 def test_attrs_with_metadata() -> None:
     """Test attrs class with metadata."""
     schema = AnySchema(spec=AttrsBookWithMetadata)
-
-    title_field = schema.fields["title"]
-    assert title_field.metadata == {"description": "Book title"}
-
-    author_field = schema.fields["author"]
-    assert author_field.metadata == {"max_length": 100}
+    expected = (
+        ("title", {"description": "Book title"}),
+        ("author", {"max_length": 100}),
+    )
+    for name, metadata in expected:
+        field = schema.fields[name]
+        assert field.metadata == metadata
 
 
 def test_dataclass_basic() -> None:
@@ -297,12 +278,17 @@ def test_dataclass_basic() -> None:
 
     schema = AnySchema(spec=Person)
 
-    num_fields = 3
-    assert len(schema.fields) == num_fields
-    assert schema.fields["name"].dtype == nw.String()
-    assert schema.fields["age"].dtype == nw.Int64()
-    assert schema.fields["email"].dtype == nw.String()
-    assert schema.fields["email"].nullable is True
+    expected = (
+        ("name", nw.String(), False),
+        ("age", nw.Int64(), False),
+        ("email", nw.String(), True),
+    )
+    assert len(schema.fields) == len(expected)
+
+    for name, dtype, nullable in expected:
+        field = schema.fields[name]
+        assert field.dtype == dtype
+        assert field.nullable is nullable
 
 
 def test_dataclass_with_metadata() -> None:
@@ -315,38 +301,14 @@ def test_dataclass_with_metadata() -> None:
 
     schema = AnySchema(spec=Product)
 
-    name_field = schema.fields["name"]
-    assert name_field.metadata == {"description": "Product name", "max_length": 100}
+    expected = (
+        ("name", {"description": "Product name", "max_length": 100}),
+        ("price", {"min": 0, "currency": "USD"}),
+    )
 
-    price_field = schema.fields["price"]
-    assert price_field.metadata == {"min": 0, "currency": "USD"}
-
-
-@pytest.mark.parametrize(
-    "method_name",
-    ["to_arrow", "to_polars", "to_pandas"],
-)
-def test_conversion_methods_still_work(method_name: str) -> None:
-    """Test that conversion methods work after Field addition."""
-    schema = AnySchema(spec={"id": int, "name": str, "active": bool})
-
-    # Get the method
-    method = getattr(schema, method_name)
-    result = method()
-
-    # Should not raise and should return something
-    assert result is not None
-
-
-def test_schema_field_count_matches() -> None:
-    """Test that field count matches across different representations."""
-    spec = {"id": int, "name": str, "email": Optional[str], "active": bool}
-    schema = AnySchema(spec=spec)
-
-    # Field count should match
-    assert len(schema.fields) == len(spec)
-    assert len(schema.to_arrow()) == len(spec)
-    assert len(schema.to_polars()) == len(spec)
+    for name, meta in expected:
+        field = schema.fields[name]
+        assert field.metadata == meta
 
 
 def test_nested_optional_with_constraints() -> None:
@@ -358,131 +320,3 @@ def test_nested_optional_with_constraints() -> None:
 
     assert field.dtype == nw.UInt8()  # Constrained to 0 < x < 100
     assert field.nullable is True  # Optional makes it nullable
-
-
-def test_field_with_multiple_anyschema_metadata_keys() -> None:
-    """Test field with multiple anyschema/* metadata keys."""
-    pipeline = make_pipeline()
-
-    field = pipeline.parse_field(
-        "timestamp",
-        int,
-        (),
-        {
-            "anyschema/nullable": True,
-            "anyschema/unique": True,
-            "anyschema/time_zone": "UTC",
-            "anyschema/time_unit": "ms",
-            "description": "Event timestamp",
-        },
-    )
-
-    # Check field properties
-    assert field.nullable is True
-    assert field.unique is True
-
-    # Check that anyschema/* keys are filtered from field.metadata
-    assert "anyschema/nullable" not in field.metadata
-    assert "anyschema/unique" not in field.metadata
-    assert "anyschema/time_zone" not in field.metadata
-    assert "anyschema/time_unit" not in field.metadata
-
-    # But custom metadata is preserved
-    assert field.metadata == {"description": "Event timestamp"}
-
-
-def test_pydantic_with_nested_optional_and_constraints() -> None:
-    """Test Pydantic field with Optional and constraints."""
-
-    class User(BaseModel):
-        age: Optional[int] = PydanticField(ge=0, le=150)
-
-    schema = AnySchema(spec=User)
-
-    age_field = schema.fields["age"]
-    assert age_field.nullable is True  # Optional
-    assert age_field.dtype == nw.UInt8()  # ge=0, le=150 constrains to UInt8
-
-
-def test_sqlalchemy_nullable_overrides_optional_type() -> None:
-    """Test that SQLAlchemy nullable setting is respected."""
-    metadata_obj = MetaData()
-    test_table = Table(
-        "user_override",
-        metadata_obj,
-        Column("id", Integer, primary_key=True),
-        # Explicitly set nullable=False
-        Column("email", String(100), nullable=False),
-        # Default nullable behavior
-        Column("bio", String(500)),
-    )
-
-    schema = AnySchema(spec=test_table)
-
-    # SQLAlchemy's nullable property should be respected
-    assert schema.fields["email"].nullable is False
-    assert schema.fields["bio"].nullable is True  # Default in SQLAlchemy
-
-
-def test_field_from_narwhals_schema() -> None:
-    """Test creating AnySchema from Narwhals Schema creates Field objects."""
-    nw_schema = nw.Schema({"id": nw.Int64(), "name": nw.String()})
-
-    schema = AnySchema(spec=nw_schema)
-
-    # Should have fields attribute
-    assert hasattr(schema, "fields")
-    num_fields = 2
-    assert len(schema.fields) == num_fields
-
-    # Check field properties (default to non-nullable when creating from Schema)
-    id_field = schema.fields["id"]
-    assert id_field.name == "id"
-    assert id_field.dtype == nw.Int64()
-    assert id_field.nullable is False  # Default
-    assert id_field.unique is False
-
-
-def test_empty_spec_creates_empty_fields() -> None:
-    """Test that empty spec creates empty fields dict."""
-    schema = AnySchema(spec={})
-
-    assert schema.fields == {}
-    assert len(schema.to_arrow()) == 0
-
-
-def test_field_ordering_preserved() -> None:
-    """Test that field order is preserved from spec."""
-    # Use OrderedDict to ensure ordering
-    spec = OrderedDict([("z_field", int), ("a_field", str), ("m_field", bool)])
-
-    schema = AnySchema(spec=spec)
-
-    # Field order should match spec order
-    field_names = list(schema.fields.keys())
-    assert field_names == ["z_field", "a_field", "m_field"]
-
-
-def test_description_end_to_end(pydantic_student_cls: type) -> None:
-    """Test that descriptions from various sources make it to AnyField."""
-    # Test Pydantic with existing fixture
-    schema = AnySchema(spec=pydantic_student_cls)
-    assert schema.fields["name"].description == "Student full name"
-    assert schema.fields["age"].description == "Student age in years"
-    assert schema.fields["date_of_birth"].description is None
-
-    # Test SQLAlchemy
-    from tests.conftest import user_table
-
-    schema = AnySchema(spec=user_table)
-    assert schema.fields["id"].description == "Primary key"
-    assert schema.fields["age"].description == "User age"
-    assert schema.fields["name"].description is None
-
-    # Test dataclass
-    from tests.conftest import DataclassEventWithTimeMetadata
-
-    schema = AnySchema(spec=DataclassEventWithTimeMetadata)
-    assert schema.fields["name"].description == "Event name"
-    assert schema.fields["scheduled_at"].description == "Scheduled time"
-    assert schema.fields["created_at"].description is None

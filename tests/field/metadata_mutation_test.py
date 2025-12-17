@@ -37,19 +37,21 @@ def test_pydantic_field_metadata_not_mutated_by_optional() -> None:
 
 
 def test_pydantic_field_metadata_with_explicit_anyschema_keys() -> None:
-    """Test that existing anyschema/* keys in Pydantic metadata are not modified."""
+    """Test that existing __anyschema_metadata__ keys in Pydantic metadata are not modified."""
 
     class Product(BaseModel):
         id: int = PydanticField(
             json_schema_extra={
-                "anyschema/nullable": False,
-                "anyschema/unique": True,
+                "__anyschema_metadata__": {
+                    "nullable": False,
+                    "unique": True,
+                },
                 "description": "Product ID",
             }
         )
         name: Optional[str] = PydanticField(
             json_schema_extra={
-                "anyschema/nullable": True,  # Explicitly set
+                "__anyschema_metadata__": {"nullable": True},  # Explicitly set
                 "max_length": 100,
             }
         )
@@ -63,12 +65,14 @@ def test_pydantic_field_metadata_with_explicit_anyschema_keys() -> None:
     name_metadata_after = Product.model_fields["name"].json_schema_extra
 
     assert id_metadata_after == {
-        "anyschema/nullable": False,
-        "anyschema/unique": True,
+        "__anyschema_metadata__": {
+            "nullable": False,
+            "unique": True,
+        },
         "description": "Product ID",
     }
     assert name_metadata_after == {
-        "anyschema/nullable": True,
+        "__anyschema_metadata__": {"nullable": True},
         "max_length": 100,
     }
 
@@ -99,8 +103,8 @@ def test_dataclass_field_metadata_not_mutated() -> None:
     assert dict(name_field_after.metadata) == name_metadata_before
     assert dict(email_field_after.metadata) == email_metadata_before
 
-    assert "anyschema/nullable" not in name_field_after.metadata
-    assert "anyschema/nullable" not in email_field_after.metadata
+    assert "__anyschema_metadata__" not in name_field_after.metadata
+    assert "__anyschema_metadata__" not in email_field_after.metadata
 
 
 def test_attrs_field_metadata_not_mutated() -> None:

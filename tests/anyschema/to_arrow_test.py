@@ -15,16 +15,21 @@ if TYPE_CHECKING:
 
 
 class User(BaseModel):
-    id: int = PydanticField(json_schema_extra={"anyschema/nullable": False, "description": "User ID"})
-    username: str = PydanticField(json_schema_extra={"anyschema/nullable": True})
+    id: int = PydanticField(json_schema_extra={"__anyschema_metadata__": {"nullable": False, "description": "User ID"}})
+    username: str = PydanticField(json_schema_extra={"__anyschema_metadata__": {"nullable": True}})
     email: str | None
 
 
 class Product(BaseModel):
     name: str | None = PydanticField(
-        json_schema_extra={"anyschema/nullable": False, "description": "Product name", "max_length": 100}
+        json_schema_extra={
+            "__anyschema_metadata__": {"nullable": False, "description": "Product name"},
+            "max_length": 100,
+        }
     )
-    price: float = PydanticField(json_schema_extra={"anyschema/nullable": True, "currency": "USD", "min": 0})
+    price: float = PydanticField(
+        json_schema_extra={"__anyschema_metadata__": {"nullable": True}, "currency": "USD", "min": 0}
+    )
 
 
 def test_pydantic_to_arrow(pydantic_student_cls: type[BaseModel]) -> None:
@@ -96,8 +101,8 @@ def test_to_arrow_nullable_flags(spec: Spec, expected_nullable: tuple[bool, ...]
     ("spec", "expected_metadata"),
     [
         ({"id": int, "name": str, "email": None | str}, (None, None, None)),
-        (User, ({b"description": b"User ID"}, None, None)),
-        (Product, ({b"description": b"Product name", b"max_length": b"100"}, {b"currency": b"USD", b"min": b"0"})),
+        (User, (None, None, None)),  # description is now in AnyField.description, not custom metadata
+        (Product, ({b"max_length": b"100"}, {b"currency": b"USD", b"min": b"0"})),  # description extracted to AnyField
     ],
 )
 def test_to_arrow_with_metadata(spec: Spec, expected_metadata: tuple[bool, ...]) -> None:

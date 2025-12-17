@@ -6,6 +6,7 @@ import narwhals as nw
 from pydantic import AwareDatetime, BaseModel, FutureDate, FutureDatetime, NaiveDatetime, PastDate, PastDatetime
 
 from anyschema._dependencies import is_pydantic_base_model
+from anyschema._metadata import get_anyschema_metadata
 from anyschema.exceptions import UnsupportedDTypeError
 from anyschema.parsers._base import ParserStep
 
@@ -54,31 +55,32 @@ class PydanticTypeStep(ParserStep):
         if issubclass(input_type, AwareDatetime):  # pyright: ignore[reportArgumentType]
             # Pydantic AwareDatetime does not fix a single timezone, but any timezone would work.
             # See https://github.com/pydantic/pydantic/issues/5829
-            # Unless a timezone is specified via "anyschema/time_zone", we raise an error.
-            if (time_zone := metadata.get("anyschema/time_zone")) is None:
+            # Unless a timezone is specified via "time_zone", we raise an error.
+            if (time_zone := get_anyschema_metadata(metadata, "time_zone")) is None:
                 msg = (
                     "pydantic AwareDatetime does not specify a fixed timezone.\n\n"
-                    "Hint: You can specify a timezone via `Field(..., json_schema_extra={'anyschema/time_zone': 'UTC'}`"
+                    "Hint: You can specify a timezone via `Field(..., json_schema_extra={\n"
+                    "    '__anyschema_metadata__': {'time_zone': 'UTC'}}`"
                 )
                 raise UnsupportedDTypeError(msg)
 
-            return nw.Datetime(time_unit=metadata.get("anyschema/time_unit", "us"), time_zone=time_zone)
+            return nw.Datetime(time_unit=get_anyschema_metadata(metadata, "time_unit", "us"), time_zone=time_zone)
 
         if issubclass(input_type, NaiveDatetime):  # pyright: ignore[reportArgumentType]
             # Pydantic NaiveDatetime should not receive a timezone.
-            # If a timezone is specified via "anyschema/time_zone", we raise an error.
-            if (time_zone := metadata.get("anyschema/time_zone")) is not None:
+            # If a timezone is specified via "time_zone", we raise an error.
+            if (time_zone := get_anyschema_metadata(metadata, "time_zone")) is not None:
                 msg = f"pydantic NaiveDatetime should not specify a timezone, found {time_zone}."
                 raise UnsupportedDTypeError(msg)
 
-            return nw.Datetime(time_unit=metadata.get("anyschema/time_unit", "us"), time_zone=None)
+            return nw.Datetime(time_unit=get_anyschema_metadata(metadata, "time_unit", "us"), time_zone=None)
 
         # Handle datetime types
         if issubclass(input_type, (PastDatetime, FutureDatetime)):  # pyright: ignore[reportArgumentType]
             # PastDatetime and FutureDatetime accept both aware and naive datetimes.
             return nw.Datetime(
-                time_unit=metadata.get("anyschema/time_unit", "us"),
-                time_zone=metadata.get("anyschema/time_zone"),
+                time_unit=get_anyschema_metadata(metadata, "time_unit", "us"),
+                time_zone=get_anyschema_metadata(metadata, "time_zone"),
             )
 
         # Handle date types

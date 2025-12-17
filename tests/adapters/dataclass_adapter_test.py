@@ -59,11 +59,16 @@ def test_dataclass_adapter_with_time_metadata() -> None:
     result = list(dataclass_adapter(DataclassEventWithTimeMetadata))
 
     expected = [
-        ("name", str, (), {"anyschema/description": "Event name"}),
+        ("name", str, (), {"__anyschema_metadata__": {"description": "Event name"}}),
         ("created_at", datetime, (), {}),
-        ("scheduled_at", datetime, (), {"anyschema/time_zone": "UTC", "anyschema/description": "Scheduled time"}),
-        ("started_at", datetime, (), {"anyschema/time_unit": "ms"}),
-        ("completed_at", datetime, (), {"anyschema/time_zone": "Europe/Berlin", "anyschema/time_unit": "ns"}),
+        (
+            "scheduled_at",
+            datetime,
+            (),
+            {"__anyschema_metadata__": {"time_zone": "UTC", "description": "Scheduled time"}},
+        ),
+        ("started_at", datetime, (), {"__anyschema_metadata__": {"time_unit": "ms"}}),
+        ("completed_at", datetime, (), {"__anyschema_metadata__": {"time_zone": "Europe/Berlin", "time_unit": "ns"}}),
     ]
 
     assert result == expected
@@ -80,8 +85,8 @@ def test_dataclass_adapter_with_doc_argument() -> None:
     result = list(dataclass_adapter(Product))
 
     expected = [
-        ("name", str, (), {"anyschema/description": "Product name"}),
-        ("price", float, (), {"anyschema/description": "Product price"}),
+        ("name", str, (), {"__anyschema_metadata__": {"description": "Product name"}}),
+        ("price", float, (), {"__anyschema_metadata__": {"description": "Product price"}}),
         ("in_stock", bool, (), {}),
     ]
 
@@ -92,15 +97,15 @@ def test_dataclass_adapter_with_doc_argument() -> None:
 def test_dataclass_adapter_doc_metadata_precedence() -> None:
     @dataclass
     class Product:
-        # metadata anyschema/description should take precedence
+        # metadata description should take precedence
         name: str = field(  # type: ignore[call-arg]
-            doc="From doc argument", metadata={"anyschema/description": "From metadata"}
+            doc="From doc argument", metadata={"__anyschema_metadata__": {"description": "From metadata"}}
         )
 
     result = list(dataclass_adapter(Product))
 
     expected = [
-        ("name", str, (), {"anyschema/description": "From metadata"}),
+        ("name", str, (), {"__anyschema_metadata__": {"description": "From metadata"}}),
     ]
 
     assert result == expected

@@ -3,6 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Literal, overload
 
+from anyschema._metadata import extract_anyschema_metadata
 from anyschema._utils import qualified_type_name
 from anyschema.exceptions import UnavailablePipelineError
 
@@ -189,15 +190,15 @@ class ParserPipeline:
         uniqueness, and custom metadata.
 
         The metadata dictionary is populated during parsing (e.g., `UnionTypeStep` sets
-        `anyschema/nullable` for `Optional[T]` types), ensuring that forward references
-        are properly evaluated and avoiding code duplication.
+        `nullable` in the `__anyschema_metadata__` dict for `Optional[T]` types), ensuring that
+        forward references are properly evaluated and avoiding code duplication.
 
         Arguments:
             name: The name of the field.
             input_type: The type to parse.
             constraints: Constraints associated with the type.
             metadata: Custom metadata dictionary. This dictionary may be modified during
-                parsing to add field-level metadata like `anyschema/nullable`.
+                parsing to add field-level metadata in the `__anyschema_metadata__` nested dict.
 
         Returns:
             A [`AnyField`][anyschema.AnyField] instance containing the parsed dtype and field-level metadata.
@@ -211,7 +212,7 @@ class ParserPipeline:
 
             With nullable=True metadata:
 
-            >>> field = pipeline.parse_field("email", str, (), {"anyschema/nullable": True})
+            >>> field = pipeline.parse_field("email", str, (), {"__anyschema_metadata__": {"nullable": True}})
             >>> field.nullable
             True
 
@@ -226,11 +227,14 @@ class ParserPipeline:
 
         dtype = self.parse(input_type, constraints, metadata, strict=True)
 
+        # Extract anyschema metadata and custom metadata
+        anyschema_meta, custom_meta = extract_anyschema_metadata(metadata)
+
         return AnyField(
             name=name,
             dtype=dtype,
-            nullable=bool(metadata.get("anyschema/nullable", False)),
-            unique=bool(metadata.get("anyschema/unique", False)),
-            description=metadata.get("anyschema/description"),
-            metadata={k: v for k, v in metadata.items() if not k.startswith("anyschema/")},
+            nullable=bool(anyschema_meta.get("nullable", False)),
+            unique=bool(anyschema_meta.get("unique", False)),
+            description=anyschema_meta.get("description"),
+            metadata=custom_meta,
         )

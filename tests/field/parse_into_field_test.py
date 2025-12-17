@@ -63,7 +63,7 @@ def test_parse_field_nullable_type(name: str, py_type: type, expected_dtype: nw.
 )
 def test_parse_field_nullable_metadata(nullable_value: bool, expected_nullable: bool) -> None:  # noqa: FBT001
     pipeline = make_pipeline()
-    field = pipeline.parse_field("test", int, (), {"anyschema/nullable": nullable_value})
+    field = pipeline.parse_field("test", int, (), {"__anyschema_metadata__": {"nullable": nullable_value}})
 
     assert field.nullable is expected_nullable
 
@@ -71,7 +71,7 @@ def test_parse_field_nullable_metadata(nullable_value: bool, expected_nullable: 
 def test_parse_field_nullable_metadata_overwrite() -> None:
     # !NOTE: Test that explicit nullable=False overrides Optional type
     pipeline = make_pipeline()
-    field = pipeline.parse_field("test", Optional[str], (), {"anyschema/nullable": False})
+    field = pipeline.parse_field("test", Optional[str], (), {"__anyschema_metadata__": {"nullable": False}})
 
     assert field == AnyField(name="test", dtype=nw.String(), nullable=False)
 
@@ -85,31 +85,31 @@ def test_parse_field_nullable_metadata_overwrite() -> None:
 )
 def test_parse_field_unique(unique_value: bool, expected_unique: bool) -> None:  # noqa: FBT001
     pipeline = make_pipeline()
-    field = pipeline.parse_field("test", str, (), {"anyschema/unique": unique_value})
+    field = pipeline.parse_field("test", str, (), {"__anyschema_metadata__": {"unique": unique_value}})
 
     assert field.unique is expected_unique
 
 
 def test_anyschema_metadata_filtered_from_field_metadata() -> None:
-    """Test that anyschema/* keys are filtered from Field.metadata."""
+    """Test that __anyschema_metadata__ is filtered from Field.metadata."""
     pipeline = make_pipeline()
     field = pipeline.parse_field(
         "test",
         int,
         (),
         {
-            "anyschema/nullable": False,
-            "anyschema/unique": True,
-            "anyschema/time_zone": "UTC",
+            "__anyschema_metadata__": {
+                "nullable": False,
+                "unique": True,
+                "time_zone": "UTC",
+            },
             "description": "A test field",
             "custom_key": "custom_value",
         },
     )
 
-    # anyschema/* keys should not be in field.metadata
-    assert "anyschema/nullable" not in field.metadata
-    assert "anyschema/unique" not in field.metadata
-    assert "anyschema/time_zone" not in field.metadata
+    # __anyschema_metadata__ should not be in field.metadata
+    assert "__anyschema_metadata__" not in field.metadata
 
     # Custom metadata should be preserved
     assert field.metadata == {"description": "A test field", "custom_key": "custom_value"}
@@ -181,8 +181,10 @@ def test_pydantic_with_explicit_metadata() -> None:
     """Test Pydantic model with explicit nullable and unique metadata."""
 
     class UserWithMetadata(BaseModel):
-        id: int = PydanticField(json_schema_extra={"anyschema/nullable": False, "anyschema/unique": True})
-        username: str = PydanticField(json_schema_extra={"anyschema/unique": True, "description": "User's login name"})
+        id: int = PydanticField(json_schema_extra={"__anyschema_metadata__": {"nullable": False, "unique": True}})
+        username: str = PydanticField(
+            json_schema_extra={"__anyschema_metadata__": {"unique": True}, "description": "User's login name"}
+        )
         email: Optional[str] = PydanticField(json_schema_extra={"format": "email"})
 
     schema = AnySchema(spec=UserWithMetadata)
@@ -191,8 +193,7 @@ def test_pydantic_with_explicit_metadata() -> None:
     id_field = schema.fields["id"]
     assert id_field.nullable is False
     assert id_field.unique is True
-    assert "anyschema/nullable" not in id_field.metadata
-    assert "anyschema/unique" not in id_field.metadata
+    assert "__anyschema_metadata__" not in id_field.metadata
 
     # Check username field
     username_field = schema.fields["username"]
@@ -376,7 +377,7 @@ def test_nested_optional_with_constraints() -> None:
 
 
 def test_field_with_multiple_anyschema_metadata_keys() -> None:
-    """Test field with multiple anyschema/* metadata keys."""
+    """Test field with multiple __anyschema_metadata__ keys."""
     pipeline = make_pipeline()
 
     field = pipeline.parse_field(
@@ -384,10 +385,12 @@ def test_field_with_multiple_anyschema_metadata_keys() -> None:
         int,
         (),
         {
-            "anyschema/nullable": True,
-            "anyschema/unique": True,
-            "anyschema/time_zone": "UTC",
-            "anyschema/time_unit": "ms",
+            "__anyschema_metadata__": {
+                "nullable": True,
+                "unique": True,
+                "time_zone": "UTC",
+                "time_unit": "ms",
+            },
             "description": "Event timestamp",
         },
     )
@@ -396,11 +399,8 @@ def test_field_with_multiple_anyschema_metadata_keys() -> None:
     assert field.nullable is True
     assert field.unique is True
 
-    # Check that anyschema/* keys are filtered from field.metadata
-    assert "anyschema/nullable" not in field.metadata
-    assert "anyschema/unique" not in field.metadata
-    assert "anyschema/time_zone" not in field.metadata
-    assert "anyschema/time_unit" not in field.metadata
+    # Check that __anyschema_metadata__ is filtered from field.metadata
+    assert "__anyschema_metadata__" not in field.metadata
 
     # But custom metadata is preserved
     assert field.metadata == {"description": "Event timestamp"}

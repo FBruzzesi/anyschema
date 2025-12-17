@@ -9,16 +9,16 @@ behavior in `anyschema`.
 ## Overview
 
 Metadata is a dictionary of key-value pairs attached to individual fields.
-While you can store any custom metadata, anyschema recognizes specific keys with the `"anyschema/"` prefix that modify
-parsing behavior.
+While you can store any custom metadata, anyschema recognizes a special nested dictionary under the
+`"__anyschema_metadata__"` key that modifies parsing behavior.
 
-Currently supported special metadata keys:
+Currently supported anyschema metadata keys (nested under `"__anyschema_metadata__"`):
 
-* `"anyschema/nullable"`: Specifies whether the field can contain null values.
-* `"anyschema/unique"`: Specifies whether all values in the field must be unique.
-* `"anyschema/description"`: Provides a human-readable description of the field.
-* `"anyschema/time_zone"`: Specifies timezone for datetime fields.
-* `"anyschema/time_unit"`: Specifies time precision for datetime fields (default: `"us"`).
+* `"nullable"`: Specifies whether the field can contain null values.
+* `"unique"`: Specifies whether all values in the field must be unique.
+* `"description"`: Provides a human-readable description of the field.
+* `"time_zone"`: Specifies timezone for datetime fields.
+* `"time_unit"`: Specifies time precision for datetime fields (default: `"us"`).
 
 ## The `AnyField` Class
 
@@ -32,7 +32,7 @@ When you create an `AnySchema`, it parses each field into a `AnyField` object th
 * `nullable`: Whether the field accepts null values
 * `unique`: Whether values must be unique
 * `description`: Human-readable field description
-* `metadata`: Custom metadata dictionary (excluding `anyschema/*` keys)
+* `metadata`: Custom metadata dictionary (excluding `__anyschema_metadata__` dict)
 
 You can access these fields through the `fields` attribute:
 
@@ -53,18 +53,18 @@ print(email_field)
 ## Supported Metadata Keys
 
 !!! info "Metadata Precedence"
-    Explicit `anyschema/*` metadata keys **always take precedence** over values inferred from types.
+    Explicit anyschema metadata keys **always take precedence** over values inferred from types.
 
-    For example, setting `anyschema/nullable: False` will make a field non-nullable even if the type
+    For example, setting `nullable: False` in `__anyschema_metadata__` will make a field non-nullable even if the type
     is `Optional[T]`. This allows you to override type-level inference when needed.
 
-### `anyschema/nullable`
+### `nullable`
 
 Specifies whether the field can contain null values.
 
 **Precedence rules** (highest to lowest):
 
-1. Explicit `anyschema/nullable` metadata key
+1. Explicit `nullable` key in `__anyschema_metadata__`
 2. Type inference (`Optional[T]` or `T | None`)
 3. Default: `False` (non-nullable by default)
 
@@ -76,7 +76,7 @@ from anyschema import AnySchema
 
 
 class User(BaseModel):
-    id: int = Field(json_schema_extra={"anyschema/nullable": False})
+    id: int = Field(json_schema_extra={"__anyschema_metadata__": {"nullable": False}})
     username: str
     email: str | None
 
@@ -99,10 +99,12 @@ from anyschema import AnySchema
 class Config(BaseModel):
     # Type says Optional, but metadata overrides to non-nullable
     required_field: Optional[str] = Field(
-        json_schema_extra={"anyschema/nullable": False}
+        json_schema_extra={"__anyschema_metadata__": {"nullable": False}}
     )
     # Type says non-Optional, but metadata overrides to nullable
-    optional_field: str = Field(json_schema_extra={"anyschema/nullable": True})
+    optional_field: str = Field(
+        json_schema_extra={"__anyschema_metadata__": {"nullable": True}}
+    )
 
 
 schema = AnySchema(spec=Config)
@@ -111,7 +113,7 @@ print("required_field", schema.fields["required_field"].nullable)
 print("optional_field", schema.fields["optional_field"].nullable)
 ```
 
-### `anyschema/unique`
+### `unique`
 
 Specifies whether all values in the field must be unique.
 
@@ -121,13 +123,14 @@ Specifies whether all values in the field must be unique.
 
 **Precedence rules** (highest to lowest):
 
-1. Explicit `anyschema/unique` metadata key
+1. Explicit `unique` key in `__anyschema_metadata__`
 2. SQLAlchemy column `unique` property (auto-detected)
 3. Default: `False`
 
 !!! tip "SQLAlchemy Auto-Detection"
     For SQLAlchemy tables, the `unique` constraint is automatically detected from column properties.
-    You can override this by explicitly setting `anyschema/unique` in the column's `info` parameter.
+    You can override this by explicitly setting `unique` in the column's `info` parameter under
+    `__anyschema_metadata__`.
 
 Example:
 
@@ -137,8 +140,10 @@ from anyschema import AnySchema
 
 
 class User(BaseModel):
-    id: int = Field(json_schema_extra={"anyschema/unique": True})
-    username: str = Field(json_schema_extra={"anyschema/unique": True})
+    id: int = Field(json_schema_extra={"__anyschema_metadata__": {"unique": True}})
+    username: str = Field(
+        json_schema_extra={"__anyschema_metadata__": {"unique": True}}
+    )
     email: str
 
 
@@ -164,7 +169,9 @@ user_table = Table(
         "email",
         String(100),
         unique=True,  # SQLAlchemy says unique=True
-        info={"anyschema/unique": False},  # But metadata overrides to False
+        info={
+            "__anyschema_metadata__": {"unique": False}
+        },  # But metadata overrides to False
     ),
 )
 
@@ -174,7 +181,7 @@ print(f"username unique (from SQLAlchemy): {schema.fields['username'].unique}")
 print(f"email unique (overridden by metadata): {schema.fields['email'].unique}")
 ```
 
-### `anyschema/description`
+### `description`
 
 Provides a human-readable description of the field's purpose or content.
 
@@ -187,7 +194,7 @@ Provides a human-readable description of the field's purpose or content.
 1. **Pydantic**: The `description` parameter of `Field()` is automatically extracted
 2. **SQLAlchemy**: The `doc` parameter of `Column()` or `mapped_column()` is automatically extracted
 3. **Dataclasses (Python 3.14+)**: The `doc` parameter of `field()` is automatically extracted
-4. **Explicit metadata**: Set `"anyschema/description"` in field metadata
+4. **Explicit metadata**: Set `"description"` in the `__anyschema_metadata__` dict
 
 Example with Pydantic:
 
@@ -239,8 +246,12 @@ from anyschema import AnySchema
 
 @dataclass
 class User:
-    id: int = field(metadata={"anyschema/description": "Unique user identifier"})
-    username: str = field(metadata={"anyschema/description": "User's login name"})
+    id: int = field(
+        metadata={"__anyschema_metadata__": {"description": "Unique user identifier"}}
+    )
+    username: str = field(
+        metadata={"__anyschema_metadata__": {"description": "User's login name"}}
+    )
     email: str
 
 
@@ -250,7 +261,7 @@ print(f"username description: {schema.fields['username'].description!r}")
 print(f"email description: {schema.fields['email'].description!r}")
 ```
 
-### `anyschema/time_zone`
+### `time_zone`
 
 Specifies the timezone for datetime fields as a string defined in `zoneinfo`.
 
@@ -258,16 +269,16 @@ To see valid values run `import zoneinfo; zoneinfo.available_timezones()` for th
 
 * Applicable to: `datetime` types and Pydantic datetime types.
 * Default: `None` (no timezone, i.e., naive datetime)
-* Resulting dtype: `nw.Datetime(time_zone = <anyschema/time_zone value>)`
+* Resulting dtype: `nw.Datetime(time_zone = <time_zone value>)`
 
-### `anyschema/time_unit`
+### `time_unit`
 
 Specifies the time precision for datetime fields. Valid values are
 `"s"` (seconds), `"ms"`(milliseconds),`"us"`(microseconds, default),`"ns"`(nanoseconds).
 
 * Applicable to: `datetime` types and Pydantic datetime types
 * Default: `"us"` (microseconds)
-* Resulting dtype: `nw.Datetime(time_unit = <anyschema/time_unit value>)`
+* Resulting dtype: `nw.Datetime(time_unit = <time_unit value>)`
 
 ### Combining Multiple Metadata
 
@@ -282,7 +293,9 @@ from anyschema import AnySchema
 class LogEntry(BaseModel):
     message: str
     timestamp: datetime = Field(
-        json_schema_extra={"anyschema/time_zone": "UTC", "anyschema/time_unit": "ns"}
+        json_schema_extra={
+            "__anyschema_metadata__": {"time_zone": "UTC", "time_unit": "ns"}
+        }
     )
 
 
@@ -310,15 +323,17 @@ class EventModel(BaseModel):
     name: str
     created_at: datetime  # Default datetime (no metadata)
     scheduled_at: datetime = Field(  # Specify timezone
-        json_schema_extra={"anyschema/time_zone": "UTC"}
+        json_schema_extra={"__anyschema_metadata__": {"time_zone": "UTC"}}
     )
     started_at: datetime = Field(  # Specify time precision
-        json_schema_extra={"anyschema/time_unit": "ms"}
+        json_schema_extra={"__anyschema_metadata__": {"time_unit": "ms"}}
     )
     completed_at: datetime = Field(  # Specify both timezone and precision
         json_schema_extra={
-            "anyschema/time_zone": "Europe/Berlin",
-            "anyschema/time_unit": "ns",
+            "__anyschema_metadata__": {
+                "time_zone": "Europe/Berlin",
+                "time_unit": "ns",
+            }
         }
     )
 
@@ -337,11 +352,11 @@ from pydantic import AwareDatetime, NaiveDatetime, Field
 
 class TimeModel(BaseModel):
     aware_utc: AwareDatetime = Field(  # AwareDatetime **requires** timezone metadata
-        json_schema_extra={"anyschema/time_zone": "UTC"}
+        json_schema_extra={"__anyschema_metadata__": {"time_zone": "UTC"}}
     )
     naive: NaiveDatetime = (
         Field(  # NaiveDatetime **rejects** timezone metadata (will raise an error)
-            json_schema_extra={"anyschema/time_unit": "ns"}
+            json_schema_extra={"__anyschema_metadata__": {"time_unit": "ns"}}
         )
     )
 
@@ -351,7 +366,7 @@ print(schema._nw_schema)
 ```
 
 !!! warning "AwareDatetime Requires Timezone"
-    Pydantic's `AwareDatetime` type requires you to specify a timezone via `"anyschema/time_zone"` metadata,
+    Pydantic's `AwareDatetime` type requires you to specify a timezone via `"time_zone"` in `__anyschema_metadata__`,
     otherwise anyschema will raise an `UnsupportedDTypeError`.
 
 !!! warning "NaiveDatetime Cannot Have Timezone"
@@ -372,13 +387,15 @@ class EventModel:
     name: str
     created_at: datetime  # Default datetime (no metadata)
     scheduled_at: datetime = attrs.field(  # Specify timezone
-        metadata={"anyschema/time_zone": "UTC"}
+        metadata={"__anyschema_metadata__": {"time_zone": "UTC"}}
     )
     started_at: datetime = attrs.field(  # Specify time precision
-        metadata={"anyschema/time_unit": "ms"}
+        metadata={"__anyschema_metadata__": {"time_unit": "ms"}}
     )
     completed_at: datetime = attrs.field(  # Specify both timezone and precision
-        metadata={"anyschema/time_zone": "Europe/Berlin", "anyschema/time_unit": "ns"}
+        metadata={
+            "__anyschema_metadata__": {"time_zone": "Europe/Berlin", "time_unit": "ns"}
+        }
     )
 
 
@@ -393,7 +410,7 @@ This also works with `@attrs.frozen` classes:
 class ImmutableEvent:
     event_id: int
     timestamp: datetime = attrs.field(
-        metadata={"anyschema/time_zone": "UTC", "anyschema/time_unit": "ms"}
+        metadata={"__anyschema_metadata__": {"time_zone": "UTC", "time_unit": "ms"}}
     )
 
 
@@ -416,13 +433,15 @@ class EventModel:
     name: str
     created_at: datetime  # Default datetime (no metadata)
     scheduled_at: datetime = field(  # Specify timezone
-        metadata={"anyschema/time_zone": "UTC"}
+        metadata={"__anyschema_metadata__": {"time_zone": "UTC"}}
     )
     started_at: datetime = field(  # Specify time precision
-        metadata={"anyschema/time_unit": "ms"}
+        metadata={"__anyschema_metadata__": {"time_unit": "ms"}}
     )
     completed_at: datetime = field(  # Specify both timezone and precision
-        metadata={"anyschema/time_zone": "Europe/Berlin", "anyschema/time_unit": "ns"}
+        metadata={
+            "__anyschema_metadata__": {"time_zone": "Europe/Berlin", "time_unit": "ns"}
+        }
     )
 
 
@@ -440,7 +459,7 @@ from pydantic.dataclasses import dataclass as pydantic_dataclass
 class PydanticDataclassEvent:
     event_id: int
     timestamp: datetime = field(
-        metadata={"anyschema/time_zone": "UTC", "anyschema/time_unit": "ms"}
+        metadata={"__anyschema_metadata__": {"time_zone": "UTC", "time_unit": "ms"}}
     )
 
 
@@ -452,7 +471,7 @@ print(schema._nw_schema)
 
 For SQLAlchemy tables and ORM models, use the `info` parameter in `Column()` or `mapped_column()`.
 
-Additionally, SQLAlchemy automatically populates `anyschema/nullable` and `anyschema/unique` metadata based on
+Additionally, SQLAlchemy automatically populates `nullable` and `unique` in the `__anyschema_metadata__` dict based on
 column properties:
 
 ```python exec="true" source="above" result="python" session="sqlalchemy-auto-metadata"
@@ -481,10 +500,10 @@ print(schema.fields["bio"])
 !!! info "SQLAlchemy DateTime Behavior"
 
     * Use `DateTime()` (or `DateTime(timezone=False)`) for naive datetimes.
-        You can specify [`anyschema/time_unit`](#anyschematime_unit) metadata but **not**
-        [`anyschema/time_zone`](#anyschematime_zone).
+        You can specify [`time_unit`](#time_unit) metadata but **not**
+        [`time_zone`](#time_zone).
     * Use `DateTime(timezone=True)` for timezone-aware datetimes. You **must** specify
-        [`anyschema/time_zone`](#anyschematime_zone) metadata via the `info` parameter.
+        [`time_zone`](#time_zone) metadata via the `info` parameter in `__anyschema_metadata__`.
 
 ```python exec="true" source="above" result="python" session="metadata-sqlalchemy"
 from sqlalchemy import Column, DateTime, Integer, MetaData, String, Table
@@ -501,19 +520,25 @@ event_table = Table(
     Column(
         "scheduled_at",
         DateTime(timezone=True),
-        info={"anyschema/time_zone": "UTC"},  # Specify timezone via info
+        info={
+            "__anyschema_metadata__": {"time_zone": "UTC"}
+        },  # Specify timezone via info
     ),
     Column(
         "started_at",
         DateTime,
-        info={"anyschema/time_unit": "ms"},  # Specify time precision via info
+        info={
+            "__anyschema_metadata__": {"time_unit": "ms"}
+        },  # Specify time precision via info
     ),
     Column(
         "completed_at",
         DateTime(timezone=True),
         info={  # Specify both timezone and precision
-            "anyschema/time_zone": "Europe/Berlin",
-            "anyschema/time_unit": "ns",
+            "__anyschema_metadata__": {
+                "time_zone": "Europe/Berlin",
+                "time_unit": "ns",
+            }
         },
     ),
 )
@@ -539,14 +564,16 @@ class EventORM(Base):
     name: Mapped[str]
     created_at: Mapped[DateTime] = mapped_column(DateTime)
     scheduled_at: Mapped[DateTime] = mapped_column(
-        DateTime(timezone=True), info={"anyschema/time_zone": "UTC"}
+        DateTime(timezone=True), info={"__anyschema_metadata__": {"time_zone": "UTC"}}
     )
     started_at: Mapped[DateTime] = mapped_column(
-        DateTime, info={"anyschema/time_unit": "ms"}
+        DateTime, info={"__anyschema_metadata__": {"time_unit": "ms"}}
     )
     completed_at: Mapped[DateTime] = mapped_column(
         DateTime(timezone=True),
-        info={"anyschema/time_zone": "Europe/Berlin", "anyschema/time_unit": "ns"},
+        info={
+            "__anyschema_metadata__": {"time_zone": "Europe/Berlin", "time_unit": "ns"}
+        },
     )
 
 
@@ -566,12 +593,14 @@ event_table_tz = Table(
     Column(
         "timestamp_utc",
         DateTime(timezone=True),  # timezone=True requires time_zone in info
-        info={"anyschema/time_zone": "UTC"},
+        info={"__anyschema_metadata__": {"time_zone": "UTC"}},
     ),
     Column(
         "timestamp_berlin",
         DateTime(timezone=True),
-        info={"anyschema/time_zone": "Europe/Berlin", "anyschema/time_unit": "ms"},
+        info={
+            "__anyschema_metadata__": {"time_zone": "Europe/Berlin", "time_unit": "ms"}
+        },
     ),
 )
 
@@ -583,12 +612,12 @@ print(schema._nw_schema)
     SQLAlchemy's `DateTime(timezone=True)` does not specify a fixed timezone value (it only indicates the database
     should store timezone information).
 
-    You **must** specify a timezone via `info={'anyschema/time_zone': 'UTC'}`, otherwise anyschema will raise an
-    `UnsupportedDTypeError`.
+    You **must** specify a timezone via `info={'__anyschema_metadata__': {'time_zone': 'UTC'}}`,
+    otherwise anyschema will raise an `UnsupportedDTypeError`.
 
 !!! warning "DateTime() Cannot Have Timezone with timezone=False"
     SQLAlchemy's `DateTime()` or `DateTime(timezone=False)` is for naive datetimes and will raise an
-    `UnsupportedDTypeError` if you specify a timezone in the `info` parameter.
+    `UnsupportedDTypeError` if you specify a timezone in the `__anyschema_metadata__` dict in the `info` parameter.
 
 ### TypedDict
 
@@ -599,7 +628,8 @@ print(schema._nw_schema)
 
 ## Custom Metadata
 
-While anyschema recognizes the special `"anyschema/*"` keys, you can also include custom metadata for your own purposes.
+While anyschema recognizes the special `"__anyschema_metadata__"` dict, you can also include custom
+metadata for your own purposes.
 This metadata will be passed to custom parser steps, allowing you to implement domain-specific parsing logic.
 
 For example:
@@ -611,7 +641,7 @@ from pydantic import BaseModel, Field
 class Product(BaseModel):
     name: str = Field(
         json_schema_extra={
-            "anyschema/time_zone": "UTC",  # Recognized by anyschema
+            "__anyschema_metadata__": {"time_zone": "UTC"},  # Recognized by anyschema
             "my_app/description": "Product name",  # Custom metadata
             "my_app/max_length": 100,  # Custom metadata
         }

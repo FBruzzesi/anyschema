@@ -42,9 +42,9 @@ def test_pydantic_adapter_with_json_schema_extra() -> None:
     expected = [
         ("name", str, (), {}),
         ("created_at", datetime, (), {}),
-        ("scheduled_at", datetime, (), {"anyschema/time_zone": "UTC"}),
-        ("started_at", datetime, (), {"anyschema/time_unit": "ms"}),
-        ("completed_at", datetime, (), {"anyschema/time_zone": "Europe/Berlin", "anyschema/time_unit": "ns"}),
+        ("scheduled_at", datetime, (), {"__anyschema_metadata__": {"time_zone": "UTC"}}),
+        ("started_at", datetime, (), {"__anyschema_metadata__": {"time_unit": "ms"}}),
+        ("completed_at", datetime, (), {"__anyschema_metadata__": {"time_zone": "Europe/Berlin", "time_unit": "ns"}}),
     ]
 
     assert result == expected
@@ -57,15 +57,15 @@ def test_pydantic_adapter_with_description() -> None:
         id: int = Field(description="Product ID")
         name: str = Field(description="Product name", json_schema_extra={"format": "name"})
         price: float
-        tags: list[str] = Field(json_schema_extra={"anyschema/description": "Override desc"})
+        tags: list[str] = Field(json_schema_extra={"__anyschema_metadata__": {"description": "Override desc"}})
 
     result = list(pydantic_adapter(Product))
 
     expected = [
-        ("id", int, (), {"anyschema/description": "Product ID"}),
-        ("name", str, (), {"anyschema/description": "Product name", "format": "name"}),
+        ("id", int, (), {"__anyschema_metadata__": {"description": "Product ID"}}),
+        ("name", str, (), {"__anyschema_metadata__": {"description": "Product name"}, "format": "name"}),
         ("price", float, (), {}),
-        ("tags", list[str], (), {"anyschema/description": "Override desc"}),
+        ("tags", list[str], (), {"__anyschema_metadata__": {"description": "Override desc"}}),
     ]
 
     assert result == expected

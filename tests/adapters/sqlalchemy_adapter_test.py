@@ -46,13 +46,13 @@ def assert_result_equal(result: Iterable[FieldSpec], expected: Iterable[FieldSpe
                     "id",
                     Integer(),
                     (),
-                    {"anyschema/description": None, "anyschema/nullable": False, "anyschema/unique": False},
+                    {"__anyschema_metadata__": {"nullable": False, "unique": False}},
                 ),
                 (
                     "name",
                     String(),
                     (),
-                    {"anyschema/description": None, "anyschema/nullable": True, "anyschema/unique": False},
+                    {"__anyschema_metadata__": {"nullable": True, "unique": False}},
                 ),
             ],
         ),
@@ -63,25 +63,25 @@ def assert_result_equal(result: Iterable[FieldSpec], expected: Iterable[FieldSpe
                     "id",
                     Integer(),
                     (),
-                    {"anyschema/description": None, "anyschema/nullable": False, "anyschema/unique": False},
+                    {"__anyschema_metadata__": {"nullable": False, "unique": False}},
                 ),
                 (
                     "name",
                     String(50),
                     (),
-                    {"anyschema/description": None, "anyschema/nullable": False, "anyschema/unique": False},
+                    {"__anyschema_metadata__": {"nullable": False, "unique": False}},
                 ),
                 (
                     "age",
                     Integer(),
                     (),
-                    {"anyschema/description": None, "anyschema/nullable": True, "anyschema/unique": False},
+                    {"__anyschema_metadata__": {"nullable": True, "unique": False}},
                 ),
                 (
                     "score",
                     Float(),
                     (),
-                    {"anyschema/description": None, "anyschema/nullable": True, "anyschema/unique": False},
+                    {"__anyschema_metadata__": {"nullable": True, "unique": False}},
                 ),
             ],
         ),
@@ -92,25 +92,25 @@ def assert_result_equal(result: Iterable[FieldSpec], expected: Iterable[FieldSpe
                     "id",
                     Integer(),
                     (),
-                    {"anyschema/description": "Primary key", "anyschema/nullable": False, "anyschema/unique": False},
+                    {"__anyschema_metadata__": {"description": "Primary key", "nullable": False, "unique": False}},
                 ),
                 (
                     "name",
                     String(50),
                     (),
-                    {"anyschema/description": None, "anyschema/nullable": True, "anyschema/unique": False},
+                    {"__anyschema_metadata__": {"nullable": True, "unique": False}},
                 ),
                 (
                     "age",
                     Integer(),
                     (),
-                    {"anyschema/description": "User age", "anyschema/nullable": True, "anyschema/unique": False},
+                    {"__anyschema_metadata__": {"description": "User age", "nullable": True, "unique": False}},
                 ),
                 (
                     "email",
                     String(100),
                     (),
-                    {"anyschema/description": None, "anyschema/nullable": True, "anyschema/unique": False},
+                    {"__anyschema_metadata__": {"nullable": True, "unique": False}},
                 ),
             ],
         ),
@@ -121,25 +121,25 @@ def assert_result_equal(result: Iterable[FieldSpec], expected: Iterable[FieldSpe
                     "int_col",
                     Integer(),
                     (),
-                    {"anyschema/description": None, "anyschema/nullable": True, "anyschema/unique": False},
+                    {"__anyschema_metadata__": {"nullable": True, "unique": False}},
                 ),
                 (
                     "bigint_col",
                     BigInteger(),
                     (),
-                    {"anyschema/description": None, "anyschema/nullable": True, "anyschema/unique": False},
+                    {"__anyschema_metadata__": {"nullable": True, "unique": False}},
                 ),
                 (
                     "string_col",
                     String(100),
                     (),
-                    {"anyschema/description": None, "anyschema/nullable": True, "anyschema/unique": False},
+                    {"__anyschema_metadata__": {"nullable": True, "unique": False}},
                 ),
                 (
                     "float_col",
                     Float(),
                     (),
-                    {"anyschema/description": None, "anyschema/nullable": True, "anyschema/unique": False},
+                    {"__anyschema_metadata__": {"nullable": True, "unique": False}},
                 ),
             ],
         ),
@@ -167,29 +167,30 @@ def test_sqlalchemy_adapter_with_time_metadata_table() -> None:
             "id",
             Integer(),
             (),
-            {"anyschema/description": None, "anyschema/nullable": False, "anyschema/unique": False},
+            {"__anyschema_metadata__": {"nullable": False, "unique": False}},
         ),
         (
             "name",
             String(100),
             (),
-            {"anyschema/description": None, "anyschema/nullable": True, "anyschema/unique": False},
+            {"__anyschema_metadata__": {"nullable": True, "unique": False}},
         ),
         (
             "created_at",
             DateTime(),
             (),
-            {"anyschema/description": None, "anyschema/nullable": True, "anyschema/unique": False},
+            {"__anyschema_metadata__": {"nullable": True, "unique": False}},
         ),
         (
             "scheduled_at",
             DateTime(timezone=True),
             (),
             {
-                "anyschema/description": None,
-                "anyschema/nullable": True,
-                "anyschema/unique": False,
-                "anyschema/time_zone": "UTC",
+                "__anyschema_metadata__": {
+                    "nullable": True,
+                    "unique": False,
+                    "time_zone": "UTC",
+                }
             },
         ),
         (
@@ -197,10 +198,11 @@ def test_sqlalchemy_adapter_with_time_metadata_table() -> None:
             DateTime(),
             (),
             {
-                "anyschema/description": None,
-                "anyschema/nullable": True,
-                "anyschema/unique": False,
-                "anyschema/time_unit": "ms",
+                "__anyschema_metadata__": {
+                    "nullable": True,
+                    "unique": False,
+                    "time_unit": "ms",
+                }
             },
         ),
         (
@@ -208,11 +210,12 @@ def test_sqlalchemy_adapter_with_time_metadata_table() -> None:
             DateTime(timezone=True),
             (),
             {
-                "anyschema/description": None,
-                "anyschema/nullable": True,
-                "anyschema/unique": False,
-                "anyschema/time_zone": "Europe/Berlin",
-                "anyschema/time_unit": "ns",
+                "__anyschema_metadata__": {
+                    "nullable": True,
+                    "unique": False,
+                    "time_zone": "Europe/Berlin",
+                    "time_unit": "ns",
+                }
             },
         ),
     ]
@@ -231,29 +234,30 @@ def test_sqlalchemy_adapter_with_time_metadata_orm() -> None:
             "id",
             Integer(),
             (),
-            {"anyschema/description": None, "anyschema/nullable": False, "anyschema/unique": False},
+            {"__anyschema_metadata__": {"nullable": False, "unique": False}},
         ),
         (
             "name",
             String(),
             (),
-            {"anyschema/description": None, "anyschema/nullable": False, "anyschema/unique": False},
+            {"__anyschema_metadata__": {"nullable": False, "unique": False}},
         ),
         (
             "created_at",
             DateTime(),
             (),
-            {"anyschema/description": None, "anyschema/nullable": False, "anyschema/unique": False},
+            {"__anyschema_metadata__": {"nullable": False, "unique": False}},
         ),
         (
             "scheduled_at",
             DateTime(timezone=True),
             (),
             {
-                "anyschema/description": None,
-                "anyschema/nullable": False,
-                "anyschema/unique": False,
-                "anyschema/time_zone": "UTC",
+                "__anyschema_metadata__": {
+                    "nullable": False,
+                    "unique": False,
+                    "time_zone": "UTC",
+                }
             },
         ),
         (
@@ -261,10 +265,11 @@ def test_sqlalchemy_adapter_with_time_metadata_orm() -> None:
             DateTime(),
             (),
             {
-                "anyschema/description": None,
-                "anyschema/nullable": False,
-                "anyschema/unique": False,
-                "anyschema/time_unit": "ms",
+                "__anyschema_metadata__": {
+                    "nullable": False,
+                    "unique": False,
+                    "time_unit": "ms",
+                }
             },
         ),
         (
@@ -272,11 +277,12 @@ def test_sqlalchemy_adapter_with_time_metadata_orm() -> None:
             DateTime(timezone=True),
             (),
             {
-                "anyschema/description": None,
-                "anyschema/nullable": False,
-                "anyschema/unique": False,
-                "anyschema/time_zone": "Europe/Berlin",
-                "anyschema/time_unit": "ns",
+                "__anyschema_metadata__": {
+                    "nullable": False,
+                    "unique": False,
+                    "time_zone": "Europe/Berlin",
+                    "time_unit": "ns",
+                }
             },
         ),
     ]
@@ -295,17 +301,18 @@ def test_sqlalchemy_adapter_with_tz_aware_datetime() -> None:
             "id",
             Integer(),
             (),
-            {"anyschema/description": None, "anyschema/nullable": False, "anyschema/unique": False},
+            {"__anyschema_metadata__": {"nullable": False, "unique": False}},
         ),
         (
             "timestamp_utc",
             SQLADateTime(timezone=True),
             (),
             {
-                "anyschema/description": None,
-                "anyschema/nullable": True,
-                "anyschema/unique": False,
-                "anyschema/time_zone": "UTC",
+                "__anyschema_metadata__": {
+                    "nullable": True,
+                    "unique": False,
+                    "time_zone": "UTC",
+                }
             },
         ),
         (
@@ -313,11 +320,12 @@ def test_sqlalchemy_adapter_with_tz_aware_datetime() -> None:
             SQLADateTime(timezone=True),
             (),
             {
-                "anyschema/description": None,
-                "anyschema/nullable": True,
-                "anyschema/unique": False,
-                "anyschema/time_zone": "Europe/Berlin",
-                "anyschema/time_unit": "ms",
+                "__anyschema_metadata__": {
+                    "nullable": True,
+                    "unique": False,
+                    "time_zone": "Europe/Berlin",
+                    "time_unit": "ms",
+                }
             },
         ),
     ]

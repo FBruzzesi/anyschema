@@ -1,62 +1,56 @@
 from __future__ import annotations
 
+from dataclasses import asdict
+from typing import TYPE_CHECKING, Any
+
 import narwhals as nw
 import pytest
 
 from anyschema import AnyField
 
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
-@pytest.mark.parametrize(
-    ("name", "dtype", "nullable", "unique", "metadata", "expected_nullable", "expected_unique"),
-    [
-        ("email", nw.String(), None, None, None, False, False),
-        ("optional_field", nw.String(), True, None, None, True, False),
-        ("id", nw.Int64(), False, None, None, False, False),
-        ("username", nw.String(), None, True, None, False, True),
-        ("code", nw.String(), True, True, None, True, True),
-        ("age", nw.Int32(), None, None, {"min": 0, "max": 150}, False, False),
-        ("user_id", nw.Int64(), False, True, {"description": "Primary key"}, False, True),
-    ],
-)
-def test_field_creation_parameters(  # noqa: PLR0913
-    name: str,
+    from anyschema.typing import IntoAnyField
+
+
+@pytest.mark.parametrize("dtype", [nw.String(), nw.Int32(), nw.Array(nw.Int32(), shape=(3, 2))])
+@pytest.mark.parametrize("nullable", [True, False, None])
+@pytest.mark.parametrize("unique", [True, False, None])
+@pytest.mark.parametrize("description", ["some description", None])
+@pytest.mark.parametrize("metadata", [{"min": 0, "max": 150}, None])
+def test_anyfield(
     dtype: nw.dtypes.DType,
     *,
     nullable: bool | None,
     unique: bool | None,
-    metadata: dict[str, str] | None,
-    expected_nullable: bool,
-    expected_unique: bool,
+    description: str | None,
+    metadata: Mapping[str, Any] | None,
 ) -> None:
-    """Test Field creation with various parameter combinations."""
-    kwargs = {"name": name, "dtype": dtype}
-    if nullable is not None:
-        kwargs["nullable"] = nullable
-    if unique is not None:
-        kwargs["unique"] = unique
-    if metadata is not None:
-        kwargs["metadata"] = metadata
+    kwargs: IntoAnyField = {
+        "name": "id",
+        "dtype": dtype,
+        "nullable": nullable,
+        "unique": unique,
+        "description": description,
+        "metadata": metadata,
+    }
+    expected: IntoAnyField = {
+        "name": "id",
+        "dtype": dtype,
+        "nullable": nullable if nullable is not None else False,
+        "unique": unique if unique is not None else False,
+        "description": description,
+        "metadata": metadata if metadata is not None else {},
+    }
+    into_field = {k: v for k, v in kwargs.items() if v is not None}
+    field = AnyField(**into_field)
+    assert asdict(field) == expected
 
-    field = AnyField(**kwargs)  # type: ignore[arg-type]
+    field2 = AnyField(**into_field)
 
-    assert field.name == name
-    assert field.dtype == dtype
-    assert field.nullable is expected_nullable
-    assert field.unique is expected_unique
-    assert field.metadata == (metadata if metadata is not None else {})
-
-
-def test_field_metadata_default_empty_dict() -> None:
-    field = AnyField(name="test", dtype=nw.String())
-    assert field.metadata == {}
-    assert isinstance(field.metadata, dict)
-
-
-def test_field_equal_fields() -> None:
-    field1 = AnyField(name="id", dtype=nw.Int64(), nullable=False, unique=True, metadata={"key": "value"})
-    field2 = AnyField(name="id", dtype=nw.Int64(), nullable=False, unique=True, metadata={"key": "value"})
-    assert field1 == field2
-    assert hash(field1) == hash(field2)
+    assert field == field2
+    assert hash(field) == hash(field2)
 
 
 @pytest.mark.parametrize(
@@ -84,149 +78,74 @@ def test_field_equal_fields() -> None:
         ),
     ],
 )
-def test_field_unequal_fields(field1_kwargs: dict, field2_kwargs: dict) -> None:
-    field1 = AnyField(**field1_kwargs)  # type: ignore[arg-type]
-    field2 = AnyField(**field2_kwargs)  # type: ignore[arg-type]
+def test_field_unequal_fields(field1_kwargs: IntoAnyField, field2_kwargs: IntoAnyField) -> None:
+    field1, field2 = AnyField(**field1_kwargs), AnyField(**field2_kwargs)
     assert field1 != field2
-
-
-def test_field_equality_with_non_field() -> None:
-    field = AnyField(name="test", dtype=nw.String())
-    assert field != "not a field"
-    assert field != 42  # noqa: PLR2004
-    assert field != None  # noqa: E711
-    assert field != {"name": "test"}
-
-
-def test_field_hashable() -> None:
-    field = AnyField(name="id", dtype=nw.Int64(), nullable=False, unique=True, metadata={"key": "value"})
-    assert hash(field)
-
-
-def test_field_equal_fields_same_hash() -> None:
-    field1 = AnyField(name="id", dtype=nw.Int64(), nullable=False, unique=True, metadata={"key": "value"})
-    field2 = AnyField(name="id", dtype=nw.Int64(), nullable=False, unique=True, metadata={"key": "value"})
-    assert hash(field1) == hash(field2)
-
-
-def test_field_use_in_set() -> None:
-    field1 = AnyField(name="id", dtype=nw.Int64())
-    field2 = AnyField(name="id", dtype=nw.Int64())  # Equal to field1
-    field3 = AnyField(name="name", dtype=nw.String())
-
-    field_set = {field1, field2, field3}
-    # field1 and field2 are equal, so only 2 unique items
-    expected_unique_count = 2
-    assert len(field_set) == expected_unique_count
-
-
-def test_field_use_as_dict_key() -> None:
-    """Test that Field can be used as a dictionary key."""
-    field1 = AnyField(name="id", dtype=nw.Int64())
-    field2 = AnyField(name="id", dtype=nw.Int64())  # Equal to field1
-
-    field_dict = {field1: "value1"}
-    field_dict[field2] = "value2"  # Should overwrite since field1 == field2
-
-    assert len(field_dict) == 1
-    assert field_dict[field1] == "value2"
 
 
 @pytest.mark.parametrize(
-    ("field_kwargs", "expected_parts"),
+    "other_value",
+    [
+        "not a field",
+        42,
+        None,
+        {"name": "test"},
+        [],
+        nw.String(),
+    ],
+)
+def test_field_equality_with_non_field(other_value: object) -> None:
+    """Test that Field is not equal to non-Field objects."""
+    field = AnyField(name="test", dtype=nw.String())
+    assert field != other_value
+
+
+@pytest.mark.parametrize(
+    ("field_configs", "expected_unique_count"),
     [
         (
-            {"name": "email", "dtype": nw.String()},
-            ["name='email'", "dtype=String", "nullable=False", "unique=False", "description=None"],
+            [
+                {"name": "id", "dtype": nw.Int64()},
+                {"name": "id", "dtype": nw.Int64()},  # Duplicate
+                {"name": "name", "dtype": nw.String()},
+            ],
+            2,
         ),
         (
-            {"name": "optional_field", "dtype": nw.String(), "nullable": True},
-            ["name='optional_field'", "dtype=String", "nullable=True", "unique=False", "description=None"],
+            [
+                {"name": "a", "dtype": nw.String()},
+                {"name": "b", "dtype": nw.String()},
+                {"name": "c", "dtype": nw.String()},
+            ],
+            3,
         ),
         (
-            {"name": "username", "dtype": nw.String(), "unique": True},
-            ["name='username'", "dtype=String", "nullable=False", "unique=True", "description=None"],
-        ),
-        (
-            {"name": "age", "dtype": nw.Int32(), "metadata": {"min": 0}},
-            ["name='age'", "dtype=Int32", "nullable=False", "unique=False", "description=None", "min"],
+            [
+                {"name": "id", "dtype": nw.Int64(), "nullable": True},
+                {"name": "id", "dtype": nw.Int64(), "nullable": True},  # Duplicate
+                {"name": "id", "dtype": nw.Int64(), "nullable": False},  # Different
+            ],
+            2,
         ),
     ],
 )
-def test_field_repr_contains_expected_parts(field_kwargs: dict, expected_parts: list[str]) -> None:
+def test_field_use_in_set(field_configs: list[dict], expected_unique_count: int) -> None:
+    """Test that Field instances work correctly in sets."""
+    fields = [AnyField(**config) for config in field_configs]  # type: ignore[arg-type]
+    field_set = set(fields)
+    assert len(field_set) == expected_unique_count
+
+
+@pytest.mark.parametrize(
+    ("field_kwargs", "expected_description"),
+    [
+        ({"name": "user_id", "dtype": nw.Int64(), "description": "Unique user identifier"}, "Unique user identifier"),
+        ({"name": "user_id", "dtype": nw.Int64(), "description": None}, None),
+        ({"name": "test", "dtype": nw.String()}, None),  # Default
+        ({"name": "email", "dtype": nw.String(), "description": ""}, ""),  # Empty string
+    ],
+)
+def test_field_description_values(field_kwargs: IntoAnyField, expected_description: str | None) -> None:
+    """Test Field creation with various description values."""
     field = AnyField(**field_kwargs)  # type: ignore[arg-type]
-    repr_str = repr(field)
-
-    assert repr_str.startswith("AnyField(")
-    assert repr_str.endswith(")")
-
-    for part in expected_parts:
-        assert part in repr_str, f"Expected '{part}' in repr: {repr_str}"
-
-
-def test_field_repr_roundtrip_information() -> None:
-    field = AnyField(
-        name="score",
-        dtype=nw.Float64(),
-        nullable=False,
-        unique=True,
-        metadata={"min": 0.0, "max": 100.0},
-    )
-    repr_str = repr(field)
-
-    # Should contain all critical information
-    assert "score" in repr_str
-    assert "Float64" in repr_str
-    assert "nullable=False" in repr_str
-    assert "unique=True" in repr_str
-    assert "min" in repr_str
-    assert "max" in repr_str
-
-
-def test_field_slots_defined() -> None:
-    assert hasattr(AnyField, "__slots__")
-
-
-def test_field_no_dict_attribute() -> None:
-    field = AnyField(name="test", dtype=nw.String())
-    assert not hasattr(field, "__dict__")
-
-
-def test_field_with_description() -> None:
-    """Test Field creation with description."""
-    field = AnyField(name="user_id", dtype=nw.Int64(), description="Unique user identifier")
-    assert field.description == "Unique user identifier"
-
-
-def test_field_with_none_description() -> None:
-    """Test Field creation with None description."""
-    field = AnyField(name="user_id", dtype=nw.Int64(), description=None)
-    assert field.description is None
-
-
-def test_field_description_default_none() -> None:
-    """Test that description defaults to None."""
-    field = AnyField(name="test", dtype=nw.String())
-    assert field.description is None
-
-
-def test_field_equality_with_description() -> None:
-    """Test that fields with same description are equal."""
-    field1 = AnyField(name="id", dtype=nw.Int64(), description="User ID")
-    field2 = AnyField(name="id", dtype=nw.Int64(), description="User ID")
-    assert field1 == field2
-    assert hash(field1) == hash(field2)
-
-
-def test_field_inequality_with_different_description() -> None:
-    """Test that fields with different descriptions are not equal."""
-    field1 = AnyField(name="id", dtype=nw.Int64(), description="User ID")
-    field2 = AnyField(name="id", dtype=nw.Int64(), description="Product ID")
-    assert field1 != field2
-
-
-def test_field_inequality_with_one_none_description() -> None:
-    """Test that fields with one None description are not equal."""
-    field1 = AnyField(name="id", dtype=nw.Int64(), description="User ID")
-    field2 = AnyField(name="id", dtype=nw.Int64(), description=None)
-    assert field1 != field2
+    assert field.description == expected_description

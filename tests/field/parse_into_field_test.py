@@ -105,28 +105,13 @@ def test_anyschema_metadata_filtered_from_field_metadata() -> None:
             "custom_key": "custom_value",
         },
     )
+    assert field.unique is True
 
     # anyschema/* keys should not be in field.metadata
-    assert "anyschema/nullable" not in field.metadata
-    assert "anyschema/unique" not in field.metadata
-    assert "anyschema/time_zone" not in field.metadata
+    assert all(not k.startswith("anyschema/") for k in field.metadata)
 
     # Custom metadata should be preserved
     assert field.metadata == {"description": "A test field", "custom_key": "custom_value"}
-
-
-def test_custom_metadata_preserved() -> None:
-    """Test that custom metadata is preserved in Field."""
-    pipeline = make_pipeline()
-    custom_metadata = {
-        "description": "User email address",
-        "format": "email",
-        "example": "user@example.com",
-        "max_length": 255,
-    }
-    field = pipeline.parse_field("email", str, (), custom_metadata)
-
-    assert field.metadata == custom_metadata
 
 
 @pytest.mark.parametrize(

@@ -52,28 +52,27 @@ def test_nw_schema_to_arrow(nw_schema: Schema) -> None:
     assert isinstance(pa_schema, pa.Schema)
 
     struct_dtype = pa.struct([("field_1", pa.string()), ("field_2", pa.bool_())])
-    assert pa_schema == pa.schema(
-        [
-            pa.field("boolean", pa.bool_(), nullable=False),
-            pa.field("categorical", pa.dictionary(pa.uint32(), pa.string()), nullable=False),
-            pa.field("date", pa.date32(), nullable=False),
-            pa.field("datetime", pa.timestamp(unit="us", tz=None), nullable=False),
-            pa.field("duration", pa.duration(unit="us"), nullable=False),
-            pa.field("float32", pa.float32(), nullable=False),
-            pa.field("float64", pa.float64(), nullable=False),
-            pa.field("int8", pa.int8(), nullable=False),
-            pa.field("int16", pa.int16(), nullable=False),
-            pa.field("int32", pa.int32(), nullable=False),
-            pa.field("int64", pa.int64(), nullable=False),
-            pa.field("list", pa.list_(pa.float32()), nullable=False),
-            pa.field("string", pa.string(), nullable=False),
-            pa.field("struct", struct_dtype, nullable=False),
-            pa.field("uint8", pa.uint8(), nullable=False),
-            pa.field("uint16", pa.uint16(), nullable=False),
-            pa.field("uint32", pa.uint32(), nullable=False),
-            pa.field("uint64", pa.uint64(), nullable=False),
-        ]
+    names_and_dtypes = (
+        ("boolean", pa.bool_()),
+        ("categorical", pa.dictionary(pa.uint32(), pa.string())),
+        ("date", pa.date32()),
+        ("datetime", pa.timestamp(unit="us", tz=None)),
+        ("duration", pa.duration(unit="us")),
+        ("float32", pa.float32()),
+        ("float64", pa.float64()),
+        ("int8", pa.int8()),
+        ("int16", pa.int16()),
+        ("int32", pa.int32()),
+        ("int64", pa.int64()),
+        ("list", pa.list_(pa.float32())),
+        ("string", pa.string()),
+        ("struct", struct_dtype),
+        ("uint8", pa.uint8()),
+        ("uint16", pa.uint16()),
+        ("uint32", pa.uint32()),
+        ("uint64", pa.uint64()),
     )
+    assert pa_schema == pa.schema((pa.field(name, dtype, nullable=False) for name, dtype in names_and_dtypes))
 
 
 @pytest.mark.parametrize(
@@ -104,5 +103,5 @@ def test_to_arrow_with_metadata(spec: Spec, expected_metadata: tuple[bool, ...])
     schema = AnySchema(spec=spec)
     pa_schema = schema.to_arrow()
 
-    for field, nullable in zip(pa_schema, expected_metadata, strict=True):
-        assert field.metadata == nullable
+    for field, _metadata in zip(pa_schema, expected_metadata, strict=True):
+        assert field.metadata == _metadata

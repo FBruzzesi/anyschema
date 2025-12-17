@@ -121,9 +121,11 @@ class SQLAlchemyTypeStep(ParserStep):
                     "Please consider opening a feature request https://github.com/FBruzzesi/anyschema/issues"
                 )
                 raise UnsupportedDTypeError(msg)
-            if input_type.dimensions is None:
-                return nw.List(inner=inner_type)
-            else:
-                return nw.Array(inner=inner_type, shape=input_type.dimensions)
+
+            return (
+                nw.List(inner=inner_type)
+                if input_type.dimensions is None
+                else nw.Array(inner=inner_type, shape=input_type.dimensions)
+            )
 
         return None

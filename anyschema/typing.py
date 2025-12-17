@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Generator, Mapping, Sequence
-from typing import TYPE_CHECKING, Annotated, Any, Literal, Protocol, TypeAlias, TypedDict
+from typing import TYPE_CHECKING, Annotated, Any, Literal, Protocol, TypeAlias
 
 from anyschema.parsers import ParserStep
 
@@ -10,7 +10,6 @@ if TYPE_CHECKING:
     from typing import ClassVar
 
     from attrs import AttrsInstance
-    from narwhals.dtypes import DType
     from narwhals.schema import Schema
     from pydantic import BaseModel
     from sqlalchemy import Table
@@ -18,16 +17,6 @@ if TYPE_CHECKING:
 
     AttrsClassType: TypeAlias = type[AttrsInstance]
     SQLAlchemyTableType: TypeAlias = Table | type[DeclarativeBase]
-
-    class IntoAnyField(TypedDict, total=False):
-        """Arguments required to create a `AnyField` object."""
-
-        name: str
-        dtype: DType
-        nullable: bool
-        unique: bool
-        description: str | None
-        metadata: Mapping[str, Any]
 
 
 IntoOrderedDict: TypeAlias = Mapping[str, type] | Sequence[tuple[str, type]]

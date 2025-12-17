@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypedDict
 
 import narwhals as nw
 import pytest
@@ -11,7 +11,15 @@ from anyschema import AnyField
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
-    from anyschema.typing import IntoAnyField
+    class IntoAnyField(TypedDict, total=False):
+        """Arguments required to create a `AnyField` object."""
+
+        name: str
+        dtype: nw.dtypes.DType
+        nullable: bool
+        unique: bool
+        description: str | None
+        metadata: Mapping[str, Any]
 
 
 @pytest.mark.parametrize("dtype", [nw.String(), nw.Int32(), nw.Array(nw.Int32(), shape=(3, 2))])

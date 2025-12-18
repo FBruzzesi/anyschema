@@ -37,14 +37,14 @@ def test_pydantic_adapter(spec: type[BaseModel], expected: tuple[FieldSpec, ...]
 
 
 def test_pydantic_adapter_with_json_schema_extra() -> None:
-    result = list(pydantic_adapter(PydanticEventWithTimeMetadata))
+    result = tuple(pydantic_adapter(PydanticEventWithTimeMetadata))
 
-    expected = [
+    expected: tuple[FieldSpec, ...] = (
         ("name", str, (), {}),
         ("created_at", datetime, (), {}),
         ("scheduled_at", datetime, (), {"anyschema/time_zone": "UTC"}),
         ("started_at", datetime, (), {"anyschema/time_unit": "ms"}),
         ("completed_at", datetime, (), {"anyschema/time_zone": "Europe/Berlin", "anyschema/time_unit": "ns"}),
-    ]
+    )
 
     assert result == expected

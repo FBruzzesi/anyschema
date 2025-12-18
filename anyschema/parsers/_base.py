@@ -88,7 +88,7 @@ class ParserStep(ABC):
         return self._pipeline
 
     @pipeline.setter
-    def pipeline(self, pipeline: ParserPipeline) -> None:
+    def pipeline(self, pipeline: object) -> None:
         """Set the pipeline reference for this parser.
 
         Arguments:

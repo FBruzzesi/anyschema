@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import date, datetime  # noqa: TC003
-from typing import TYPE_CHECKING, Literal
+from datetime import date, datetime
+from typing import TYPE_CHECKING, Literal, Sequence
 
 import attrs
 import narwhals as nw
@@ -244,67 +244,67 @@ metadata = MetaData()
 user_table = Table(
     "user",
     metadata,
-    Column("id", Integer, primary_key=True, nullable=False),
-    Column("name", String(50)),
-    Column("age", Integer),
-    Column("email", String(100), nullable=True),
+    Column[int]("id", Integer, primary_key=True, nullable=False),
+    Column[str]("name", String(50)),
+    Column[int]("age", Integer),
+    Column[str]("email", String(100), nullable=True),
 )
 
 numeric_table = Table(
     "numeric_table",
     metadata,
-    Column("int_col", Integer),
-    Column("bigint_col", BigInteger),
-    Column("string_col", String(100)),
-    Column("float_col", Float),
+    Column[int]("int_col", Integer),
+    Column[int]("bigint_col", BigInteger),
+    Column[str]("string_col", String(100)),
+    Column[float]("float_col", Float),
 )
 
 complex_table = Table(
     "complex_table",
     metadata,
-    Column("id", Integer, primary_key=True),
-    Column("name", String(50)),
-    Column("description", String),
-    Column("age", Integer),
-    Column("score", Float),
-    Column("is_active", Boolean),
-    Column("created_at", DateTime),
-    Column("birth_date", Date),
+    Column[int]("id", Integer, primary_key=True),
+    Column[str]("name", String(50)),
+    Column[str]("description", String),
+    Column[int]("age", Integer),
+    Column[float]("score", Float),
+    Column[bool]("is_active", Boolean),
+    Column[datetime]("created_at", DateTime),
+    Column[date]("birth_date", Date),
 )
 
 bigint_table = Table(
     "bigint_table",
     metadata,
-    Column("id", BigInteger, primary_key=True),
-    Column("count", BigInteger),
+    Column[int]("id", BigInteger, primary_key=True),
+    Column[int]("count", BigInteger),
 )
 
 array_list_table = Table(
     "array_list_table",
     metadata,
-    Column("id", Integer, primary_key=True),
-    Column("tags", ARRAY(String)),
-    Column("scores", ARRAY(Float)),
+    Column[int]("id", Integer, primary_key=True),
+    Column[Sequence[str]]("tags", ARRAY(String)),
+    Column[Sequence[float]]("scores", ARRAY(Float())),
 )
 
 array_fixed_table = Table(
     "array_fixed_table",
     metadata,
-    Column("id", Integer, primary_key=True),
-    Column("coordinates", ARRAY(Float, dimensions=3)),
-    Column("matrix", ARRAY(Integer, dimensions=2)),
+    Column[int]("id", Integer, primary_key=True),
+    Column[Sequence[float]]("coordinates", ARRAY(Float(), dimensions=3)),
+    Column[Sequence[int]]("matrix", ARRAY(Integer, dimensions=2)),
 )
 
 # Tables with datetime metadata
 event_table_with_time_metadata = Table(
     "event_with_time_metadata",
     metadata,
-    Column("id", Integer, primary_key=True),
-    Column("name", String(100)),
-    Column("created_at", DateTime),  # No metadata
-    Column("scheduled_at", DateTime(timezone=True), info={"anyschema/time_zone": "UTC"}),
-    Column("started_at", DateTime, info={"anyschema/time_unit": "ms"}),
-    Column(
+    Column[int]("id", Integer, primary_key=True),
+    Column[str]("name", String(100)),
+    Column[datetime]("created_at", DateTime),  # No metadata
+    Column[datetime]("scheduled_at", DateTime(timezone=True), info={"anyschema/time_zone": "UTC"}),
+    Column[datetime]("started_at", DateTime, info={"anyschema/time_unit": "ms"}),
+    Column[datetime](
         "completed_at",
         DateTime(timezone=True),
         info={"anyschema/time_zone": "Europe/Berlin", "anyschema/time_unit": "ns"},

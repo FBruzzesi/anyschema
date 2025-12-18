@@ -81,7 +81,7 @@ def test_custom_globals() -> None:
 
 
 def test_custom_local() -> None:
-    class LocalClass:
+    class LocalClass:  # pyright: ignore[reportUnusedClass]
         pass
 
     parser = forward_ref_parser_builder(localns={"LocalClass": int})

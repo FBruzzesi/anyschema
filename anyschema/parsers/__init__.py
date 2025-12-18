@@ -60,7 +60,7 @@ def make_pipeline(steps: IntoParserPipeline = "auto") -> ParserPipeline:
         steps = _auto_pipeline()
     else:
         steps = tuple(steps)
-        if any(not_step_types := tuple(not isinstance(step, ParserStep) for step in steps)):
+        if any(not_step_types := tuple(not isinstance(step, ParserStep) for step in steps)):  # pyright: ignore[reportUnnecessaryIsInstance]
             bad_steps = tuple(
                 qualified_type_name(type(step))
                 for step, not_step_type in zip(steps, not_step_types, strict=False)

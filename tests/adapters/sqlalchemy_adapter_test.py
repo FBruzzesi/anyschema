@@ -31,7 +31,7 @@ def assert_result_equal(result: Iterable[FieldSpec], expected: Iterable[FieldSpe
     for left, right in zip(result, expected, strict=True):
         for lval, rval in zip(left, right, strict=True):
             if isinstance(lval, TypeEngine) and isinstance(rval, TypeEngine):
-                assert str(lval) == str(rval), f"{left} != {right}"
+                assert str(lval) == str(rval), f"{left} != {right}"  # pyright: ignore[reportUnknownArgumentType]
             else:
                 assert lval == rval, f"{left} != {right}"
 
@@ -78,12 +78,6 @@ def assert_result_equal(result: Iterable[FieldSpec], expected: Iterable[FieldSpe
 def test_sqlalchemy_adapter(spec: SQLAlchemyTableType, expected: Iterable[FieldSpec]) -> None:
     result = sqlalchemy_adapter(spec)
     assert_result_equal(result, expected)
-
-
-def test_sqlalchemy_adapter_invalid_type() -> None:
-    msg = "Expected SQLAlchemy Table or DeclarativeBase subclass, got 'str'"
-    with pytest.raises(TypeError, match=msg):
-        list(sqlalchemy_adapter("not a table"))  # type: ignore[arg-type]
 
 
 def test_sqlalchemy_adapter_with_time_metadata_table() -> None:

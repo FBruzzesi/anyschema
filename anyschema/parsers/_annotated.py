@@ -31,8 +31,8 @@ class AnnotatedStep(ParserStep):
         Returns:
             A Narwhals DType by extracting the base type and delegating to the chain.
         """
-        if get_origin(input_type) is Annotated and (args := get_args(input_type)) is not None:
-            base_type, *extra_constraints = args
+        if get_origin(input_type) is Annotated:
+            base_type, *extra_constraints = get_args(input_type)
             return self.pipeline.parse(base_type, (*constraints, *extra_constraints), metadata, strict=True)
 
         return None

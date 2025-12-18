@@ -6,8 +6,6 @@ from typing import TYPE_CHECKING, cast
 
 from typing_extensions import get_type_hints
 
-from anyschema._utils import qualified_type_name
-
 if TYPE_CHECKING:
     from pydantic import BaseModel
 
@@ -283,16 +281,8 @@ def sqlalchemy_adapter(spec: SQLAlchemyTableType) -> FieldSpecIterable:
         ('name', String(length=50), (), {'anyschema/nullable': True, 'anyschema/unique': False})
     """
     from sqlalchemy import Table
-    from sqlalchemy.orm import DeclarativeBase
 
-    table: Table
-    if isinstance(spec, Table):
-        table = spec
-    elif isinstance(spec, type) and issubclass(spec, DeclarativeBase):
-        table = cast("Table", spec.__table__)
-    else:
-        msg = f"Expected SQLAlchemy Table or DeclarativeBase subclass, got '{qualified_type_name(spec)}'"
-        raise TypeError(msg)
+    table = spec if isinstance(spec, Table) else cast("Table", spec.__table__)
 
     for column in table.columns:
         anyschema_metadata = {

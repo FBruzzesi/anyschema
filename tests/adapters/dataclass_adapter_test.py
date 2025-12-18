@@ -55,14 +55,14 @@ def test_dataclass_adapter_missing_decorator_raises() -> None:
 
 
 def test_dataclass_adapter_with_time_metadata() -> None:
-    result = list(dataclass_adapter(DataclassEventWithTimeMetadata))
+    result = tuple(dataclass_adapter(DataclassEventWithTimeMetadata))
 
-    expected = [
+    expected: tuple[FieldSpec, ...] = (
         ("name", str, (), {}),
         ("created_at", datetime, (), {}),
         ("scheduled_at", datetime, (), {"anyschema/time_zone": "UTC"}),
         ("started_at", datetime, (), {"anyschema/time_unit": "ms"}),
         ("completed_at", datetime, (), {"anyschema/time_zone": "Europe/Berlin", "anyschema/time_unit": "ns"}),
-    ]
+    )
 
     assert result == expected

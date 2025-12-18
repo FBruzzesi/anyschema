@@ -32,6 +32,8 @@ class ForwardRefStep(ParserStep):
         localns: Local namespace for evaluating forward references. Defaults to an empty namespace.
     """
 
+    localns: Mapping[str, Any]
+
     def __init__(self, globalns: dict[str, Any] | None = None, localns: Mapping[str, Any] | None = None) -> None:
         super().__init__()
         # Build namespace with common types for resolution

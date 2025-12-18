@@ -157,6 +157,15 @@ pretty = true
 strict = true
 files = ["anyschema", "tests"]
 
+[tool.pyright]
+pythonPlatform = "All"
+# NOTE (`pyarrow-stubs` do unsafe `TypeAlias` and `TypeVar` imports)
+pythonVersion = "3.10"
+reportPrivateUsage = "none"
+typeCheckingMode = "strict"
+
+include = ["anyschema", "tests"]
+
 [tool.coverage.run]
 plugins = ["covdefaults"]
 

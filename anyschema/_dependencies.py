@@ -4,7 +4,7 @@ import sys
 from collections.abc import Mapping, Sequence
 from dataclasses import is_dataclass as dc_is_dataclass
 from importlib.util import find_spec
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 from typing_extensions import TypeIs, is_typeddict
 
@@ -35,7 +35,11 @@ def is_into_ordered_dict(obj: object) -> TypeIs[IntoOrderedDict]:
     """Check if the object can be converted into a python OrderedDict."""
     tpl_size = 2
     return isinstance(obj, Mapping) or (
-        isinstance(obj, Sequence) and all(isinstance(s, tuple) and len(s) == tpl_size for s in obj)
+        isinstance(obj, Sequence)
+        and all(
+            isinstance(s, tuple) and len(s) == tpl_size  # pyright: ignore[reportUnknownArgumentType]
+            for s in obj  # pyright: ignore[reportUnknownVariableType]
+        )
     )
 
 
@@ -53,7 +57,7 @@ def is_pydantic_base_model(obj: object) -> TypeIs[type[BaseModel]]:
     """Check if the object is a pydantic BaseModel."""
     return (
         (pydantic := get_pydantic()) is not None
-        and isinstance(obj, cast("type", type(pydantic.BaseModel)))
+        and isinstance(obj, type(pydantic.BaseModel))
         and issubclass(obj, pydantic.BaseModel)  # type: ignore[arg-type]
     )
 

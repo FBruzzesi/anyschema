@@ -1,3 +1,6 @@
+# mypy: disable-error-code="valid-type"
+# pyright: reportInvalidTypeForm=false
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Optional
@@ -47,9 +50,9 @@ def test_parse_list_optional_inner(auto_pipeline: ParserPipeline) -> None:
         none_or_py_list: list[None | bool]
 
         # pydantic conlist type
-        con_list_optional: conlist(Optional[int], min_length=2)
-        con_list_or_none: conlist(str | None, max_length=6)
-        none_or_con_list: conlist(None | float)
+        con_list_optional: conlist(Optional[int], min_length=2)  # pyright: ignore[reportArgumentType]
+        con_list_or_none: conlist(str | None, max_length=6)  # pyright: ignore[reportArgumentType]
+        none_or_con_list: conlist(None | float)  # pyright: ignore[reportArgumentType]
 
     schema = model_to_nw_schema(ListModel, pipeline=auto_pipeline)
     expected = {
@@ -72,10 +75,10 @@ def test_parse_list_optional_outer_and_inner(auto_pipeline: ParserPipeline) -> N
         py_list_none_none: list[None | bool] | None
 
         # pydantic conlist type
-        con_list_optional_optional: conlist(Optional[int], min_length=2) | None
-        con_list_optional_none: conlist(str | None, max_length=6) | None
-        con_list_none_optional: conlist(Optional[float]) | None
-        con_list_none_none: conlist(None | bool) | None
+        con_list_optional_optional: conlist(Optional[int], min_length=2) | None  # pyright: ignore[reportArgumentType]
+        con_list_optional_none: conlist(str | None, max_length=6) | None  # pyright: ignore[reportArgumentType]
+        con_list_none_optional: conlist(Optional[float]) | None  # pyright: ignore[reportArgumentType]
+        con_list_none_none: conlist(None | bool) | None  # pyright: ignore[reportArgumentType]
 
     schema = model_to_nw_schema(ListModel, pipeline=auto_pipeline)
     expected = {
@@ -98,8 +101,8 @@ def test_parse_conlist_conint(auto_pipeline: ParserPipeline) -> None:
         py_list_uint8: list[conint(gt=0, lt=64) | None]
 
         # pydantic conlist type
-        con_list_int8: conlist(None | conint(gt=-64, lt=64))
-        con_list_uint8: conlist(Optional[conint(gt=0, lt=64)])
+        con_list_int8: conlist(None | conint(gt=-64, lt=64))  # pyright: ignore[reportArgumentType]
+        con_list_uint8: conlist(Optional[conint(gt=0, lt=64)])  # pyright: ignore[reportArgumentType]
 
     schema = model_to_nw_schema(ListModel, pipeline=auto_pipeline)
     expected = {

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, ForwardRef
+from typing import TYPE_CHECKING, Any, ForwardRef
 
 from typing_extensions import evaluate_forward_ref
 
@@ -8,6 +8,8 @@ from anyschema._dependencies import ANNOTATED_TYPES_AVAILABLE, PYDANTIC_AVAILABL
 from anyschema.parsers._base import ParserStep
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
     from narwhals.dtypes import DType
 
     from anyschema.typing import FieldConstraints, FieldMetadata, FieldType
@@ -30,13 +32,13 @@ class ForwardRefStep(ParserStep):
         localns: Local namespace for evaluating forward references. Defaults to an empty namespace.
     """
 
-    def __init__(self, globalns: dict | None = None, localns: dict | None = None) -> None:
+    def __init__(self, globalns: dict[str, Any] | None = None, localns: Mapping[str, Any] | None = None) -> None:
         super().__init__()
         # Build namespace with common types for resolution
         self.globalns = self._build_namespace(globalns)
         self.localns = localns if localns is not None else {}
 
-    def _build_namespace(self, user_globals: dict | None) -> dict:
+    def _build_namespace(self, user_globals: dict[str, Any] | None) -> dict[str, Any]:
         """Build a namespace with common types for ForwardRef resolution.
 
         Arguments:

@@ -1,3 +1,6 @@
+# mypy: disable-error-code="valid-type"
+# pyright: reportInvalidTypeForm=false
+
 from __future__ import annotations
 
 from datetime import date  # noqa: TC003

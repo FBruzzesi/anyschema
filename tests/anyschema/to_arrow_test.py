@@ -16,15 +16,14 @@ def test_pydantic_to_arrow(pydantic_student_cls: type[BaseModel]) -> None:
     pa_schema = anyschema.to_arrow()
 
     assert isinstance(pa_schema, pa.Schema)
-    assert pa_schema == pa.schema(
-        [
-            ("name", pa.string()),
-            ("date_of_birth", pa.date32()),
-            ("age", pa.uint64()),
-            ("classes", pa.list_(pa.string())),
-            ("has_graduated", pa.bool_()),
-        ]
+    fields: tuple[tuple[str, pa.DataType], ...] = (
+        ("name", pa.string()),
+        ("date_of_birth", pa.date32()),
+        ("age", pa.uint64()),
+        ("classes", pa.list_(pa.string())),
+        ("has_graduated", pa.bool_()),
     )
+    assert pa_schema == pa.schema(fields)
 
 
 def test_nw_schema_to_arrow(nw_schema: Schema) -> None:

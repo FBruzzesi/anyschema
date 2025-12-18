@@ -122,11 +122,11 @@ def test_pipeline_parse_with_metadata() -> None:
     step = MetadataAwareStep()
     pipeline = ParserPipeline([step])
 
-    result = pipeline.parse(int, constraints=("meta1", "meta2"), metadata={}, strict=True)
-    assert result == nw.Int32()
+    r1 = pipeline.parse(int, constraints=("meta1", "meta2"), metadata={}, strict=True)
+    assert r1 == nw.Int32()
 
-    result = pipeline.parse(int, constraints=("meta1",), metadata={}, strict=False)
-    assert result is None
+    r2 = pipeline.parse(int, constraints=("meta1",), metadata={}, strict=False)
+    assert r2 is None
 
 
 @pytest.mark.parametrize(

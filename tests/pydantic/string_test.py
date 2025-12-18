@@ -1,3 +1,6 @@
+# mypy: disable-error-code="valid-type"
+# pyright: reportInvalidTypeForm=false
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Annotated

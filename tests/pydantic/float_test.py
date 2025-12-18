@@ -1,3 +1,6 @@
+# mypy: disable-error-code="valid-type"
+# pyright: reportInvalidTypeForm=false
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -55,7 +58,7 @@ def test_parse_float(auto_pipeline: ParserPipeline, lb: float, ub: float) -> Non
         none_or_finite: None | NegativeFloat
 
         # pydantic confloat type
-        con_float_optional: confloat(gt=lb, lt=ub)
+        con_float: confloat(gt=lb, lt=ub)
         con_float_optional: confloat(ge=lb, lt=ub) | None
         con_float_or_none: confloat(gt=lb, le=ub) | None
         non_or_con_float: None | confloat(ge=lb, le=ub)

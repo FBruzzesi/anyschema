@@ -86,7 +86,7 @@ class PydanticTypeStep(ParserStep):
             return nw.Date()
 
         # Handle Pydantic models (Struct types)
-        if is_pydantic_base_model(input_type):
+        if is_pydantic_base_model(input_type):  # pyright: ignore[reportUnknownArgumentType]
             return self._parse_pydantic_model(input_type)
 
         # TODO(FBruzzesi): Add support for more pydantic types. See https://github.com/FBruzzesi/anyschema/issues/45

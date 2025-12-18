@@ -11,7 +11,9 @@ from anyschema.adapters import pydantic_adapter
 from tests.conftest import PydanticEventWithTimeMetadata
 
 if TYPE_CHECKING:
-    from anyschema.typing import FieldSpec
+    from anyschema.typing import FieldMetadata, FieldSpec
+
+EMPTY_METADATA: FieldMetadata = {}  # Type hinted empty metadata dict
 
 
 class SimpleModel(BaseModel):
@@ -27,8 +29,8 @@ class ModelWithConstraints(BaseModel):
 @pytest.mark.parametrize(
     ("spec", "expected"),
     [
-        (SimpleModel, (("name", str, (), {}), ("age", int, (), {}))),
-        (ModelWithConstraints, (("name", str, (), {}), ("age", int, (Ge(ge=0),), {}))),
+        (SimpleModel, (("name", str, (), EMPTY_METADATA), ("age", int, (), EMPTY_METADATA))),
+        (ModelWithConstraints, (("name", str, (), EMPTY_METADATA), ("age", int, (Ge(ge=0),), EMPTY_METADATA))),
     ],
 )
 def test_pydantic_adapter(spec: type[BaseModel], expected: tuple[FieldSpec, ...]) -> None:
@@ -40,8 +42,8 @@ def test_pydantic_adapter_with_json_schema_extra() -> None:
     result = tuple(pydantic_adapter(PydanticEventWithTimeMetadata))
 
     expected: tuple[FieldSpec, ...] = (
-        ("name", str, (), {}),
-        ("created_at", datetime, (), {}),
+        ("name", str, (), EMPTY_METADATA),
+        ("created_at", datetime, (), EMPTY_METADATA),
         ("scheduled_at", datetime, (), {"anyschema/time_zone": "UTC"}),
         ("started_at", datetime, (), {"anyschema/time_unit": "ms"}),
         ("completed_at", datetime, (), {"anyschema/time_zone": "Europe/Berlin", "anyschema/time_unit": "ns"}),

@@ -175,7 +175,7 @@ class ParserPipeline:
             raise NotImplementedError(msg)
         return None
 
-    def parse_field(
+    def parse_into_field(
         self,
         name: str,
         input_type: FieldType,
@@ -205,20 +205,20 @@ class ParserPipeline:
         Examples:
             >>> from anyschema.parsers import make_pipeline
             >>> pipeline = make_pipeline()
-            >>> field = pipeline.parse_field("age", int, (), {})
+            >>> field = pipeline.parse_into_field("age", int, (), {})
             >>> field
             AnyField(name='age', dtype=Int64, nullable=False, unique=False, description=None, metadata={})
 
             With nullable=True metadata:
 
-            >>> field = pipeline.parse_field("email", str, (), {"anyschema/nullable": True})
+            >>> field = pipeline.parse_into_field("email", str, (), {"anyschema/nullable": True})
             >>> field.nullable
             True
 
             With Optional type (auto-detected as nullable):
 
             >>> from typing import Optional
-            >>> field = pipeline.parse_field("email", Optional[str], (), {})
+            >>> field = pipeline.parse_into_field("email", Optional[str], (), {})
             >>> field.nullable
             True
         """

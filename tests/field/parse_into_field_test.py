@@ -28,9 +28,9 @@ from tests.conftest import AttrsBookWithMetadata, AttrsPerson, user_table
         ("list_float", list[float], nw.List(nw.Float64())),
     ],
 )
-def test_parse_field(name: str, py_type: type, expected_dtype: nw.dtypes.DType) -> None:
+def test_parse_into_field(name: str, py_type: type, expected_dtype: nw.dtypes.DType) -> None:
     pipeline = make_pipeline()
-    field = pipeline.parse_field(name, py_type, (), {})
+    field = pipeline.parse_into_field(name, py_type, (), {})
 
     assert field == AnyField(name=name, dtype=expected_dtype)
 
@@ -46,36 +46,36 @@ def test_parse_field(name: str, py_type: type, expected_dtype: nw.dtypes.DType) 
         ("union_str", str | None, nw.String()),
     ],
 )
-def test_parse_field_nullable_type(name: str, py_type: type, expected_dtype: nw.dtypes.DType) -> None:
+def test_parse_into_field_nullable_type(name: str, py_type: type, expected_dtype: nw.dtypes.DType) -> None:
     pipeline = make_pipeline()
-    field = pipeline.parse_field(name, py_type, (), {})
+    field = pipeline.parse_into_field(name, py_type, (), {})
 
     assert field == AnyField(name=name, dtype=expected_dtype, nullable=True)
 
 
 @pytest.mark.parametrize("nullable", [True, False])
-def test_parse_field_nullable_metadata(*, nullable: bool) -> None:
+def test_parse_into_field_nullable_metadata(*, nullable: bool) -> None:
     pipeline = make_pipeline()
-    field = pipeline.parse_field("test", int, (), {"anyschema/nullable": nullable})
+    field = pipeline.parse_into_field("test", int, (), {"anyschema/nullable": nullable})
 
     assert field.nullable is nullable
 
 
-def test_parse_field_nullable_metadata_overwrite() -> None:
+def test_parse_into_field_nullable_metadata_overwrite() -> None:
     # !NOTE: Test that explicit nullable=False overrides Optional type
     pipeline = make_pipeline()
 
-    field = pipeline.parse_field("test-optional", Optional[str], (), {"anyschema/nullable": False})
+    field = pipeline.parse_into_field("test-optional", Optional[str], (), {"anyschema/nullable": False})
     assert field == AnyField(name="test-optional", dtype=nw.String(), nullable=False)
 
-    field = pipeline.parse_field("test-required", str, (), {"anyschema/nullable": True})
+    field = pipeline.parse_into_field("test-required", str, (), {"anyschema/nullable": True})
     assert field == AnyField(name="test-required", dtype=nw.String(), nullable=True)
 
 
 @pytest.mark.parametrize("unique", [True, False])
-def test_parse_field_unique(*, unique: bool) -> None:
+def test_parse_into_field_unique(*, unique: bool) -> None:
     pipeline = make_pipeline()
-    field = pipeline.parse_field("test", str, (), {"anyschema/unique": unique})
+    field = pipeline.parse_into_field("test", str, (), {"anyschema/unique": unique})
 
     assert field.unique is unique
 
@@ -83,7 +83,7 @@ def test_parse_field_unique(*, unique: bool) -> None:
 def test_anyschema_metadata_filtered_from_field_metadata() -> None:
     """Test that anyschema/* keys are filtered from Field.metadata."""
     pipeline = make_pipeline()
-    field = pipeline.parse_field(
+    field = pipeline.parse_into_field(
         "test",
         int,
         (),
@@ -291,7 +291,7 @@ def test_nested_optional_with_constraints() -> None:
     pipeline = make_pipeline()
 
     # Optional with constraints (Gt(0) makes it unsigned, Lt(100) fits in UInt8)
-    field = pipeline.parse_field("score", Optional[int], (Gt(0), Lt(100)), {})
+    field = pipeline.parse_into_field("score", Optional[int], (Gt(0), Lt(100)), {})
 
     assert field.dtype == nw.UInt8()  # Constrained to 0 < x < 100
     assert field.nullable is True  # Optional makes it nullable

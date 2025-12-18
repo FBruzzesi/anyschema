@@ -274,7 +274,7 @@ class AnySchema:
             raise ValueError(msg)
 
         self.fields = {
-            name: pipeline.parse_field(name, input_type, constraints, metadata)
+            name: pipeline.parse_into_field(name, input_type, constraints, metadata)
             for name, input_type, constraints, metadata in adapter_f(cast("Any", spec))
         }
         self._nw_schema = Schema({name: field.dtype for name, field in self.fields.items()})

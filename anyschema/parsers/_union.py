@@ -42,7 +42,7 @@ class UnionTypeStep(ParserStep):
 
             # Set nullable metadata if not already explicitly set
             # This way Union[T, None] / Optional[T] automatically marks the field as nullable
-            # We mutate the metadata dict in-place so parse_field can read it
+            # We mutate the metadata dict in-place so parse_into_field can read it
             if "anyschema/nullable" not in metadata:
                 metadata["anyschema/nullable"] = True
             return self.pipeline.parse(extracted_type, constraints, metadata, strict=True)

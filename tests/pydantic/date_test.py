@@ -1,15 +1,13 @@
-# mypy: disable-error-code="valid-type"
-# pyright: reportInvalidTypeForm=false
-
 from __future__ import annotations
 
 from datetime import date  # noqa: TC003
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Annotated, Optional
 
 import hypothesis.strategies as st
 import narwhals as nw
+from annotated_types import Interval
 from hypothesis import assume, given
-from pydantic import BaseModel, FutureDate, PastDate, condate
+from pydantic import BaseModel, FutureDate, PastDate
 
 from tests.pydantic.utils import model_to_nw_schema
 
@@ -43,15 +41,15 @@ def test_parse_date(auto_pipeline: ParserPipeline) -> None:
 
 
 @given(min_date=st.dates(), max_date=st.dates())
-def test_parse_condate(auto_pipeline: ParserPipeline, min_date: date, max_date: date) -> None:
+def test_parse_date_with_constraints(auto_pipeline: ParserPipeline, min_date: date, max_date: date) -> None:
     assume(min_date < max_date)
 
-    class ConDateModel(BaseModel):
-        x: condate(gt=min_date, lt=max_date)
-        y: condate(ge=min_date, lt=max_date) | None
-        z: condate(gt=min_date, le=max_date) | None
-        w: None | condate(ge=min_date, le=max_date)
+    class DateConstraintModel(BaseModel):
+        x: Annotated[date, Interval(gt=min_date, lt=max_date)]
+        y: Optional[Annotated[date, Interval(ge=min_date, lt=max_date)]] | None
+        z: Annotated[date, Interval(gt=min_date, le=max_date)] | None
+        w: None | Annotated[date, Interval(ge=min_date, le=max_date)]
 
-    schema = model_to_nw_schema(ConDateModel, pipeline=auto_pipeline)
+    schema = model_to_nw_schema(DateConstraintModel, pipeline=auto_pipeline)
 
     assert all(value == nw.Date() for value in schema.values())

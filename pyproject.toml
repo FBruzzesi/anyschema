@@ -57,6 +57,7 @@ typing = [
   "mypy",
   "pyright",
   "ty",
+  {include-group = "tests"},
 ]
 
 docs = [

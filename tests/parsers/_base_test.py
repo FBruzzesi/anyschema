@@ -82,7 +82,7 @@ def test_pipeline_setter_updates_correctly() -> None:
 
 def test_pipeline_init_with_steps() -> None:
     int_step, str_step = Int64Step(), StrStep()
-    steps = [int_step, str_step]
+    steps: list[ParserStep] = [int_step, str_step]
     pipeline = ParserPipeline(steps)
 
     assert len(pipeline.steps) == len(steps)

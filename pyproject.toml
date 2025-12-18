@@ -160,7 +160,6 @@ files = ["anyschema", "tests"]
 
 [tool.pyright]
 pythonPlatform = "All"
-# NOTE (`pyarrow-stubs` do unsafe `TypeAlias` and `TypeVar` imports)
 pythonVersion = "3.10"
 reportPrivateUsage = "none"
 typeCheckingMode = "strict"

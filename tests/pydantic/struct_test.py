@@ -1,12 +1,10 @@
-# mypy: disable-error-code="valid-type"
-# pyright: reportInvalidTypeForm=false
-
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Annotated
 
 import narwhals as nw
-from pydantic import BaseModel, conint
+from annotated_types import Interval
+from pydantic import BaseModel
 
 from tests.pydantic.utils import model_to_nw_schema
 
@@ -16,7 +14,7 @@ if TYPE_CHECKING:
 
 def test_parse_struct(auto_pipeline: ParserPipeline) -> None:
     class BaseStruct(BaseModel):
-        x1: conint(gt=0, lt=123)
+        x1: Annotated[int, Interval(gt=0, lt=123)]
         x2: str
         x3: float | None
         x4: None | bool

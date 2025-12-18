@@ -1,14 +1,12 @@
-# mypy: disable-error-code="valid-type"
-# pyright: reportInvalidTypeForm=false
-
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Annotated, Optional
 
 import hypothesis.strategies as st
 import narwhals as nw
+from annotated_types import Interval
 from hypothesis import assume, given
-from pydantic import BaseModel, FiniteFloat, NegativeFloat, NonNegativeFloat, NonPositiveFloat, PositiveFloat, confloat
+from pydantic import BaseModel, FiniteFloat, NegativeFloat, NonNegativeFloat, NonPositiveFloat, PositiveFloat
 
 from tests.pydantic.utils import model_to_nw_schema
 
@@ -57,11 +55,11 @@ def test_parse_float(auto_pipeline: ParserPipeline, lb: float, ub: float) -> Non
         finite_or_none: FiniteFloat | None
         none_or_finite: None | NegativeFloat
 
-        # pydantic confloat type
-        con_float: confloat(gt=lb, lt=ub)
-        con_float_optional: confloat(ge=lb, lt=ub) | None
-        con_float_or_none: confloat(gt=lb, le=ub) | None
-        non_or_con_float: None | confloat(ge=lb, le=ub)
+        # pydantic annotated float with constraints
+        con_float: Annotated[float, Interval(gt=lb, lt=ub)]
+        con_float_optional: Optional[Annotated[float, Interval(ge=lb, lt=ub)]]
+        con_float_or_none: Annotated[float, Interval(gt=lb, le=ub)] | None
+        non_or_con_float: None | Annotated[float, Interval(ge=lb, le=ub)]
 
     schema = model_to_nw_schema(FloatModel, pipeline=auto_pipeline)
 

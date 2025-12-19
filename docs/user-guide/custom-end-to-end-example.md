@@ -115,7 +115,7 @@ customer_schema = CustomerSchema(
 
 schema = AnySchema(
     spec=customer_schema,
-    steps=pipeline_steps,
+    pipeline=pipeline_steps,
     adapter=customer_schema_adapter,
 )
 

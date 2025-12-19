@@ -197,7 +197,7 @@ def test_custom_components_integration():
 
     schema = AnySchema(
         spec=schema_spec,
-        steps=[GoodParserStep(), PyTypeStep()],
+        pipeline=[GoodParserStep(), PyTypeStep()],
         adapter=good_adapter,
     )
 

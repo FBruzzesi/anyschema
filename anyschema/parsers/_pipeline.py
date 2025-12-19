@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from itertools import chain
 from typing import TYPE_CHECKING, Literal, overload
 
 from typing_extensions import Self, TypeIs
@@ -163,14 +164,15 @@ class ParserPipeline:
             >>> custom_pipeline.parse(CustomType, constraints=(), metadata={})
             String
         """
-        steps_to_add = [steps] if isinstance(steps, ParserStep) else list(steps)
-        steps_to_add.extend(more_steps)
         insert_idx = self._find_insert_index(steps=self.steps, at_position=at_position)
         # Clone existing steps to reset their pipeline references
-        new_steps = [step.clone() for step in self.steps]
-
-        new_steps[insert_idx:insert_idx] = steps_to_add  # !NOTE: is this a hack? YES!
-        return self.__class__(new_steps)
+        it = chain(
+            (step.clone() for step in self.steps[:insert_idx]),
+            [steps] if isinstance(steps, ParserStep) else steps,
+            more_steps,
+            (step.clone() for step in self.steps[insert_idx:]),
+        )
+        return self.__class__(tuple(it))
 
     @classmethod
     def from_auto(
@@ -218,13 +220,15 @@ class ParserPipeline:
             >>> pipeline.parse(CustomType, constraints=(), metadata={})
             String
         """
-        steps_to_add = [steps] if isinstance(steps, ParserStep) else list(steps)
-        steps_to_add.extend(more_steps)
-
-        auto_steps = list(_auto_pipeline())
-        insert_idx = cls._find_insert_index(auto_steps, at_position=at_position)
-        auto_steps[insert_idx:insert_idx] = steps_to_add  # !NOTE: is this a hack? YES!
-        return cls(auto_steps)
+        auto_steps = tuple(_auto_pipeline())
+        insert_idx = cls._find_insert_index(steps=auto_steps, at_position=at_position)
+        it = chain(
+            auto_steps[:insert_idx],
+            [steps] if isinstance(steps, ParserStep) else steps,
+            more_steps,
+            auto_steps[insert_idx:],
+        )
+        return cls(tuple(it))
 
 
 def make_pipeline(steps: IntoParserPipeline = "auto") -> ParserPipeline:

@@ -32,11 +32,7 @@ def parser_pipeline() -> ParserPipeline:
     union_parser = UnionTypeStep()
     pydantic_parser = PydanticTypeStep()
     py_parser = PyTypeStep()
-    chain = ParserPipeline([union_parser, pydantic_parser, py_parser])
-    union_parser.pipeline = chain
-    pydantic_parser.pipeline = chain
-    py_parser.pipeline = chain
-    return chain
+    return ParserPipeline([union_parser, pydantic_parser, py_parser])
 
 
 @pytest.mark.parametrize(

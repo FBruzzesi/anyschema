@@ -68,10 +68,7 @@ def parser_pipeline() -> ParserPipeline:
     """Create a parser pipeline with UnionTypeStep and PyTypeStep."""
     union_parser = UnionTypeStep()
     py_parser = PyTypeStep()
-    chain = ParserPipeline([union_parser, py_parser])
-    union_parser.pipeline = chain
-    py_parser.pipeline = chain
-    return chain
+    return ParserPipeline([union_parser, py_parser])
 
 
 @pytest.mark.parametrize(

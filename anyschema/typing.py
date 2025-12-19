@@ -3,8 +3,6 @@ from __future__ import annotations
 from collections.abc import Callable, Generator, Mapping, Sequence
 from typing import TYPE_CHECKING, Annotated, Any, Literal, Protocol, TypeAlias
 
-from anyschema.parsers import ParserStep
-
 if TYPE_CHECKING:
     from dataclasses import Field as DataclassField
     from typing import ClassVar
@@ -15,6 +13,8 @@ if TYPE_CHECKING:
     from sqlalchemy import Table
     from sqlalchemy.orm import DeclarativeBase
     from sqlalchemy.sql.type_api import TypeEngine
+
+    from anyschema.parsers import ParserStep
 
     AttrsClassType: TypeAlias = type[AttrsInstance]
     SQLAlchemyTableType: TypeAlias = Table | type[DeclarativeBase]
@@ -28,10 +28,10 @@ We check for the object to be either a mapping or a sequence of sized 2 tuples.
 [ordered-dict]: https://docs.python.org/3/library/collections.html#collections.OrderedDict
 """
 
-IntoParserPipeline: TypeAlias = Literal["auto"] | Sequence[ParserStep]
+IntoParserPipeline: TypeAlias = "Literal['auto'] | Sequence['ParserStep']"
 """An object that can be converted into a [`ParserPipeline`][anyschema.parsers.ParserPipeline].
 
-Either "auto" or a sequence of [`ParserStep`][anyschema.parsers.ParserStep].
+Either "auto", a `ParserPipeline` instance, or a sequence of [`ParserStep`][anyschema.parsers.ParserStep].
 """
 
 UnknownSpec: TypeAlias = Any

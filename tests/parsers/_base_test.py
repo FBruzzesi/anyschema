@@ -1,13 +1,13 @@
 # ruff: noqa: ARG002
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal, Sequence
 
 import narwhals as nw
 import pytest
 
 from anyschema.exceptions import UnavailablePipelineError
-from anyschema.parsers import ParserPipeline, ParserStep
+from anyschema.parsers import AnnotatedStep, ParserPipeline, ParserStep
 
 if TYPE_CHECKING:
     from narwhals.dtypes import DType
@@ -56,7 +56,6 @@ def test_pipeline_not_set() -> None:
 def test_pipeline_set_valid() -> None:
     step = AlwaysNoneStep()
     pipeline = ParserPipeline([step])
-    step.pipeline = pipeline
 
     assert step.pipeline is pipeline
 
@@ -71,13 +70,15 @@ def test_pipeline_set_invalid_type() -> None:
 def test_pipeline_setter_updates_correctly() -> None:
     step = AlwaysNoneStep()
     pipeline1 = ParserPipeline([step])
-    pipeline2 = ParserPipeline([step])
 
-    step.pipeline = pipeline1
-    assert step.pipeline is pipeline1
+    # Trying to set pipeline again should raise (already set by ParserPipeline.__init__)
+    with pytest.raises(TypeError, match="`pipeline` can only be set once"):
+        step.pipeline = pipeline1  # Already set!
 
-    step.pipeline = pipeline2
-    assert step.pipeline is pipeline2
+    # But cloning allows reuse
+    cloned = step.clone()
+    pipeline2 = ParserPipeline([cloned])
+    assert cloned.pipeline is pipeline2
 
 
 def test_pipeline_init_with_steps() -> None:
@@ -145,3 +146,100 @@ def test_parser_step_repr() -> None:
 
     step2 = AlwaysNoneStep()
     assert repr(step2) == "AlwaysNoneStep"
+
+
+def test_parser_step_clone() -> None:
+    """Test that clone() creates a new step without pipeline reference."""
+    step = Int64Step()
+    pipeline = ParserPipeline([step])
+
+    # Step should have pipeline set
+    assert step.pipeline is pipeline
+
+    # Clone should not have pipeline set
+    cloned = step.clone()
+    assert cloned is not step
+    assert cloned._pipeline is None
+
+    # Clone should work independently
+    pipeline2 = ParserPipeline([cloned])
+    assert cloned.pipeline is pipeline2
+    assert step.pipeline is pipeline  # Original unchanged
+
+
+def test_parser_step_clone_preserves_state() -> None:
+    """Test that clone() preserves internal state of the step."""
+    from anyschema.parsers import ForwardRefStep
+
+    # ForwardRefStep has internal state (globalns)
+    custom_globals = {"CustomType": str}
+    step = ForwardRefStep(globalns=custom_globals)
+    _ = ParserPipeline([step])  # Set pipeline on original
+
+    cloned = step.clone()
+
+    # Cloned step should have the same globalns
+    assert cloned.globalns == step.globalns
+    # But should be able to set a new pipeline
+    pipeline2 = ParserPipeline([cloned])
+    assert cloned.pipeline is pipeline2
+
+
+@pytest.mark.parametrize(
+    ("original_steps", "steps_to_add", "position", "expected"),
+    [
+        (
+            (AnnotatedStep(), Int64Step(), StrStep()),
+            Int32Step(),
+            "auto",
+            (AnnotatedStep, Int32Step, Int64Step, StrStep),
+        ),
+        (
+            (AnnotatedStep(), StrStep()),
+            (Int32Step(), Int64Step()),
+            "auto",
+            (AnnotatedStep, Int32Step, Int64Step, StrStep),
+        ),
+        (
+            (Int64Step(), StrStep()),
+            Int32Step(),
+            1,
+            (Int64Step, Int32Step, StrStep),
+        ),
+        (
+            (Int64Step(), StrStep()),
+            Int32Step(),
+            100,
+            (Int64Step, StrStep, Int32Step),
+        ),
+        (
+            (Int64Step(), StrStep()),
+            Int32Step(),
+            -100,
+            (Int32Step, Int64Step, StrStep),
+        ),
+    ],
+)
+def test_pipeline_with_steps(
+    original_steps: tuple[ParserStep, ...],
+    steps_to_add: ParserStep | Sequence[ParserStep],
+    position: int | Literal["auto"],
+    expected: tuple[type[ParserStep], ...],
+) -> None:
+    pipeline = ParserPipeline(original_steps)
+    new_pipeline = pipeline.with_steps(steps_to_add, position=position)
+
+    assert all(isinstance(step, step_type) for step, step_type in zip(new_pipeline.steps, expected, strict=True))
+
+
+def test_pipeline_from_auto_with_steps() -> None:
+    pipeline = ParserPipeline.from_auto_with_steps(Int32Step(), Int64Step())
+
+    s1, s2 = pipeline.steps[3:5]
+    assert isinstance(s1, Int32Step)
+    assert isinstance(s2, Int64Step)
+
+
+def test_from_auto_with_steps_explicit_position() -> None:
+    pipeline = ParserPipeline.from_auto_with_steps(Int32Step(), position=0)
+    assert isinstance(pipeline.steps[0], Int32Step)

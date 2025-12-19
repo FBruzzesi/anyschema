@@ -21,9 +21,7 @@ def annotated_types_parser() -> AnnotatedTypesStep:
     """Create an AnnotatedTypesStep instance with pipeline set."""
     annotated_types_parser = AnnotatedTypesStep()
     py_parser = PyTypeStep()
-    chain = ParserPipeline([annotated_types_parser, py_parser])
-    annotated_types_parser.pipeline = chain
-    py_parser.pipeline = chain
+    _ = ParserPipeline([annotated_types_parser, py_parser])
     return annotated_types_parser
 
 

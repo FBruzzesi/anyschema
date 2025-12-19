@@ -7,9 +7,26 @@ import pytest
 from narwhals.schema import Schema
 
 from anyschema import AnySchema
+from anyschema.parsers import ParserPipeline, ParserStep, make_pipeline
 
 if TYPE_CHECKING:
-    from anyschema.typing import FieldSpecIterable
+    from narwhals.dtypes import DType
+
+    from anyschema.typing import FieldConstraints, FieldMetadata, FieldSpecIterable, FieldType
+
+
+class CustomType:
+    pass
+
+
+class CustomTypeStep(ParserStep):
+    def parse(
+        self,
+        input_type: FieldType,
+        constraints: FieldConstraints,  # noqa: ARG002
+        metadata: FieldMetadata,  # noqa: ARG002
+    ) -> DType | None:
+        return nw.String() if input_type is CustomType else None
 
 
 def test_anyschema_with_unknown_spec_and_no_adapter() -> None:
@@ -55,3 +72,24 @@ def test_anyschema_with_dict_spec() -> None:
 
     assert "name" in result
     assert "age" in result
+
+
+@pytest.mark.parametrize(
+    "pipeline",
+    [
+        make_pipeline("auto").with_steps(CustomTypeStep()),
+        ParserPipeline.from_auto_with_steps(CustomTypeStep()),
+        [step.clone() for step in ParserPipeline.from_auto_with_steps(CustomTypeStep()).steps],
+    ],
+)
+def test_anyschema_with_pipeline(pipeline: ParserPipeline) -> None:
+    spec = {"custom_field": CustomType, "normal_field": int}
+    schema = AnySchema(spec=spec, pipeline=pipeline)
+
+    result = schema._nw_schema
+    assert result == Schema(
+        {
+            "custom_field": nw.String(),
+            "normal_field": nw.Int64(),
+        }
+    )

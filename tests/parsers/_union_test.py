@@ -15,9 +15,7 @@ def union_parser() -> UnionTypeStep:
     """Create a UnionTypeStep instance with pipeline set."""
     union_parser = UnionTypeStep()
     py_parser = PyTypeStep()
-    chain = ParserPipeline([union_parser, py_parser])
-    union_parser.pipeline = chain
-    py_parser.pipeline = chain
+    _ = ParserPipeline([union_parser, py_parser])
     return union_parser
 
 

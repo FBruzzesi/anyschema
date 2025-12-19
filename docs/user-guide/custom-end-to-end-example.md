@@ -19,7 +19,6 @@ from anyschema.parsers import (
     UnionTypeStep,
     AnnotatedStep,
     PyTypeStep,
-    make_pipeline,
 )
 from anyschema.typing import FieldSpecIterable
 

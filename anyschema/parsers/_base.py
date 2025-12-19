@@ -37,7 +37,7 @@ class ParserStep(ABC):
     Examples:
         >>> from typing import get_origin, get_args
         >>> import narwhals as nw
-        >>> from anyschema.parsers import ParserStep, PyTypeStep, make_pipeline
+        >>> from anyschema.parsers import ParserPipeline, ParserStep, PyTypeStep
         >>> from anyschema.typing import FieldConstraints, FieldMetadata, FieldType
         >>>
         >>> class CustomType: ...
@@ -59,7 +59,7 @@ class ParserStep(ABC):
         ...         # Return None if we can't handle it
         ...         return None
         >>>
-        >>> pipeline = make_pipeline(steps=[CustomParserStep(), PyTypeStep()])
+        >>> pipeline = ParserPipeline(steps=[CustomParserStep(), PyTypeStep()])
         >>> pipeline.parse(CustomType, constraints=(), metadata={})
         String
         >>> pipeline.parse(CustomList[int], constraints=(), metadata={})
@@ -142,15 +142,15 @@ class ParserStep(ABC):
             but without a pipeline reference.
 
         Examples:
-            >>> from anyschema.parsers import PyTypeStep, make_pipeline
+            >>> from anyschema.parsers import ParserPipeline, PyTypeStep
             >>>
             >>> # Create a step and assign it to a pipeline
             >>> step = PyTypeStep()
-            >>> pipeline1 = make_pipeline([step])
+            >>> pipeline1 = ParserPipeline([step])
             >>>
             >>> # Clone the step to use in another pipeline
             >>> cloned_step = step.clone()
-            >>> pipeline2 = make_pipeline([cloned_step])
+            >>> pipeline2 = ParserPipeline([cloned_step])
             >>>
             >>> # Both pipelines work independently
             >>> pipeline1.parse(int, (), {})

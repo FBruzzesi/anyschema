@@ -135,7 +135,7 @@ class ParserPipeline:
             A new `ParserPipeline` instance with the step(s) added at the specified position.
 
         Examples:
-            >>> from anyschema.parsers import make_pipeline, ParserStep
+            >>> from anyschema.parsers import ParserPipeline, ParserStep
             >>> import narwhals as nw
             >>> from anyschema.typing import FieldConstraints, FieldMetadata, FieldType
             >>>
@@ -149,7 +149,7 @@ class ParserPipeline:
             ...             return nw.String()
             ...         return None
             >>>
-            >>> pipeline = make_pipeline("auto")  # Start with auto pipeline
+            >>> pipeline = ParserPipeline("auto")  # Start with auto pipeline
             >>>
             >>> # Add single custom step
             >>> custom_pipeline = pipeline.with_steps(CustomParserStep())

@@ -203,6 +203,12 @@ def test_parser_step_clone_preserves_state() -> None:
         (
             (Int64Step(), StrStep()),
             Int32Step(),
+            "auto",
+            (Int32Step, Int64Step, StrStep),
+        ),
+        (
+            (Int64Step(), StrStep()),
+            Int32Step(),
             1,
             (Int64Step, Int32Step, StrStep),
         ),

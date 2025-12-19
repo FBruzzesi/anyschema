@@ -77,7 +77,7 @@ If your parser steps expects metadata, yet it receives empty metadata, then make
 pipeline:
 
 ```python
-from anyschema.parsers import AnnotatedStep, make_pipeline
+from anyschema.parsers import AnnotatedStep
 from anyschema.typing import FieldConstraints, FieldMetadata, FieldType
 
 steps = (

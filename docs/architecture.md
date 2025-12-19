@@ -180,7 +180,7 @@ You can extend the parser pipeline in two ways:
 
     ```python
     from anyschema import AnySchema
-    from anyschema.parsers import make_pipeline, ParserStep
+    from anyschema.parsers import ParserPipeline, ParserStep
     import narwhals as nw
 
 
@@ -190,8 +190,8 @@ You can extend the parser pipeline in two ways:
             ...
 
 
-    # Extend the auto pipeline
-    custom_pipeline = make_pipeline("auto").with_steps(MyCustomStep())
+    # Extend the auto pipeline with custom step
+    custom_pipeline = ParserPipeline.from_auto(steps=MyCustomStep())
 
     # Use it with AnySchema
     schema = AnySchema(spec=my_spec, pipeline=custom_pipeline)

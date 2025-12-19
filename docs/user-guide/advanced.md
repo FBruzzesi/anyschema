@@ -32,7 +32,7 @@ Here's a simple custom parser for a hypothetical custom type:
 
 ```python exec="true" source="above" result="python" session="custom-parser"
 import narwhals as nw
-from anyschema.parsers import make_pipeline, ParserStep, PyTypeStep
+from anyschema.parsers import ParserPipeline, ParserStep, PyTypeStep
 from anyschema.typing import FieldConstraints, FieldMetadata, FieldType
 
 
@@ -69,7 +69,7 @@ class ColorStep(ParserStep):
 # Create a simple pipeline with the custom parser
 color_step = ColorStep()
 python_step = PyTypeStep()
-pipeline = make_pipeline(steps=[color_step, python_step])
+pipeline = ParserPipeline(steps=[color_step, python_step])
 
 result = pipeline.parse(Color, constraints=(), metadata={})
 print(result)
@@ -129,7 +129,7 @@ class MyListStep(ParserStep):
 
 my_list_step = MyListStep()
 python_step = PyTypeStep()
-pipeline = make_pipeline(steps=[my_list_step, python_step])
+pipeline = ParserPipeline(steps=[my_list_step, python_step])
 result = pipeline.parse(MyList[int], (), {})
 print(result)
 ```
@@ -190,7 +190,7 @@ BigInteger = Annotated[int, BigInt]
 annotated_step = AnnotatedStep()
 custom_constraint_step = CustomConstraintStep()
 python_step = PyTypeStep()
-pipeline = make_pipeline(steps=[annotated_step, custom_constraint_step, python_step])
+pipeline = ParserPipeline(steps=[annotated_step, custom_constraint_step, python_step])
 
 print(f"SmallInteger dtype: {pipeline.parse(SmallInteger, (), {})}")
 print(f"BigInteger dtype: {pipeline.parse(BigInteger, (), {})}")
@@ -202,9 +202,9 @@ Here's how to combine multiple custom parsers using the `with_steps` method for 
 
 ```python exec="true" source="above" result="python" session="custom-parser"
 from anyschema import AnySchema
-from anyschema.parsers import make_pipeline
+from anyschema.parsers import ParserPipeline
 
-base_pipeline = make_pipeline("auto")  # Start with the auto pipeline
+base_pipeline = ParserPipeline("auto")  # Start with the auto pipeline
 
 # Add custom parsers using with_steps (automatically positions them optimally)
 custom_pipeline = base_pipeline.with_steps(ColorStep(), MyListStep())
@@ -225,8 +225,8 @@ ensuring they run after type preprocessing but before library-specific parsers.
 You can also specify a position explicitly:
 
 ```python exec="true" source="above" result="python" session="custom-parser"
-pipeline_at_start = base_pipeline.with_steps(ColorStep(), position=0)
-pipeline_at_end = base_pipeline.with_steps(ColorStep(), position=-1)
+pipeline_at_start = base_pipeline.with_steps(ColorStep(), at_position=0)
+pipeline_at_end = base_pipeline.with_steps(ColorStep(), at_position=-1)
 
 print(pipeline_at_start.steps)
 print(pipeline_at_end.steps)
@@ -238,7 +238,7 @@ print(pipeline_at_end.steps)
     custom parsing steps. With `pipeline.with_steps`, you can simply extend an existing pipeline:
 
     ```python
-    custom_pipeline = make_pipeline("auto").with_steps([ColorStep(), MyListStep()])
+    custom_pipeline = ParserPipeline("auto").with_steps([ColorStep(), MyListStep()])
     ```
 
     This approach:

@@ -152,7 +152,6 @@ class AnySchema:
     Tip: See also
         - [ParserStep][anyschema.parsers.ParserStep]: Base class for custom parser steps
         - [ParserPipeline][anyschema.parsers.ParserPipeline]: Pipeline for chaining parser steps
-        - [make_pipeline][anyschema.parsers.make_pipeline]: Factory function for creating parser pipelines
         - [Spec Adapters][anyschema.adapters]: Adapters for various specifications
     """
 

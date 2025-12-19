@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Generator, TypedDict
+from typing import TYPE_CHECKING, Any, Generator, TypedDict, cast
 
 import pyarrow as pa
 import pytest
@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 class SimpleSchema:
     """A simple schema format for testing."""
 
-    def __init__(self, fields: dict[str, type]) -> None:
+    def __init__(self, fields: dict[str, type[Any]]) -> None:
         self.fields = fields
 
 
@@ -57,7 +57,7 @@ def nested_adapter(spec: NestedSchema) -> Generator[FieldSpec, None, None]:
             # For nested schemas, create a TypedDict with the proper structure
             nested_dict = {name: type_ for name, type_, *_ in nested_adapter(field_value)}
             # Create a dynamic TypedDict with the nested fields
-            nested_typed_dict = TypedDict(  # type: ignore[arg-type]
+            nested_typed_dict = TypedDict(  # type: ignore[misc]
                 f"{field_name.title()}TypedDict",  # Generate a unique name
                 nested_dict,  # Field name -> type mapping
             )
@@ -71,7 +71,7 @@ def test_simple_dict_spec() -> None:
     fields = {"id": int, "metadata": dict}
     schema_spec = SimpleSchema(fields=fields)
 
-    schema = AnySchema(spec=schema_spec, adapter=simple_dict_adapter)  # type: ignore[arg-type]
+    schema = AnySchema(spec=schema_spec, adapter=simple_dict_adapter)
     arrow_schema = schema.to_arrow()
 
     assert len(arrow_schema) == len(fields)
@@ -89,7 +89,7 @@ def test_typed_dict_spec() -> None:
     fields = {"person": PersonTypedDict}
     schema_spec = SimpleSchema(fields=fields)
 
-    schema = AnySchema(spec=schema_spec, adapter=simple_dict_adapter)  # type: ignore[arg-type]
+    schema = AnySchema(spec=schema_spec, adapter=simple_dict_adapter)
     arrow_schema = schema.to_arrow()
 
     assert len(arrow_schema) == len(fields)
@@ -110,7 +110,7 @@ def test_nested_schema_adapter() -> None:
         ),
     }
     schema_spec = NestedSchema(fields=fields)
-    schema = AnySchema(spec=schema_spec, adapter=nested_adapter)  # type: ignore[arg-type]
+    schema = AnySchema(spec=schema_spec, adapter=nested_adapter)
     arrow_schema = schema.to_arrow()
 
     assert len(arrow_schema) == len(fields)
@@ -118,7 +118,7 @@ def test_nested_schema_adapter() -> None:
     assert "struct" in str(arrow_schema.types[1]).lower()
     # Check that the nested struct has the correct fields
     profile_type = arrow_schema.types[1]
-    assert profile_type.num_fields == len(fields["profile"].fields)  # Should have 2 fields
+    assert profile_type.num_fields == len(cast("NestedSchema", fields["profile"]).fields)  # Should have 2 fields
     assert pa.types.is_struct(profile_type)
     assert profile_type.names == ["name", "age"]
 
@@ -128,7 +128,7 @@ def test_polars_schema_with_dict() -> None:
     fields = {"id": int, "metadata": dict, "name": str}
     schema_spec = SimpleSchema(fields=fields)
 
-    schema = AnySchema(spec=schema_spec, adapter=simple_dict_adapter)  # type: ignore[arg-type]
+    schema = AnySchema(spec=schema_spec, adapter=simple_dict_adapter)
     polars_schema = schema.to_polars()
 
     assert len(polars_schema) == len(fields)
@@ -148,7 +148,7 @@ def test_various_dict_types(dict_type: type) -> None:
     fields = {"data": dict_type}
     schema_spec = SimpleSchema(fields=fields)
 
-    schema = AnySchema(spec=schema_spec, adapter=simple_dict_adapter)  # type: ignore[arg-type]
+    schema = AnySchema(spec=schema_spec, adapter=simple_dict_adapter)
     arrow_schema = schema.to_arrow()
 
     assert len(arrow_schema) == len(fields)

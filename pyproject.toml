@@ -57,6 +57,7 @@ typing = [
   "mypy",
   "pyright",
   "ty",
+  {include-group = "tests"},
 ]
 
 docs = [
@@ -153,6 +154,9 @@ check_untyped_defs = true
 warn_return_any = true
 show_error_codes = true
 warn_unused_ignores = true
+pretty = true
+strict = true
+files = ["anyschema", "tests"]
 
 [tool.coverage.run]
 plugins = ["covdefaults"]

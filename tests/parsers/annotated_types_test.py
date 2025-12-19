@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import hypothesis.strategies as st
 import narwhals as nw
@@ -11,6 +11,9 @@ from hypothesis import given
 from anyschema.parsers import ParserPipeline
 from anyschema.parsers._builtin import PyTypeStep
 from anyschema.parsers.annotated_types import AnnotatedTypesStep
+
+if TYPE_CHECKING:
+    from anyschema.typing import FieldConstraints
 
 
 @pytest.fixture(scope="module")
@@ -66,7 +69,7 @@ def test_parse_non_annotated(annotated_types_parser: AnnotatedTypesStep, input_t
     ],
 )
 def test_int_with_constraint(
-    annotated_types_parser: AnnotatedTypesStep, constraints: tuple, expected: nw.dtypes.DType
+    annotated_types_parser: AnnotatedTypesStep, constraints: FieldConstraints, expected: nw.dtypes.DType
 ) -> None:
     result = annotated_types_parser.parse(int, constraints=constraints, metadata={})
     assert result == expected
@@ -131,7 +134,7 @@ def test_parse_to_uint16_hypothesis(annotated_types_parser: AnnotatedTypesStep, 
     ],
 )
 def test_parse_integer_constraints_parametrized(
-    annotated_types_parser: AnnotatedTypesStep, constraints: tuple, expected: nw.dtypes.DType
+    annotated_types_parser: AnnotatedTypesStep, constraints: FieldConstraints, expected: nw.dtypes.DType
 ) -> None:
     result = annotated_types_parser.parse(int, constraints=constraints, metadata={})
     assert result == expected

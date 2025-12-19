@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, Any
 
 import narwhals as nw
 import pytest
@@ -48,7 +48,7 @@ def test_parse_annotated(annotated_parser: AnnotatedStep, input_type: type, expe
         (1, 2, 3),
     ],
 )
-def test_parse_annotated_various_metadata(annotated_parser: AnnotatedStep, metadata_items: tuple) -> None:
+def test_parse_annotated_various_metadata(annotated_parser: AnnotatedStep, metadata_items: tuple[Any, ...]) -> None:
     """Parametrized test for Annotated with various metadata."""
     input_type = Annotated[int, metadata_items]
     result = annotated_parser.parse(input_type, (), {})

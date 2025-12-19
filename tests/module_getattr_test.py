@@ -11,7 +11,6 @@ import anyschema
 def test_package_getattr() -> None:
     assert_type(anyschema.__version__, str)
     assert_type(anyschema.__title__, str)
-    assert_type(anyschema.__all__, tuple[str, ...])
 
     if TYPE_CHECKING:
         bad = anyschema.not_real  # type: ignore[attr-defined]

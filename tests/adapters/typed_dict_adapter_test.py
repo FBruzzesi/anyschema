@@ -8,7 +8,7 @@ import pytest
 from anyschema.adapters import typed_dict_adapter
 
 if TYPE_CHECKING:
-    from anyschema.typing import TypedDictType
+    from anyschema.typing import FieldSpec, TypedDictType
 
 
 class PersonTypedDict(TypedDict):
@@ -24,6 +24,6 @@ class PersonTypedDict(TypedDict):
     ],
 )
 def test_typed_dict_adapter(spec: TypedDictType) -> None:
-    expected = (("name", str, (), {}), ("age", int, (), {}), ("date_of_birth", date, (), {}))
+    expected: tuple[FieldSpec, ...] = (("name", str, (), {}), ("age", int, (), {}), ("date_of_birth", date, (), {}))
     result = tuple(typed_dict_adapter(spec))
     assert result == expected

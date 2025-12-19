@@ -7,7 +7,7 @@ import pytest
 from anyschema.adapters import into_ordered_dict_adapter
 
 if TYPE_CHECKING:
-    from anyschema.typing import IntoOrderedDict
+    from anyschema.typing import FieldSpec, IntoOrderedDict
 
 
 @pytest.mark.parametrize(
@@ -18,6 +18,6 @@ if TYPE_CHECKING:
     ],
 )
 def test_into_ordered_dict_adapter(spec: IntoOrderedDict) -> None:
-    expected = (("name", str, (), {}), ("age", int, (), {}))
+    expected: tuple[FieldSpec, ...] = (("name", str, (), {}), ("age", int, (), {}))
     result = tuple(into_ordered_dict_adapter(spec))
     assert result == expected

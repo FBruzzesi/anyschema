@@ -61,9 +61,9 @@ def py_type_parser() -> PyTypeStep:
         (Color, nw.Enum(Color)),
         (Status, nw.Enum(Status)),
         (Literal["red", "green", "blue"], nw.Enum(("red", "green", "blue"))),
-        (Literal[1, 2, 3], nw.Enum([1, 2, 3])),
+        (Literal[1, 2, 3], nw.Enum([1, 2, 3])),  # type: ignore[list-item]
         (Literal["active", "inactive"], nw.Enum(("active", "inactive"))),
-        (Literal[True, False], nw.Enum([True, False])),
+        (Literal[True, False], nw.Enum([True, False])),  # type: ignore[list-item]
     ],
 )
 def test_parse_non_nested(py_type_parser: PyTypeStep, input_type: Any, expected: nw.dtypes.DType) -> None:

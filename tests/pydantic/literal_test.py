@@ -35,8 +35,8 @@ def test_parse_mixed_literal_types(auto_pipeline: ParserPipeline) -> None:
 
     assert schema["name"] == nw.String()
     assert schema["log_level"] == nw.Enum(["debug", "info", "warning", "error"])
-    assert schema["max_retries"] == nw.Enum([1, 2, 3, 5, 10])
-    assert schema["enabled"] == nw.Enum([True, False])
+    assert schema["max_retries"] == nw.Enum([1, 2, 3, 5, 10])  # type: ignore[list-item]
+    assert schema["enabled"] == nw.Enum([True, False])  # type: ignore[list-item]
 
 
 def test_parse_literal_with_optional(auto_pipeline: ParserPipeline) -> None:

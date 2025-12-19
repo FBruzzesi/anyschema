@@ -11,7 +11,7 @@ from anyschema.adapters import dataclass_adapter
 from tests.conftest import DataclassEventWithTimeMetadata
 
 if TYPE_CHECKING:
-    from anyschema.typing import DataclassType
+    from anyschema.typing import DataclassType, FieldSpec
 
 
 class PersonIntoDataclass:
@@ -29,7 +29,7 @@ class PersonIntoDataclass:
     ],
 )
 def test_dataclass_adapter(spec: DataclassType) -> None:
-    expected = (("name", str, (), {}), ("age", int, (), {}), ("date_of_birth", date, (), {}))
+    expected: tuple[FieldSpec, ...] = (("name", str, (), {}), ("age", int, (), {}), ("date_of_birth", date, (), {}))
     result = tuple(dataclass_adapter(spec))
     assert result == expected
 
@@ -51,7 +51,7 @@ def test_dataclass_adapter_missing_decorator_raises() -> None:
     )
 
     with pytest.raises(AssertionError, match=expected_msg.replace("(", r"\(").replace(")", r"\)")):
-        list(dataclass_adapter(ChildWithoutDecorator))  # type: ignore[arg-type]
+        list(dataclass_adapter(ChildWithoutDecorator))
 
 
 def test_dataclass_adapter_with_time_metadata() -> None:

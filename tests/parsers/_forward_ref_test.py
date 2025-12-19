@@ -11,7 +11,9 @@ if TYPE_CHECKING:
     from contextlib import AbstractContextManager
 
 
-def forward_ref_parser_builder(globalns: dict | None = None, localns: dict | None = None) -> ForwardRefStep:
+def forward_ref_parser_builder(
+    globalns: dict[str, Any] | None = None, localns: dict[str, Any] | None = None
+) -> ForwardRefStep:
     forward_ref_parser = ForwardRefStep(globalns=globalns, localns=localns)
     union_parser = UnionTypeStep()
     py_parser = PyTypeStep()

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from dataclasses import field as dc_field
-from typing import Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 import narwhals as nw
 import pytest
@@ -14,6 +14,9 @@ from sqlalchemy import Column, Integer, MetaData, String, Table
 from anyschema import AnyField, AnySchema
 from anyschema.parsers import make_pipeline
 from tests.conftest import AttrsBookWithMetadata, AttrsPerson, user_table
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 
 @pytest.mark.parametrize(
@@ -148,7 +151,7 @@ def test_pydantic_with_explicit_metadata() -> None:
         email: Optional[str] = PydanticField(json_schema_extra={"format": "email"})
 
     schema = AnySchema(spec=UserWithMetadata)
-    expected = (
+    expected: Iterable[tuple[str, bool, bool, dict[str, Any]]] = (
         ("id", False, True, {}),
         ("username", False, True, {"description": "User's login name"}),
         ("email", True, False, {"format": "email"}),

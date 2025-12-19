@@ -32,7 +32,11 @@ def test_pydantic_field_metadata_not_mutated_by_optional() -> None:
     assert name_metadata_before == name_metadata_after
     assert email_metadata_before == email_metadata_after
 
+    # !NOTE: isinstance check is for type checking purposes
+    assert isinstance(name_metadata_after, dict)
     assert "anyschema/nullable" not in name_metadata_after
+
+    assert isinstance(email_metadata_after, dict)
     assert "anyschema/nullable" not in email_metadata_after
 
 

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict
-from typing import TYPE_CHECKING, Any, TypedDict
+from typing import TYPE_CHECKING, Any, TypedDict, cast
 
 import narwhals as nw
 import pytest
@@ -35,7 +35,7 @@ def test_anyfield(
     description: str | None,
     metadata: Mapping[str, Any] | None,
 ) -> None:
-    kwargs: IntoAnyField = {
+    kwargs = {
         "name": "id",
         "dtype": dtype,
         "nullable": nullable,
@@ -51,7 +51,7 @@ def test_anyfield(
         "description": description,
         "metadata": metadata if metadata is not None else {},
     }
-    into_field = {k: v for k, v in kwargs.items() if v is not None}
+    into_field = cast("IntoAnyField", {k: v for k, v in kwargs.items() if v is not None})
     field = AnyField(**into_field)
     assert asdict(field) == expected
 
@@ -137,9 +137,9 @@ def test_field_equality_with_non_field(other_value: object) -> None:
         ),
     ],
 )
-def test_field_use_in_set(field_configs: list[dict], expected_unique_count: int) -> None:
+def test_field_use_in_set(field_configs: list[IntoAnyField], expected_unique_count: int) -> None:
     """Test that Field instances work correctly in sets."""
-    fields = [AnyField(**config) for config in field_configs]  # type: ignore[arg-type]
+    fields = [AnyField(**config) for config in field_configs]
     field_set = set(fields)
     assert len(field_set) == expected_unique_count
 
@@ -155,5 +155,5 @@ def test_field_use_in_set(field_configs: list[dict], expected_unique_count: int)
 )
 def test_field_description_values(field_kwargs: IntoAnyField, expected_description: str | None) -> None:
     """Test Field creation with various description values."""
-    field = AnyField(**field_kwargs)  # type: ignore[arg-type]
+    field = AnyField(**field_kwargs)
     assert field.description == expected_description

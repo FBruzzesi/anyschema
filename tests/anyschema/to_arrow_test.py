@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import pyarrow as pa
 import pytest
@@ -39,9 +39,7 @@ def test_pydantic_to_arrow(pydantic_student_cls: type[BaseModel]) -> None:
         ("classes", pa.list_(pa.string())),
         ("has_graduated", pa.bool_()),
     )
-    fields: tuple[tuple[str, pa.DataType], ...] = (
-        pa.field(name, dtype, nullable=False) for name, dtype in names_and_types
-    )
+    fields: tuple[pa.Field[Any], ...] = tuple(pa.field(name, dtype, nullable=False) for name, dtype in names_and_types)
     assert pa_schema == pa.schema(fields)
 
 
@@ -101,7 +99,7 @@ def test_to_arrow_nullable_flags(spec: Spec, expected_nullable: tuple[bool, ...]
         (Product, ({b"description": b"Product name", b"max_length": b"100"}, {b"currency": b"USD", b"min": b"0"})),
     ],
 )
-def test_to_arrow_with_metadata(spec: Spec, expected_metadata: tuple[bool, ...]) -> None:
+def test_to_arrow_with_metadata(spec: Spec, expected_metadata: tuple[dict[bytes, bytes], ...]) -> None:
     schema = AnySchema(spec=spec)
     pa_schema = schema.to_arrow()
 

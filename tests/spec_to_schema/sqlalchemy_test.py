@@ -1,5 +1,3 @@
-"""Tests for SQLAlchemy Table and ORM models as top-level specifications."""
-
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Mapping

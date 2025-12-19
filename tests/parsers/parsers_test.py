@@ -14,9 +14,9 @@ from anyschema.parsers import (
     ParserStep,
     PyTypeStep,
     UnionTypeStep,
-    _auto_pipeline,
     make_pipeline,
 )
+from anyschema.parsers._pipeline import _auto_pipeline
 from anyschema.parsers.annotated_types import AnnotatedTypesStep
 from anyschema.parsers.attrs import AttrsTypeStep
 from anyschema.parsers.pydantic import PydanticTypeStep

@@ -1,20 +1,17 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Literal, overload
+from typing import TYPE_CHECKING
 
-from anyschema._utils import qualified_type_name
 from anyschema.exceptions import UnavailablePipelineError
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
-
     from narwhals.dtypes import DType
 
-    from anyschema._anyschema import AnyField
+    from anyschema.parsers._pipeline import ParserPipeline
     from anyschema.typing import FieldConstraints, FieldMetadata, FieldType
 
-__all__ = ("ParserPipeline", "ParserStep")
+__all__ = ("ParserStep",)
 
 
 class ParserStep(ABC):
@@ -97,7 +94,9 @@ class ParserStep(ABC):
         Raises:
             TypeError: If pipeline is not an instance of ParserPipeline.
         """
-        if not isinstance(pipeline, ParserPipeline):
+        from anyschema.parsers._pipeline import ParserPipeline
+
+        if not isinstance(pipeline, ParserPipeline):  # pyright: ignore[reportUnnecessaryIsInstance]
             msg = f"Expected `ParserPipeline` object, found {type(pipeline)}"
             raise TypeError(msg)
 
@@ -119,118 +118,3 @@ class ParserStep(ABC):
 
     def __repr__(self) -> str:
         return self.__class__.__name__
-
-
-class ParserPipeline:
-    """A pipeline of parser steps that tries each parser in sequence.
-
-    This allows for composable parsing where multiple parsers can be tried until one successfully handles the type.
-
-    Arguments:
-        steps: Sequence of [`ParserStep`][anyschema.parsers.ParserStep]'s to use in the pipeline (in such order).
-    """
-
-    def __init__(self, steps: Sequence[ParserStep]) -> None:
-        self.steps = tuple(steps)
-
-    @overload
-    def parse(
-        self,
-        input_type: FieldType,
-        constraints: FieldConstraints,
-        metadata: FieldMetadata,
-        *,
-        strict: Literal[True] = True,
-    ) -> DType: ...
-
-    @overload
-    def parse(
-        self, input_type: FieldType, constraints: FieldConstraints, metadata: FieldMetadata, *, strict: Literal[False]
-    ) -> DType | None: ...
-
-    def parse(
-        self, input_type: FieldType, constraints: FieldConstraints, metadata: FieldMetadata, *, strict: bool = True
-    ) -> DType | None:
-        """Try each parser in sequence until one succeeds.
-
-        Arguments:
-            input_type: The type to parse.
-            constraints: Constraints associated with the type.
-            metadata: Custom metadata dictionary.
-            strict: Whether or not to raise if unable to parse `input_type`.
-
-        Returns:
-            A Narwhals DType from the first successful parser, or None if no parser succeeded and `strict=False`.
-        """
-        for step in self.steps:
-            result = step.parse(input_type, constraints, metadata)
-            if result is not None:
-                return result
-
-        if strict:
-            msg = (
-                f"No parser in the pipeline could handle type: '{qualified_type_name(input_type)}'.\n"
-                f"Please consider opening a feature request https://github.com/FBruzzesi/anyschema/issues"
-            )
-            raise NotImplementedError(msg)
-        return None
-
-    def parse_into_field(
-        self,
-        name: str,
-        input_type: FieldType,
-        constraints: FieldConstraints,
-        metadata: FieldMetadata,
-    ) -> AnyField:
-        """Parse a field specification into a AnyField object.
-
-        This is the recommended method for parsing field specifications at the top level.
-        It wraps the DType parsing with additional field-level information like nullability,
-        uniqueness, and custom metadata.
-
-        The metadata dictionary is populated during parsing (e.g., `UnionTypeStep` sets
-        `anyschema/nullable` for `Optional[T]` types), ensuring that forward references
-        are properly evaluated and avoiding code duplication.
-
-        Arguments:
-            name: The name of the field.
-            input_type: The type to parse.
-            constraints: Constraints associated with the type.
-            metadata: Custom metadata dictionary. This dictionary may be modified during
-                parsing to add field-level metadata like `anyschema/nullable`.
-
-        Returns:
-            A [`AnyField`][anyschema.AnyField] instance containing the parsed dtype and field-level metadata.
-
-        Examples:
-            >>> from anyschema.parsers import make_pipeline
-            >>> pipeline = make_pipeline()
-            >>> field = pipeline.parse_into_field("age", int, (), {})
-            >>> field
-            AnyField(name='age', dtype=Int64, nullable=False, unique=False, description=None, metadata={})
-
-            With nullable=True metadata:
-
-            >>> field = pipeline.parse_into_field("email", str, (), {"anyschema/nullable": True})
-            >>> field.nullable
-            True
-
-            With Optional type (auto-detected as nullable):
-
-            >>> from typing import Optional
-            >>> field = pipeline.parse_into_field("email", Optional[str], (), {})
-            >>> field.nullable
-            True
-        """
-        from anyschema._anyschema import AnyField
-
-        dtype = self.parse(input_type, constraints, metadata, strict=True)
-
-        return AnyField(
-            name=name,
-            dtype=dtype,
-            nullable=metadata.get("anyschema/nullable", False),
-            unique=metadata.get("anyschema/unique", False),
-            description=metadata.get("anyschema/description"),
-            metadata={k: v for k, v in metadata.items() if not k.startswith("anyschema/")},
-        )

@@ -11,7 +11,9 @@ from anyschema.adapters import pydantic_adapter
 from tests.conftest import PydanticEventWithTimeMetadata
 
 if TYPE_CHECKING:
-    from anyschema.typing import FieldSpec
+    from anyschema.typing import FieldMetadata, FieldSpec
+
+EMPTY_METADATA: FieldMetadata = {}  # Type hinted empty metadata dict
 
 
 class SimpleModel(BaseModel):
@@ -51,14 +53,14 @@ def test_pydantic_adapter(spec: type[BaseModel], expected: tuple[FieldSpec, ...]
 
 
 def test_pydantic_adapter_with_json_schema_extra() -> None:
-    result = list(pydantic_adapter(PydanticEventWithTimeMetadata))
+    result = tuple(pydantic_adapter(PydanticEventWithTimeMetadata))
 
-    expected = [
-        ("name", str, (), {}),
-        ("created_at", datetime, (), {}),
+    expected: tuple[FieldSpec, ...] = (
+        ("name", str, (), EMPTY_METADATA),
+        ("created_at", datetime, (), EMPTY_METADATA),
         ("scheduled_at", datetime, (), {"anyschema/time_zone": "UTC"}),
         ("started_at", datetime, (), {"anyschema/time_unit": "ms"}),
         ("completed_at", datetime, (), {"anyschema/time_zone": "Europe/Berlin", "anyschema/time_unit": "ns"}),
-    ]
+    )
 
     assert result == expected

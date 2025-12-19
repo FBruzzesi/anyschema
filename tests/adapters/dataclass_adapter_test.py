@@ -56,15 +56,15 @@ def test_dataclass_adapter_missing_decorator_raises() -> None:
 
 
 def test_dataclass_adapter_with_time_metadata() -> None:
-    result = list(dataclass_adapter(DataclassEventWithTimeMetadata))
+    result = tuple(dataclass_adapter(DataclassEventWithTimeMetadata))
 
-    expected = [
+    expected: tuple[FieldSpec, ...] = (
         ("name", str, (), {"anyschema/description": "Event name"}),
         ("created_at", datetime, (), {}),
         ("scheduled_at", datetime, (), {"anyschema/time_zone": "UTC", "anyschema/description": "Scheduled time"}),
         ("started_at", datetime, (), {"anyschema/time_unit": "ms"}),
         ("completed_at", datetime, (), {"anyschema/time_zone": "Europe/Berlin", "anyschema/time_unit": "ns"}),
-    ]
+    )
 
     assert result == expected
 
@@ -73,8 +73,11 @@ def test_dataclass_adapter_with_time_metadata() -> None:
 def test_dataclass_adapter_with_doc_argument() -> None:
     @dataclass
     class Product:
-        name: str = field(doc="Product name")
-        price: float = field(doc="Product price", metadata={"anyschema/description": "From metadata"})  # precedence
+        name: str = field(doc="Product name")  # pyright: ignore[reportCallIssue]
+        price: float = field(  # pyright: ignore[reportCallIssue]
+            doc="Product price",
+            metadata={"anyschema/description": "From metadata"},  # anyschema metadata have precedence
+        )
         in_stock: bool
 
     result = list(dataclass_adapter(Product))

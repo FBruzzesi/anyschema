@@ -31,6 +31,7 @@ class Color(Enum):
 
 @pytest.mark.parametrize(
     ("input_type", "expected"),
+    # SQLAlchemy types have incomplete generic parameters
     [
         (sqltypes.Boolean(), nw.Boolean()),
         (sqltypes.SmallInteger(), nw.Int16()),
@@ -62,7 +63,9 @@ class Color(Enum):
         ("not a sqlalchemy type", None),
     ],
 )
-def test_sqlalchemy_parse_step(sqlalchemy_step: SQLAlchemyTypeStep, input_type: Any, expected: nw.dtypes.DType) -> None:
+def test_sqlalchemy_parse_step(
+    sqlalchemy_step: SQLAlchemyTypeStep, input_type: Any, expected: nw.dtypes.DType | None
+) -> None:
     result = sqlalchemy_step.parse(input_type=input_type, constraints=(), metadata={})
     assert result == expected
 

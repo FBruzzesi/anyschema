@@ -2,12 +2,13 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
-from anyschema.parsers import _auto_pipeline, make_pipeline
+from anyschema.parsers import make_pipeline
+from anyschema.parsers._pipeline import _auto_pipeline
 
 
 def test_auto_pipeline_without_annotated_types() -> None:
     """Test that AnnotatedTypesStep is excluded when ANNOTATED_TYPES_AVAILABLE is False."""
-    with patch(target="anyschema.parsers.ANNOTATED_TYPES_AVAILABLE", new=False):
+    with patch(target="anyschema.parsers._pipeline.ANNOTATED_TYPES_AVAILABLE", new=False):
         # Clear the cache to force regeneration
         _auto_pipeline.cache_clear()
         try:
@@ -28,7 +29,7 @@ def test_auto_pipeline_without_annotated_types() -> None:
 
 def test_auto_pipeline_without_attrs() -> None:
     """Test that AttrsTypeStep is excluded when ATTRS_AVAILABLE is False."""
-    with patch(target="anyschema.parsers.ATTRS_AVAILABLE", new=False):
+    with patch(target="anyschema.parsers._pipeline.ATTRS_AVAILABLE", new=False):
         _auto_pipeline.cache_clear()
         try:
             pipeline = make_pipeline("auto")
@@ -46,7 +47,7 @@ def test_auto_pipeline_without_attrs() -> None:
 
 def test_auto_pipeline_without_pydantic() -> None:
     """Test that PydanticTypeStep is excluded when PYDANTIC_AVAILABLE is False."""
-    with patch(target="anyschema.parsers.PYDANTIC_AVAILABLE", new=False):
+    with patch(target="anyschema.parsers._pipeline.PYDANTIC_AVAILABLE", new=False):
         _auto_pipeline.cache_clear()
         try:
             pipeline = make_pipeline("auto")
@@ -64,7 +65,7 @@ def test_auto_pipeline_without_pydantic() -> None:
 
 def test_auto_pipeline_without_sqlalchemy() -> None:
     """Test that SQLAlchemyTypeStep is excluded when SQLALCHEMY_AVAILABLE is False."""
-    with patch(target="anyschema.parsers.SQLALCHEMY_AVAILABLE", new=False):
+    with patch(target="anyschema.parsers._pipeline.SQLALCHEMY_AVAILABLE", new=False):
         _auto_pipeline.cache_clear()
         try:
             pipeline = make_pipeline("auto")
@@ -82,12 +83,12 @@ def test_auto_pipeline_without_sqlalchemy() -> None:
 
 def test_auto_pipeline_without_all_optional_deps() -> None:
     """Test pipeline with only core dependencies."""
-    patches = [
-        patch(target="anyschema.parsers.ANNOTATED_TYPES_AVAILABLE", new=False),
-        patch(target="anyschema.parsers.ATTRS_AVAILABLE", new=False),
-        patch(target="anyschema.parsers.PYDANTIC_AVAILABLE", new=False),
-        patch(target="anyschema.parsers.SQLALCHEMY_AVAILABLE", new=False),
-    ]
+    patches = (
+        patch(target="anyschema.parsers._pipeline.ANNOTATED_TYPES_AVAILABLE", new=False),
+        patch(target="anyschema.parsers._pipeline.ATTRS_AVAILABLE", new=False),
+        patch(target="anyschema.parsers._pipeline.PYDANTIC_AVAILABLE", new=False),
+        patch(target="anyschema.parsers._pipeline.SQLALCHEMY_AVAILABLE", new=False),
+    )
 
     for p in patches:
         p.start()

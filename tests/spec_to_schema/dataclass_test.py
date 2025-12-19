@@ -1,5 +1,3 @@
-"""Tests for dataclass as a top-level specification."""
-
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Mapping

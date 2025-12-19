@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections import OrderedDict
 from dataclasses import fields as dc_fields
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 from typing_extensions import get_type_hints
 
@@ -282,7 +282,7 @@ def sqlalchemy_adapter(spec: SQLAlchemyTableType) -> FieldSpecIterable:
     """
     from sqlalchemy import Table
 
-    table = spec if isinstance(spec, Table) else cast("Table", spec.__table__)
+    table = spec if isinstance(spec, Table) else spec.__table__
 
     for column in table.columns:
         anyschema_metadata = {

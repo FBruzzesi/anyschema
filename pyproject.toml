@@ -49,6 +49,7 @@ tests = [
   "pydantic-extra-types[pycountry,phonenumbers]",
   "pytest>=8.0.0",
   "pytest-cov>=6.0.0",
+  "pytest-xdist>=3.8.0",
 ]
 
 typing = [

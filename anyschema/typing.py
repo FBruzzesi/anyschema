@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     from pydantic import BaseModel
     from sqlalchemy import Table
     from sqlalchemy.orm import DeclarativeBase
+    from sqlalchemy.sql.type_api import TypeEngine
 
     AttrsClassType: TypeAlias = type[AttrsInstance]
     SQLAlchemyTableType: TypeAlias = Table | type[DeclarativeBase]
@@ -40,7 +41,7 @@ Spec: TypeAlias = "Schema | IntoOrderedDict | type[BaseModel] | DataclassType | 
 """Input specification supported directly by [`AnySchema`][anyschema.AnySchema]."""
 
 FieldName: TypeAlias = str
-FieldType: TypeAlias = type | Annotated[Any, ...]
+FieldType: TypeAlias = "type[Any] | Annotated[Any, ...] | TypeEngine[Any]"
 FieldConstraints: TypeAlias = tuple[Any, ...]
 FieldMetadata: TypeAlias = dict[str, Any]
 

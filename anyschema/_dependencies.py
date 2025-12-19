@@ -4,7 +4,7 @@ import sys
 from collections.abc import Mapping, Sequence
 from dataclasses import is_dataclass as dc_is_dataclass
 from importlib.util import find_spec
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 from typing_extensions import TypeIs, is_typeddict
 
@@ -53,8 +53,9 @@ def is_pydantic_base_model(obj: object) -> TypeIs[type[BaseModel]]:
     """Check if the object is a pydantic BaseModel."""
     return (
         (pydantic := get_pydantic()) is not None
-        and isinstance(obj, cast("type", type(pydantic.BaseModel)))
-        and issubclass(obj, pydantic.BaseModel)  # type: ignore[arg-type]
+        and isinstance(obj, type)
+        and isinstance(obj, type(pydantic.BaseModel))
+        and issubclass(obj, pydantic.BaseModel)
     )
 
 

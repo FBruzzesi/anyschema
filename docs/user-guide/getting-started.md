@@ -163,7 +163,7 @@ print(schema.to_arrow())
 SQLAlchemy support includes comprehensive type mapping for numeric types, strings, dates, binary data, JSON, UUIDs,
 Enums, and PostgreSQL-specific types like `ARRAY`.
 
-Both dynamic-length arrays (converted to `List`) and fixed-dimension  arrays (converted to `Array`) are supported.
+Both dynamic-length arrays (converted to `List`) and fixed-dimension arrays (converted to `Array`) are supported.
 
 ### With Python Mappings
 

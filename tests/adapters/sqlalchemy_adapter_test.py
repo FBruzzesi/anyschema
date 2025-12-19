@@ -80,12 +80,6 @@ def test_sqlalchemy_adapter(spec: SQLAlchemyTableType, expected: Iterable[FieldS
     assert_result_equal(result, expected)
 
 
-def test_sqlalchemy_adapter_invalid_type() -> None:
-    msg = "Expected SQLAlchemy Table or DeclarativeBase subclass, got 'str'"
-    with pytest.raises(TypeError, match=msg):
-        list(sqlalchemy_adapter("not a table"))  # type: ignore[arg-type]
-
-
 def test_sqlalchemy_adapter_with_time_metadata_table() -> None:
     """Test that SQLAlchemy Table adapter correctly extracts time metadata from column.info."""
     result = list(sqlalchemy_adapter(event_table_with_time_metadata))

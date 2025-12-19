@@ -16,7 +16,7 @@ from tests.conftest import (
 )
 
 if TYPE_CHECKING:
-    from anyschema.typing import AttrsClassType
+    from anyschema.typing import AttrsClassType, FieldSpec
 
 
 @pytest.mark.parametrize(
@@ -50,13 +50,13 @@ def test_attrs_adapter_missing_decorator_raises() -> None:
 
 
 def test_attrs_adapter_with_time_metadata() -> None:
-    result = list(attrs_adapter(AttrsEventWithTimeMetadata))
-    expected = [
+    result = tuple(attrs_adapter(AttrsEventWithTimeMetadata))
+    expected: tuple[FieldSpec, ...] = (
         ("name", str, (), {}),
         ("created_at", datetime, (), {}),
         ("scheduled_at", datetime, (), {"anyschema/time_zone": "UTC"}),
         ("started_at", datetime, (), {"anyschema/time_unit": "ms"}),
         ("completed_at", datetime, (), {"anyschema/time_zone": "Europe/Berlin", "anyschema/time_unit": "ns"}),
-    ]
+    )
 
     assert result == expected

@@ -120,9 +120,6 @@ class PyTypeStep(ParserStep):
         args = get_args(input_type)
         inner_dtype = self.pipeline.parse(args[0], constraints=constraints, metadata=metadata, strict=True)
 
-        if inner_dtype is None:
-            return None
-
         if origin in (list, Sequence, Iterable):
             return nw.List(inner_dtype)
 

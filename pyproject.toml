@@ -159,6 +159,21 @@ pretty = true
 strict = true
 files = ["anyschema", "tests"]
 
+[tool.pyright]
+pythonPlatform = "All"
+pythonVersion = "3.10"
+reportMissingTypeStubs = "none"
+reportPrivateUsage = "none"
+reportUnknownVariableType = "none"
+reportUnknownArgumentType = "none"
+reportUnknownMemberType = "none"
+reportUnknownLambdaType = "none"
+reportUnusedFunction = "none"
+enableExperimentalFeatures = true
+typeCheckingMode = "strict"
+
+include = ["anyschema", "tests"]
+
 [tool.coverage.run]
 plugins = ["covdefaults"]
 

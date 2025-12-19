@@ -112,15 +112,11 @@ class SQLAlchemyTypeStep(ParserStep):
         if isinstance(input_type, BINARY_TYPES):
             return nw.Binary()
         if isinstance(input_type, sqltypes.ARRAY):
+            # ARRAY.item_type is a TypeEngine instance, which is also a valid FieldType
+            # SQLAlchemy's type stubs don't provide full generic parameter information for item_type
             inner_type = self.pipeline.parse(
                 input_type.item_type, constraints=constraints, metadata=metadata, strict=True
             )
-            if inner_type is None:
-                msg = (
-                    f"Found unsupported inner type: {input_type.item_type}.\n"
-                    "Please consider opening a feature request https://github.com/FBruzzesi/anyschema/issues"
-                )
-                raise UnsupportedDTypeError(msg)
             if input_type.dimensions is None:
                 return nw.List(inner=inner_type)
             else:

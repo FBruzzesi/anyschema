@@ -31,7 +31,7 @@ We check for the object to be either a mapping or a sequence of sized 2 tuples.
 IntoParserPipeline: TypeAlias = "Literal['auto'] | Sequence['ParserStep']"
 """An object that can be converted into a [`ParserPipeline`][anyschema.parsers.ParserPipeline].
 
-Either "auto", a `ParserPipeline` instance, or a sequence of [`ParserStep`][anyschema.parsers.ParserStep].
+Either "auto" or a sequence of [`ParserStep`][anyschema.parsers.ParserStep].
 """
 
 UnknownSpec: TypeAlias = Any

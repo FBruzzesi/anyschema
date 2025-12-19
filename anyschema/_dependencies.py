@@ -35,11 +35,7 @@ def is_into_ordered_dict(obj: object) -> TypeIs[IntoOrderedDict]:
     """Check if the object can be converted into a python OrderedDict."""
     tpl_size = 2
     return isinstance(obj, Mapping) or (
-        isinstance(obj, Sequence)
-        and all(
-            isinstance(s, tuple) and len(s) == tpl_size  # pyright: ignore[reportUnknownArgumentType]
-            for s in obj  # pyright: ignore[reportUnknownVariableType]
-        )
+        isinstance(obj, Sequence) and all(isinstance(s, tuple) and len(s) == tpl_size for s in obj)
     )
 
 

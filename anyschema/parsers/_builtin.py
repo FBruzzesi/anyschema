@@ -80,7 +80,7 @@ class PyTypeStep(ParserStep):
                 return nw.Decimal()
             if issubclass(input_type, bytes):
                 return nw.Binary()
-            if is_typed_dict(input_type):  # pyright: ignore[reportUnknownArgumentType]
+            if is_typed_dict(input_type):
                 return self._parse_typed_dict(input_type, constraints, metadata)
             if issubclass(input_type, dict):  # Plain dict without type parameters -> Struct with Object fields
                 return nw.Struct([])

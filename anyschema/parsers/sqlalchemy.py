@@ -116,7 +116,7 @@ class SQLAlchemyTypeStep(ParserStep):
             # Suppressing pyright warnings since SQLAlchemy's type stubs don't provide
             # full generic parameter information for item_type
             inner_type = self.pipeline.parse(
-                input_type.item_type,  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType]
+                input_type.item_type,
                 constraints=constraints,
                 metadata=metadata,
                 strict=True,

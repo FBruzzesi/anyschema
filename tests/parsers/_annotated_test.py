@@ -71,5 +71,5 @@ def test_parse_annotated_with_class_metadata(annotated_parser: AnnotatedStep) ->
 
 
 def test_parse_annotated_with_callable_metadata(annotated_parser: AnnotatedStep) -> None:
-    result = annotated_parser.parse(Annotated[int, lambda x: x > 0], (), {})  # pyright: ignore[reportUnknownLambdaType]
+    result = annotated_parser.parse(Annotated[int, lambda x: x > 0], (), {})
     assert result == nw.Int64()

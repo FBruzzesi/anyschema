@@ -32,7 +32,7 @@ class Color(Enum):
 @pytest.mark.parametrize(
     ("input_type", "expected"),
     # SQLAlchemy types have incomplete generic parameters
-    [  # pyright: ignore[reportUnknownArgumentType]
+    [
         (sqltypes.Boolean(), nw.Boolean()),
         (sqltypes.SmallInteger(), nw.Int16()),
         (sqltypes.Integer(), nw.Int32()),

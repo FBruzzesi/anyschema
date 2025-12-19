@@ -162,7 +162,12 @@ files = ["anyschema", "tests"]
 [tool.pyright]
 pythonPlatform = "All"
 pythonVersion = "3.10"
+reportMissingTypeStubs = "none"
 reportPrivateUsage = "none"
+reportUnknownVariableType = "none"
+reportUnknownArgumentType = "none"
+reportUnknownMemberType = "none"
+reportUnknownLambdaType = "none"
 typeCheckingMode = "strict"
 
 include = ["anyschema", "tests"]

@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, TypeAlias
 
 import narwhals as nw
 from sqlalchemy import types as sqltypes
+from typing_extensions import TypeIs
 
 from anyschema.exceptions import UnsupportedDTypeError
 from anyschema.parsers._base import ParserStep
@@ -16,20 +17,43 @@ if TYPE_CHECKING:
 __all__ = ("SQLAlchemyTypeStep",)
 
 STRING_TYPES = (
-    sqltypes.String,
-    sqltypes.Text,
-    sqltypes.Unicode,
-    sqltypes.UnicodeText,
+    sqltypes.String,  # Includes  sqltypes.Text, sqltypes.Unicode, sqltypes.UnicodeText
     sqltypes.JSON,  # In python and dataframes this is probably the best we can do for JSON
     sqltypes.Uuid,  # In python and dataframes this is probably the best we can do for UUID
 )
-BINARY_TYPES = (
-    sqltypes._Binary,  # noqa: SLF001  # All binary dtypes inherit from this one
-    sqltypes.LargeBinary,
-    sqltypes.BINARY,
-    sqltypes.VARBINARY,
-    sqltypes.BLOB,
+
+SupportedSQLAlchemyType: TypeAlias = (
+    sqltypes.String
+    | sqltypes.Boolean
+    | sqltypes.ARRAY[Any]
+    | sqltypes.Integer
+    | sqltypes.Numeric[Any]
+    | sqltypes.Date
+    | sqltypes.DateTime
+    | sqltypes.Time
+    | sqltypes.Interval
+    | sqltypes._Binary  # noqa: SLF001
+    | sqltypes.JSON
+    | sqltypes.Uuid[Any]
 )
+_SUPPORTED_SQLALCHEMY_TYPES = (
+    sqltypes.String,
+    sqltypes.Boolean,
+    sqltypes.ARRAY,
+    sqltypes.Integer,
+    sqltypes.Numeric,
+    sqltypes.Date,
+    sqltypes.DateTime,
+    sqltypes.Time,
+    sqltypes.Interval,
+    sqltypes._Binary,  # noqa: SLF001
+    sqltypes.JSON,
+    sqltypes.Uuid,
+)
+
+
+def _is_supported_sqlalchemt_type(obj: FieldType) -> TypeIs[SupportedSQLAlchemyType]:
+    return isinstance(obj, _SUPPORTED_SQLALCHEMY_TYPES)
 
 
 class SQLAlchemyTypeStep(ParserStep):
@@ -61,7 +85,10 @@ class SQLAlchemyTypeStep(ParserStep):
         Returns:
             A Narwhals DType if this parser can handle the type, None otherwise.
         """
-        if not isinstance(input_type, sqltypes.TypeEngine):
+        if not isinstance(input_type, sqltypes.TypeEngine):  # Keep this as a fast path!
+            return None
+
+        if not _is_supported_sqlalchemt_type(input_type):
             return None
 
         # NOTE: The order is quite important. In fact:
@@ -109,17 +136,15 @@ class SQLAlchemyTypeStep(ParserStep):
             return nw.Time()
         if isinstance(input_type, sqltypes.Interval):
             return nw.Duration()
-        if isinstance(input_type, BINARY_TYPES):
+        if isinstance(input_type, sqltypes._Binary):  # noqa: SLF001
+            # All binary dtypes inherit from this one, namely: LargeBinary, BINARY, VARBINARY, BLOB, etc..
             return nw.Binary()
-        if isinstance(input_type, sqltypes.ARRAY):
-            # ARRAY.item_type is a TypeEngine instance, which is also a valid FieldType
-            # SQLAlchemy's type stubs don't provide full generic parameter information for item_type
-            inner_type = self.pipeline.parse(
-                input_type.item_type, constraints=constraints, metadata=metadata, strict=True
-            )
-            if input_type.dimensions is None:
-                return nw.List(inner=inner_type)
-            else:
-                return nw.Array(inner=inner_type, shape=input_type.dimensions)
 
-        return None
+        # By exclusion, input_type is ARRAY.
+        # ARRAY.item_type is a TypeEngine instance, which is also a valid FieldType
+        # SQLAlchemy's type stubs don't provide full generic parameter information for item_type
+        inner_type = self.pipeline.parse(input_type.item_type, constraints=constraints, metadata=metadata, strict=True)
+        if input_type.dimensions is None:
+            return nw.List(inner=inner_type)
+        else:
+            return nw.Array(inner=inner_type, shape=input_type.dimensions)

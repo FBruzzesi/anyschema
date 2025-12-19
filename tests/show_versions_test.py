@@ -9,7 +9,7 @@ if TYPE_CHECKING:
     import pytest
 
 
-def test_show_versions(capsys: pytest.CaptureFixture) -> None:
+def test_show_versions(capsys: pytest.CaptureFixture[str]) -> None:
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore")
         show_versions()

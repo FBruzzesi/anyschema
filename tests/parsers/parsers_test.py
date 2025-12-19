@@ -89,7 +89,7 @@ def test_make_pipeline_invalid_steps() -> None:
     expected_msg = "Expected a sequence of `ParserStep` instances, found.*NotAParserStep.*str"
 
     with pytest.raises(TypeError, match=expected_msg):
-        make_pipeline(invalid_steps)
+        make_pipeline(invalid_steps)  # type: ignore[arg-type]
 
 
 @pytest.mark.parametrize(

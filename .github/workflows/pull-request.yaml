@@ -44,6 +44,22 @@ jobs:
       - name: Run pytest
         run: uv run --with pydantic==2.0.0,narwhals==2.0.0,attrs==22.1.0 --all-extras --group tests pytest tests --cov=anyschema --cov=tests --cov-fail-under=95
 
+  typing:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v6
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: ${{ env.DEFAULT_PYTHON }}
+          enable-cache: "true"
+          cache-dependency-glob: "pyproject.toml"
+      - name: Run type checking
+        run: |
+          uv run --all-extras --group typing pyright anyschema tests
+          uv run --all-extras --group typing mypy anyschema tests
+
   mkdocs-build:
     runs-on: ubuntu-latest
     steps:

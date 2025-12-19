@@ -57,15 +57,17 @@ An adapter is a callable that adapts a spec into field specifications.
 """
 
 
-class DataclassType(Protocol):
+class DataclassInstance(Protocol):
     """Protocol that represents a dataclass in Python."""
 
-    __name__: str
     # dataclasses are runtime composed entities making them tricky to type, this may not work perfectly
     #   with all type checkers
     # code adapted from typeshed:
     # https://github.com/python/typeshed/blob/9ab7fde0a0cd24ed7a72837fcb21093b811b80d8/stdlib/_typeshed/__init__.pyi#L351
     __dataclass_fields__: ClassVar[dict[str, DataclassField[Any]]]
+
+
+DataclassType = type[DataclassInstance]
 
 
 class TypedDictType(Protocol):

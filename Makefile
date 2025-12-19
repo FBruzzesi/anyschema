@@ -15,8 +15,8 @@ test:
 	uv run --active --no-sync --group tests pytest anyschema --doctest-modules
 
 typing:
-	uv run --active --no-sync --group typing pyright anyschema
-	uv run --active --no-sync --group typing mypy anyschema
+	uv run --active --no-sync --group typing pyright $(sources)
+	uv run --active --no-sync --group typing mypy $(sources)
 
 docs-serve:
 	uv run --active --no-sync --group docs mkdocs serve --watch anyschema --watch docs --dirty

@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 from sqlalchemy import BigInteger, Float, Integer, String
-from sqlalchemy.types import TypeEngine
+from sqlalchemy.types import DateTime, TypeEngine
 
 from anyschema.adapters import sqlalchemy_adapter
 from tests.conftest import (
@@ -85,7 +85,7 @@ def assert_result_equal(result: Iterable[FieldSpec], expected: Iterable[FieldSpe
         ),
     ],
 )
-def test_sqlalchemy_adapter(spec: SQLAlchemyTableType, expected: list[FieldSpec]) -> None:
+def test_sqlalchemy_adapter(spec: SQLAlchemyTableType, expected: Iterable[FieldSpec]) -> None:
     result = sqlalchemy_adapter(spec)
     assert_result_equal(result, expected)
 
@@ -98,11 +98,8 @@ def test_sqlalchemy_adapter_invalid_type() -> None:
 
 def test_sqlalchemy_adapter_with_time_metadata_table() -> None:
     """Test that SQLAlchemy Table adapter correctly extracts time metadata from column.info."""
-    from sqlalchemy.types import DateTime
-
-    result = list(sqlalchemy_adapter(event_table_with_time_metadata))
-
-    expected = [
+    result = tuple(sqlalchemy_adapter(event_table_with_time_metadata))
+    expected: Iterable[FieldSpec] = (
         ("id", Integer(), (), {}),
         ("name", String(100), (), {"anyschema/nullable": True}),
         ("created_at", DateTime(), (), {"anyschema/nullable": True}),
@@ -114,18 +111,14 @@ def test_sqlalchemy_adapter_with_time_metadata_table() -> None:
             (),
             {"anyschema/nullable": True, "anyschema/time_zone": "Europe/Berlin", "anyschema/time_unit": "ns"},
         ),
-    ]
-
+    )
     assert_result_equal(result, expected)
 
 
 def test_sqlalchemy_adapter_with_time_metadata_orm() -> None:
     """Test that SQLAlchemy ORM adapter correctly extracts time metadata from mapped_column info."""
-    from sqlalchemy.types import DateTime
-
-    result = list(sqlalchemy_adapter(EventORMWithTimeMetadata))
-
-    expected = [
+    result = tuple(sqlalchemy_adapter(EventORMWithTimeMetadata))
+    expected: Iterable[FieldSpec] = (
         ("id", Integer(), (), {}),
         ("name", String(), (), {}),
         ("created_at", DateTime(), (), {}),
@@ -137,26 +130,21 @@ def test_sqlalchemy_adapter_with_time_metadata_orm() -> None:
             (),
             {"anyschema/time_zone": "Europe/Berlin", "anyschema/time_unit": "ns"},
         ),
-    ]
-
+    )
     assert_result_equal(result, expected)
 
 
 def test_sqlalchemy_adapter_with_tz_aware_datetime() -> None:
     """Test that SQLAlchemy adapter correctly extracts timezone-aware datetime metadata."""
-    from sqlalchemy.types import DateTime as SQLADateTime
-
-    result = list(sqlalchemy_adapter(event_table_with_tz_aware))
-
-    expected = [
+    result = tuple(sqlalchemy_adapter(event_table_with_tz_aware))
+    expected: Iterable[FieldSpec] = (
         ("id", Integer(), (), {}),
-        ("timestamp_utc", SQLADateTime(timezone=True), (), {"anyschema/nullable": True, "anyschema/time_zone": "UTC"}),
+        ("timestamp_utc", DateTime(timezone=True), (), {"anyschema/nullable": True, "anyschema/time_zone": "UTC"}),
         (
             "timestamp_berlin",
-            SQLADateTime(timezone=True),
+            DateTime(timezone=True),
             (),
             {"anyschema/nullable": True, "anyschema/time_zone": "Europe/Berlin", "anyschema/time_unit": "ms"},
         ),
-    ]
-
+    )
     assert_result_equal(result, expected)

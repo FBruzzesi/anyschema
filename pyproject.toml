@@ -169,6 +169,7 @@ reportUnknownArgumentType = "none"
 reportUnknownMemberType = "none"
 reportUnknownLambdaType = "none"
 reportUnusedFunction = "none"
+enableExperimentalFeatures = true
 typeCheckingMode = "strict"
 
 include = ["anyschema", "tests"]

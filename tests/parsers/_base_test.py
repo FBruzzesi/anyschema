@@ -65,7 +65,7 @@ def test_pipeline_set_invalid_type() -> None:
     step = AlwaysNoneStep()
 
     with pytest.raises(TypeError, match="Expected `ParserPipeline` object, found"):
-        step.pipeline = "not a pipeline"
+        step.pipeline = "not a pipeline"  # type: ignore[assignment]
 
 
 def test_pipeline_setter_updates_correctly() -> None:
@@ -81,8 +81,7 @@ def test_pipeline_setter_updates_correctly() -> None:
 
 
 def test_pipeline_init_with_steps() -> None:
-    int_step, str_step = Int64Step(), StrStep()
-    steps: list[ParserStep] = [int_step, str_step]
+    steps: list[ParserStep] = [Int64Step(), StrStep()]
     pipeline = ParserPipeline(steps)
 
     assert len(pipeline.steps) == len(steps)

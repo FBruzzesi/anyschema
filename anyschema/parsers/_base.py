@@ -86,7 +86,7 @@ class ParserStep(ABC):
         return self._pipeline
 
     @pipeline.setter
-    def pipeline(self, pipeline: object) -> None:
+    def pipeline(self, pipeline: ParserPipeline) -> None:
         """Set the pipeline reference for this parser.
 
         Arguments:
@@ -97,7 +97,7 @@ class ParserStep(ABC):
         """
         from anyschema.parsers._pipeline import ParserPipeline
 
-        if not isinstance(pipeline, ParserPipeline):
+        if not isinstance(pipeline, ParserPipeline):  # pyright: ignore[reportUnnecessaryIsInstance]
             msg = f"Expected `ParserPipeline` object, found {type(pipeline)}"
             raise TypeError(msg)
 

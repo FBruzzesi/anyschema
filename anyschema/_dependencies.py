@@ -51,7 +51,12 @@ def is_dataclass(obj: object) -> TypeIs[DataclassType]:
 
 def is_pydantic_base_model(obj: object) -> TypeIs[type[BaseModel]]:
     """Check if the object is a pydantic BaseModel."""
-    return (pydantic := get_pydantic()) is not None and isinstance(obj, type) and issubclass(obj, pydantic.BaseModel)
+    return (
+        (pydantic := get_pydantic()) is not None
+        and isinstance(obj, type)
+        and isinstance(obj, type(pydantic.BaseModel))
+        and issubclass(obj, pydantic.BaseModel)
+    )
 
 
 def is_attrs_class(obj: object) -> TypeIs[AttrsClassType]:

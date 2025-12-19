@@ -186,7 +186,7 @@ def test_parser_step_clone_preserves_state() -> None:
 
 
 @pytest.mark.parametrize(
-    ("original_steps", "steps_to_add", "position", "expected"),
+    ("original_steps", "steps_to_add", "at_position", "expected"),
     [
         (
             (AnnotatedStep(), Int64Step(), StrStep()),
@@ -223,23 +223,23 @@ def test_parser_step_clone_preserves_state() -> None:
 def test_pipeline_with_steps(
     original_steps: tuple[ParserStep, ...],
     steps_to_add: ParserStep | Sequence[ParserStep],
-    position: int | Literal["auto"],
+    at_position: int | Literal["auto"],
     expected: tuple[type[ParserStep], ...],
 ) -> None:
     pipeline = ParserPipeline(original_steps)
-    new_pipeline = pipeline.with_steps(steps_to_add, position=position)
+    new_pipeline = pipeline.with_steps(steps_to_add, at_position=at_position)
 
     assert all(isinstance(step, step_type) for step, step_type in zip(new_pipeline.steps, expected, strict=True))
 
 
-def test_pipeline_from_auto_with_steps() -> None:
-    pipeline = ParserPipeline.from_auto_with_steps(Int32Step(), Int64Step())
+def test_pipeline_from_auto() -> None:
+    pipeline = ParserPipeline.from_auto(Int32Step(), Int64Step())
 
     s1, s2 = pipeline.steps[3:5]
     assert isinstance(s1, Int32Step)
     assert isinstance(s2, Int64Step)
 
 
-def test_from_auto_with_steps_explicit_position() -> None:
-    pipeline = ParserPipeline.from_auto_with_steps(Int32Step(), position=0)
+def test_from_auto_explicit_position() -> None:
+    pipeline = ParserPipeline.from_auto(Int32Step(), at_position=0)
     assert isinstance(pipeline.steps[0], Int32Step)

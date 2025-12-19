@@ -102,12 +102,12 @@ class ParserPipeline:
         return 0
 
     @classmethod
-    def _find_insert_index(cls, steps: Sequence[ParserStep], position: Literal["auto"] | int) -> int:
-        if position == "auto":
+    def _find_insert_index(cls, steps: Sequence[ParserStep], at_position: Literal["auto"] | int) -> int:
+        if at_position == "auto":
             insert_idx = cls._find_auto_position(steps)
         else:
             n_steps = len(steps)
-            raw_idx = position if position >= 0 else n_steps + position
+            raw_idx = at_position if at_position >= 0 else n_steps + at_position
             insert_idx = max(0, min(raw_idx, n_steps))  # Clamp to [0, n_steps]
         return insert_idx
 
@@ -115,14 +115,14 @@ class ParserPipeline:
         self,
         steps: ParserStep | Sequence[ParserStep],
         *more_steps: ParserStep,
-        position: int | Literal["auto"] = "auto",
+        at_position: int | Literal["auto"] = "auto",
     ) -> Self:
         """Create a new pipeline with additional parser step(s) inserted at the specified position.
 
         Arguments:
             steps: `ParserStep`(s) to add to the pipeline.
             *more_steps: Additional `ParserStep`(s) to add, specified as positional arguments.
-            position: Position where to insert the step(s). Options:
+            at_position: Position where to insert the step(s). Options:
 
                 - An integer index (can be negative for counting from the end).
                 - `"auto"` (default): Automatically determines the "best" position.
@@ -158,14 +158,14 @@ class ParserPipeline:
             >>> custom_pipeline = pipeline.with_steps([CustomParserStep(), CustomParserStep()])
             >>>
             >>> # Or add at specific position
-            >>> custom_pipeline = pipeline.with_steps(CustomParserStep(), position=0)
+            >>> custom_pipeline = pipeline.with_steps(CustomParserStep(), at_position=0)
             >>>
             >>> custom_pipeline.parse(CustomType, constraints=(), metadata={})
             String
         """
         steps_to_add = [steps] if isinstance(steps, ParserStep) else list(steps)
         steps_to_add.extend(more_steps)
-        insert_idx = self._find_insert_index(steps=self.steps, position=position)
+        insert_idx = self._find_insert_index(steps=self.steps, at_position=at_position)
         # Clone existing steps to reset their pipeline references
         new_steps = [step.clone() for step in self.steps]
 
@@ -173,11 +173,11 @@ class ParserPipeline:
         return self.__class__(new_steps)
 
     @classmethod
-    def from_auto_with_steps(
+    def from_auto(
         cls,
         steps: ParserStep | Sequence[ParserStep],
         *more_steps: ParserStep,
-        position: int | Literal["auto"] = "auto",
+        at_position: int | Literal["auto"] = "auto",
     ) -> Self:
         """Create an auto pipeline with custom steps efficiently (no copying needed).
 
@@ -188,7 +188,7 @@ class ParserPipeline:
         Arguments:
             steps: `ParserStep`(s) to add to the auto pipeline.
             *more_steps: Additional `ParserStep`(s) to add, specified as positional arguments.
-            position: Position where to insert the step(s). Options:
+            at_position: Position where to insert the step(s). Options:
 
                 - An integer index (can be negative for counting from the end).
                 - `"auto"` (default): Automatically determines the "best" position.
@@ -208,14 +208,12 @@ class ParserPipeline:
             ...     def parse(
             ...         self, input_type: FieldType, constraints: FieldConstraints, metadata: FieldMetadata
             ...     ) -> nw.DType | None:
-            ...         if input_type is CustomType:
-            ...             return nw.String()
-            ...         return None
+            ...         return nw.String() if input_type is CustomType else None
             >>>
-            >>> pipeline = ParserPipeline.from_auto_with_steps(CustomParserStep())
+            >>> pipeline = ParserPipeline.from_auto(CustomParserStep())
             >>>
             >>> # Add multiple custom steps
-            >>> pipeline = ParserPipeline.from_auto_with_steps(CustomParserStep(), CustomParserStep())
+            >>> pipeline = ParserPipeline.from_auto(CustomParserStep(), CustomParserStep())
             >>>
             >>> pipeline.parse(CustomType, constraints=(), metadata={})
             String
@@ -224,7 +222,7 @@ class ParserPipeline:
         steps_to_add.extend(more_steps)
 
         auto_steps = list(_auto_pipeline())
-        insert_idx = cls._find_insert_index(auto_steps, position=position)
+        insert_idx = cls._find_insert_index(auto_steps, at_position=at_position)
         auto_steps[insert_idx:insert_idx] = steps_to_add  # !NOTE: is this a hack? YES!
         return cls(auto_steps)
 

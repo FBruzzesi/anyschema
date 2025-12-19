@@ -78,8 +78,8 @@ def test_anyschema_with_dict_spec() -> None:
     "pipeline",
     [
         make_pipeline("auto").with_steps(CustomTypeStep()),
-        ParserPipeline.from_auto_with_steps(CustomTypeStep()),
-        [step.clone() for step in ParserPipeline.from_auto_with_steps(CustomTypeStep()).steps],
+        ParserPipeline.from_auto(CustomTypeStep()),
+        [step.clone() for step in ParserPipeline.from_auto(CustomTypeStep()).steps],
     ],
 )
 def test_anyschema_with_pipeline(pipeline: ParserPipeline) -> None:

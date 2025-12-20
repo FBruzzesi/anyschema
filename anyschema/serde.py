@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import ast
 import re
+from itertools import takewhile
 from typing import TYPE_CHECKING, cast
 
 from narwhals.dtypes import (
@@ -69,7 +70,7 @@ RGX_DURATION = re.compile(r"^Duration\(time_unit='([^']+)'\)$")
 RGX_ENUM = re.compile(r"^Enum\(categories=(\[.*?\])\)$")
 RGX_LIST = re.compile(r"^List\((.+)\)$")
 RGX_STRUCT = re.compile(r"^Struct\(\{(.*)\}\)$")
-RGX_FIELD_NAME = re.compile(r" ?'([^']+)':")
+RGX_FIELD_NAME = re.compile(r",? ?'([^']+)':")
 
 
 __all__ = (
@@ -89,8 +90,7 @@ def serialiaze_dtype(dtype: DType) -> str:
         dtype: A Narwhals DType object to serialize
 
     Returns:
-        String representation of the dtype (e.g., "Int64", "List(String)",
-            "Struct({'a': Int64, 'b': String})")
+        String representation of the dtype (e.g., "Int64", "List(String)", "Struct({'a': Int64, 'b': String})")
 
     Examples:
         >>> serialiaze_dtype(Int64())
@@ -205,7 +205,7 @@ def _extract_field_dtype(fields_str: str, start_pos: int) -> tuple[str, int]:
             depth += 1
         elif char in ")}]":
             depth -= 1
-        elif char == "," and depth == 0:  # Fields separator and depth is 0
+        elif char == "," and depth == 0:  # Fields separator, return only if depth is 0
             break
         end_pos += 1
 
@@ -236,16 +236,10 @@ def _parse_struct_fields(fields_str: str) -> list[Field]:
         field_name, pos = _extract_field_name(fields_str, pos)
 
         # Skip whitespace after colon
-        while pos < len(fields_str) and fields_str[pos].isspace():
-            pos += 1
+        pos += sum(1 for _ in takewhile(str.isspace, fields_str[pos]))
 
-        # Extract dtype value
-        dtype_str, pos = _extract_field_dtype(fields_str, pos)
-        dtype = deserialize_dtype(dtype_str)
+        into_dtype, pos = _extract_field_dtype(fields_str, pos)
+        dtype = deserialize_dtype(into_dtype)
         fields.append(Field(field_name, dtype))
-
-        # Skip comma if present (whitespace will be handled by next field_name extraction)
-        if pos < len(fields_str) and fields_str[pos] == ",":
-            pos += 1
 
     return fields

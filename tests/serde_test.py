@@ -75,8 +75,12 @@ class Color(enum.Enum):
         (Struct({}), "Struct({})"),
         (Struct({"int": Int32(), "str": String()}), "Struct({'int': Int32, 'str': String})"),
         (
-            Struct({"lst": List(Int32()), "arr": Array(Int16(), (3, 2)), "enum": Enum(["blue", "red"])}),
-            "Struct({'lst': List(Int32), 'arr': Array(Int16, shape=(3, 2)), 'enum': Enum(categories=['blue', 'red'])})",
+            Struct({"lst": List(Int32()), "arr": Array(Int16(), (3, 2))}),
+            "Struct({'lst': List(Int32), 'arr': Array(Int16, shape=(3, 2))})",
+        ),
+        (
+            Struct({"struct": Struct({"enum": Enum(["blue", "red"])})}),
+            "Struct({'struct': Struct({'enum': Enum(categories=['blue', 'red'])})})",
         ),
         (Time(), "Time"),
         (UInt8(), "UInt8"),
@@ -128,8 +132,12 @@ def test_serialize(dtype: DType, expected: str) -> None:
         ("Struct({})", Struct({})),
         ("Struct({'int': Int32, 'str': String})", Struct({"int": Int32(), "str": String()})),
         (
-            "Struct({'lst': List(Int32), 'arr': Array(Int16, shape=(3, 2)), 'enum': Enum(categories=['blue', 'red'])})",
-            Struct({"lst": List(Int32()), "arr": Array(Int16(), (3, 2)), "enum": Enum(["blue", "red"])}),
+            "Struct({'lst': List(Int32), 'arr': Array(Int16, shape=(3, 2))})",
+            Struct({"lst": List(Int32()), "arr": Array(Int16(), (3, 2))}),
+        ),
+        (
+            "Struct({'struct': Struct({'enum': Enum(categories=['blue', 'red'])})})",
+            Struct({"struct": Struct({"enum": Enum(["blue", "red"])})}),
         ),
         ("Time", Time()),
         ("UInt8", UInt8()),

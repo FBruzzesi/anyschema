@@ -5,14 +5,14 @@
 A parser pipeline is a sequence of [parser steps](#parser-steps) that process type annotations to produce Narwhals
 dtypes.
 
-::: anyschema.parsers.make_pipeline
+::: anyschema.parsers.ParserPipeline
     handler: python
     options:
       show_root_heading: true
       show_source: false
       heading_level: 3
 
-::: anyschema.parsers.ParserPipeline
+::: anyschema.parsers.make_pipeline
     handler: python
     options:
       show_root_heading: true

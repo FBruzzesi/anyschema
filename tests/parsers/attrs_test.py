@@ -13,9 +13,7 @@ from tests.conftest import AttrsDerived, AttrsPerson, AttrsPersonFrozen, create_
 def attrs_parser() -> AttrsTypeStep:
     attrs_parser = AttrsTypeStep()
     py_parser = PyTypeStep()
-    chain = ParserPipeline([attrs_parser, py_parser])
-    attrs_parser.pipeline = chain
-    py_parser.pipeline = chain
+    _ = ParserPipeline([attrs_parser, py_parser])
     return attrs_parser
 
 

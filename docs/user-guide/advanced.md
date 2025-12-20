@@ -32,7 +32,7 @@ Here's a simple custom parser for a hypothetical custom type:
 
 ```python exec="true" source="above" result="python" session="custom-parser"
 import narwhals as nw
-from anyschema.parsers import make_pipeline, ParserStep, PyTypeStep
+from anyschema.parsers import ParserPipeline, ParserStep, PyTypeStep
 from anyschema.typing import FieldConstraints, FieldMetadata, FieldType
 
 
@@ -69,7 +69,7 @@ class ColorStep(ParserStep):
 # Create a simple pipeline with the custom parser
 color_step = ColorStep()
 python_step = PyTypeStep()
-pipeline = make_pipeline(steps=[color_step, python_step])
+pipeline = ParserPipeline(steps=[color_step, python_step])
 
 result = pipeline.parse(Color, constraints=(), metadata={})
 print(result)
@@ -129,7 +129,7 @@ class MyListStep(ParserStep):
 
 my_list_step = MyListStep()
 python_step = PyTypeStep()
-pipeline = make_pipeline(steps=[my_list_step, python_step])
+pipeline = ParserPipeline(steps=[my_list_step, python_step])
 result = pipeline.parse(MyList[int], (), {})
 print(result)
 ```
@@ -190,7 +190,7 @@ BigInteger = Annotated[int, BigInt]
 annotated_step = AnnotatedStep()
 custom_constraint_step = CustomConstraintStep()
 python_step = PyTypeStep()
-pipeline = make_pipeline(steps=[annotated_step, custom_constraint_step, python_step])
+pipeline = ParserPipeline(steps=[annotated_step, custom_constraint_step, python_step])
 
 print(f"SmallInteger dtype: {pipeline.parse(SmallInteger, (), {})}")
 print(f"BigInteger dtype: {pipeline.parse(BigInteger, (), {})}")
@@ -198,38 +198,53 @@ print(f"BigInteger dtype: {pipeline.parse(BigInteger, (), {})}")
 
 ### Combining Multiple Custom Parsers
 
-Here's how to combine multiple custom parsers:
+Here's how to combine multiple custom parsers using the `with_steps` method for easy pipeline extension:
 
 ```python exec="true" source="above" result="python" session="custom-parser"
 from anyschema import AnySchema
-from anyschema.parsers import (
-    make_pipeline,
-    ParserPipeline,
-    ForwardRefStep,
-    UnionTypeStep,
-    AnnotatedStep,
-    PyTypeStep,
-)
+from anyschema.parsers import ParserPipeline
 
-# Create pipeline with custom parsers
-custom_pipeline = make_pipeline(
-    steps=[
-        ForwardRefStep(),
-        UnionTypeStep(),
-        AnnotatedStep(),
-        ColorStep(),  # Our custom parsers
-        MyListStep(),  # before the fallback
-        PyTypeStep(),  # Fallback
-    ]
-)
+base_pipeline = ParserPipeline("auto")  # Start with the auto pipeline
+
+# Add custom parsers using with_steps (automatically positions them optimally)
+custom_pipeline = base_pipeline.with_steps(ColorStep(), MyListStep())
 
 # Use the custom pipeline
 schema = AnySchema(
     spec={"color": Color, "items": MyList[int]},
-    steps=custom_pipeline.steps,
+    pipeline=custom_pipeline,
 )
 print(schema.to_arrow())
 ```
+
+The `with_steps` method makes it easy to extend existing pipelines without reconstructing them from scratch.
+By default, it inserts custom steps right after the last preprocessing step found
+(trying `AnnotatedStep`, `UnionTypeStep`, `ForwardRefStep` in that order),
+ensuring they run after type preprocessing but before library-specific parsers.
+
+You can also specify a position explicitly:
+
+```python exec="true" source="above" result="python" session="custom-parser"
+pipeline_at_start = base_pipeline.with_steps(ColorStep(), at_position=0)
+pipeline_at_end = base_pipeline.with_steps(ColorStep(), at_position=-1)
+
+print(pipeline_at_start.steps)
+print(pipeline_at_end.steps)
+```
+
+!!! tip "Why use with_steps?"
+
+    As the list of default steps grows, it becomes less practical to redefine a list of step just to add one or few
+    custom parsing steps. With `pipeline.with_steps`, you can simply extend an existing pipeline:
+
+    ```python
+    custom_pipeline = ParserPipeline("auto").with_steps([ColorStep(), MyListStep()])
+    ```
+
+    This approach:
+
+    * Automatically includes all library-specific parsers based on installed dependencies.
+    * Positions your custom parsers either after the preprocessing steps or positionally.
 
 ## Custom Spec Adapters
 

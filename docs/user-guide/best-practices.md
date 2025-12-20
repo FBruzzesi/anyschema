@@ -119,14 +119,14 @@ import polars as pl
 import pytest
 
 from anyschema import AnySchema
-from anyschema.parsers import make_pipeline, ParserPipeline, PyTypeStep
+from anyschema.parsers import ParserPipeline, ParserPipeline, PyTypeStep
 
 
 @pytest.fixture(scope="module")
 def custom_step() -> GoodParserStep:
     custom_step = GoodParserStep()
     python_step = PyTypeStep()
-    _ = make_pipeline([custom_step, python_step])
+    _ = ParserPipeline([custom_step, python_step])
     return custom_step
 
 
@@ -197,7 +197,7 @@ def test_custom_components_integration():
 
     schema = AnySchema(
         spec=schema_spec,
-        steps=[GoodParserStep(), PyTypeStep()],
+        pipeline=[GoodParserStep(), PyTypeStep()],
         adapter=good_adapter,
     )
 

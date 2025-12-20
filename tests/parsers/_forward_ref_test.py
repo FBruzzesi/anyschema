@@ -17,10 +17,7 @@ def forward_ref_parser_builder(
     forward_ref_parser = ForwardRefStep(globalns=globalns, localns=localns)
     union_parser = UnionTypeStep()
     py_parser = PyTypeStep()
-    chain = ParserPipeline([forward_ref_parser, union_parser, py_parser])
-    forward_ref_parser.pipeline = chain
-    union_parser.pipeline = chain
-    py_parser.pipeline = chain
+    _ = ParserPipeline([forward_ref_parser, union_parser, py_parser])
     return forward_ref_parser
 
 

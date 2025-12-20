@@ -171,6 +171,45 @@ With this architecture we aim to achieve multiple goals at once:
 This architecture is designed to be easily extensible and customizable, both in terms of adding new parser steps and
 creating custom adapters.
 
+### Adding Custom Parser Steps
+
+You can extend the parser pipeline in two ways:
+
+1. Using [`ParserPipeline.with_steps`][api-parser-pipeline] method (recommended): Extend the pipeline
+    with custom steps:
+
+    ```python
+    from anyschema import AnySchema
+    from anyschema.parsers import ParserPipeline, ParserStep
+    import narwhals as nw
+
+
+    class MyCustomStep(ParserStep):
+        def parse(self, input_type, constraints, metadata):
+            # Your custom parsing logic
+            ...
+
+
+    # Extend the auto pipeline with custom step
+    custom_pipeline = ParserPipeline.from_auto(steps=MyCustomStep())
+
+    # Use it with AnySchema
+    schema = AnySchema(spec=my_spec, pipeline=custom_pipeline)
+    ```
+
+    By default, `with_steps` positions your custom step right after the last preprocessing step found
+    (trying `AnnotatedStep`, `UnionTypeStep`, `ForwardRefStep` in that order), ensuring it runs after
+    type preprocessing but before library-specific or fallback parsers.
+
+2. Building from scratch: Create a pipeline with explicit steps:
+
+    ```python
+    from anyschema.parsers import ParserPipeline, PyTypeStep
+
+    custom_pipeline = ParserPipeline(steps=[MyCustomStep(), PyTypeStep()])
+    schema = AnySchema(spec=my_spec, pipeline=custom_pipeline)
+    ```
+
 Learn how to extend `anyschema` with custom functionality. For more detailed examples, see the
 [Advanced Usage](user-guide/advanced.md) guide.
 

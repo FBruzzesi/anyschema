@@ -22,7 +22,7 @@ from anyschema.adapters import (
     sqlalchemy_adapter,
     typed_dict_adapter,
 )
-from anyschema.parsers import make_pipeline
+from anyschema.parsers import ParserPipeline
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping
@@ -141,11 +141,11 @@ class AnySchema:
                 subclass (not an instance).
                 The fields are extracted using SQLAlchemy's schema introspection.
 
-        steps: Control how types are parsed into Narwhals dtypes. Options:
+        pipeline: Control how types are parsed into Narwhals dtypes. Options:
 
-            - `"auto"` (default): Automatically select the appropriate parser steps based on the
-                installed dependencies.
-            - A sequence of `ParserStep` instances to use in the pipeline.
+            - `"auto"` (default): Automatically select the appropriate parser steps based on the installed dependencies.
+            - A [`ParserPipeline`][anyschema.parsers.ParserPipeline] instance: Use this pipeline directly.
+            - A sequence of [`ParserStep`][anyschema.parsers.ParserStep] instances to build a pipeline.
 
                 **Warning**: Order matters! More specific parsers should come before general ones.
 
@@ -232,7 +232,6 @@ class AnySchema:
     Tip: See also
         - [ParserStep][anyschema.parsers.ParserStep]: Base class for custom parser steps
         - [ParserPipeline][anyschema.parsers.ParserPipeline]: Pipeline for chaining parser steps
-        - [make_pipeline][anyschema.parsers.make_pipeline]: Factory function for creating parser pipelines
         - [Spec Adapters][anyschema.adapters]: Adapters for various specifications
     """
 
@@ -242,7 +241,7 @@ class AnySchema:
     def __init__(
         self: Self,
         spec: Spec,
-        steps: IntoParserPipeline = "auto",
+        pipeline: ParserPipeline | IntoParserPipeline = "auto",
         adapter: Adapter | None = None,
     ) -> None:
         if isinstance(spec, Schema):
@@ -252,7 +251,7 @@ class AnySchema:
             self._nw_schema = spec
             return
 
-        pipeline = make_pipeline(steps)
+        parser_pipeline = pipeline if isinstance(pipeline, ParserPipeline) else ParserPipeline(pipeline)
         adapter_f: Adapter
 
         if is_into_ordered_dict(spec):
@@ -274,7 +273,7 @@ class AnySchema:
             raise ValueError(msg)
 
         self.fields = {
-            name: pipeline.parse_into_field(name, input_type, constraints, metadata)
+            name: parser_pipeline.parse_into_field(name, input_type, constraints, metadata)
             for name, input_type, constraints, metadata in adapter_f(cast("Any", spec))
         }
         self._nw_schema = Schema({name: field.dtype for name, field in self.fields.items()})

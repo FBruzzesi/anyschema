@@ -21,6 +21,7 @@ nav:
     - AnySchema: api-reference/anyschema.md
     - Parsers: api-reference/parsers.md
     - Spec Adapters: api-reference/adapters.md
+    - Serialization: api-reference/serde.md
     - Exceptions: api-reference/exceptions.md
     - Typing: api-reference/typing.md
 

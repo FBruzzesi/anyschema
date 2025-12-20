@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import date, datetime
-from typing import TYPE_CHECKING, Literal, Sequence
+from typing import Literal, Sequence
 
 import attrs
 import narwhals as nw
@@ -11,16 +11,13 @@ from pydantic import AwareDatetime, BaseModel, Field, FutureDatetime, NaiveDatet
 from sqlalchemy import ARRAY, BigInteger, Boolean, Column, Date, DateTime, Float, Integer, MetaData, String, Table
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
-from anyschema.parsers import make_pipeline
-
-if TYPE_CHECKING:
-    from anyschema.parsers import ParserPipeline
+from anyschema.parsers import ParserPipeline
 
 
 @pytest.fixture(scope="session")
 def auto_pipeline() -> ParserPipeline:
     """Fixture to get the auto pipeline."""
-    return make_pipeline("auto")
+    return ParserPipeline("auto")
 
 
 @pytest.fixture

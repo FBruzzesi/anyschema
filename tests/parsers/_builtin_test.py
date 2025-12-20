@@ -38,9 +38,7 @@ def py_type_parser() -> PyTypeStep:
     """Create a PyTypeStep instance with pipeline set."""
     union_parser = UnionTypeStep()
     py_parser = PyTypeStep()
-    chain = ParserPipeline([union_parser, py_parser])
-    union_parser.pipeline = chain
-    py_parser.pipeline = chain
+    _ = ParserPipeline([union_parser, py_parser])
     return py_parser
 
 

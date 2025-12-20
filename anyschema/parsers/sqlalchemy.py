@@ -52,7 +52,7 @@ _SUPPORTED_SQLALCHEMY_TYPES = (
 )
 
 
-def _is_supported_sqlalchemt_type(obj: FieldType) -> TypeIs[SupportedSQLAlchemyType]:
+def _is_supported_sqlalchemy_type(obj: FieldType) -> TypeIs[SupportedSQLAlchemyType]:
     return isinstance(obj, _SUPPORTED_SQLALCHEMY_TYPES)
 
 
@@ -88,7 +88,7 @@ class SQLAlchemyTypeStep(ParserStep):
         if not isinstance(input_type, sqltypes.TypeEngine):  # Keep this as a fast path!
             return None
 
-        if not _is_supported_sqlalchemt_type(input_type):
+        if not _is_supported_sqlalchemy_type(input_type):
             return None
 
         # NOTE: The order is quite important. In fact:

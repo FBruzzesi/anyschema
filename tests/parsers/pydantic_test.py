@@ -18,9 +18,7 @@ def pydantic_parser() -> PydanticTypeStep:
     """Create a PydanticTypeStep instance with pipeline set."""
     parser = PydanticTypeStep()
     py_parser = PyTypeStep()
-    chain = ParserPipeline([parser, py_parser])
-    parser.pipeline = chain
-    py_parser.pipeline = chain
+    _ = ParserPipeline([parser, py_parser])
     return parser
 
 

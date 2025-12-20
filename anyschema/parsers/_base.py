@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from copy import copy
 from typing import TYPE_CHECKING
 
 from anyschema.exceptions import UnavailablePipelineError
 
 if TYPE_CHECKING:
     from narwhals.dtypes import DType
+    from typing_extensions import Self
 
     from anyschema.parsers._pipeline import ParserPipeline
     from anyschema.typing import FieldConstraints, FieldMetadata, FieldType
@@ -35,7 +37,7 @@ class ParserStep(ABC):
     Examples:
         >>> from typing import get_origin, get_args
         >>> import narwhals as nw
-        >>> from anyschema.parsers import ParserStep, PyTypeStep, make_pipeline
+        >>> from anyschema.parsers import ParserPipeline, ParserStep, PyTypeStep
         >>> from anyschema.typing import FieldConstraints, FieldMetadata, FieldType
         >>>
         >>> class CustomType: ...
@@ -57,7 +59,7 @@ class ParserStep(ABC):
         ...         # Return None if we can't handle it
         ...         return None
         >>>
-        >>> pipeline = make_pipeline(steps=[CustomParserStep(), PyTypeStep()])
+        >>> pipeline = ParserPipeline(steps=[CustomParserStep(), PyTypeStep()])
         >>> pipeline.parse(CustomType, constraints=(), metadata={})
         String
         >>> pipeline.parse(CustomList[int], constraints=(), metadata={})
@@ -101,6 +103,13 @@ class ParserStep(ABC):
             msg = f"Expected `ParserPipeline` object, found {type(pipeline)}"
             raise TypeError(msg)
 
+        if self._pipeline is not None:
+            msg = (
+                "`pipeline` can only be set once.\nYou should make a clone first, and then set a pipeline:\n\n"
+                "`cloned = step.clone();cloned.pipeline = pipeline`"
+            )
+            raise TypeError(msg)
+
         self._pipeline = pipeline
 
     @abstractmethod
@@ -119,3 +128,36 @@ class ParserStep(ABC):
 
     def __repr__(self) -> str:
         return self.__class__.__name__
+
+    def clone(self) -> Self:
+        """Create a clone of this parser step without a pipeline reference.
+
+        This method creates a shallow copy of the step, preserving any internal state
+        (such as configuration parameters) but resetting the pipeline reference to None.
+        This allows the cloned step to be added to a different pipeline without
+        violating the "pipeline can only be set once" constraint.
+
+        Returns:
+            A new instance of the same parser step class with the same configuration
+            but without a pipeline reference.
+
+        Examples:
+            >>> from anyschema.parsers import ParserPipeline, PyTypeStep
+            >>>
+            >>> # Create a step and assign it to a pipeline
+            >>> step = PyTypeStep()
+            >>> pipeline1 = ParserPipeline([step])
+            >>>
+            >>> # Clone the step to use in another pipeline
+            >>> cloned_step = step.clone()
+            >>> pipeline2 = ParserPipeline([cloned_step])
+            >>>
+            >>> # Both pipelines work independently
+            >>> pipeline1.parse(int, (), {})
+            Int64
+            >>> pipeline2.parse(int, (), {})
+            Int64
+        """
+        cloned = copy(self)
+        cloned._pipeline = None  # noqa: SLF001
+        return cloned

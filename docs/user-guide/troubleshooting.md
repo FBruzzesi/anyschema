@@ -36,7 +36,7 @@ class MyCustomTypeStep(ParserStep):
         return None
 
 
-schema = AnySchema(spec=your_spec, steps=[MyCustomTypeStep(), PyTypeStep()])
+schema = AnySchema(spec=your_spec, pipeline=[MyCustomTypeStep(), PyTypeStep()])
 ```
 
 ### Union Type Error
@@ -68,7 +68,7 @@ Another reason might be that the step is not registered: make sure you pass the 
 
 ```python
 # ✅ Explicitly provide steps
-schema = AnySchema(spec=spec, steps=[CustomStep(), PyTypeStep()])
+schema = AnySchema(spec=spec, pipeline=[CustomStep(), PyTypeStep()])
 ```
 
 ### Metadata Not Flowing Through
@@ -77,7 +77,7 @@ If your parser steps expects metadata, yet it receives empty metadata, then make
 pipeline:
 
 ```python
-from anyschema.parsers import AnnotatedStep, make_pipeline
+from anyschema.parsers import AnnotatedStep
 from anyschema.typing import FieldConstraints, FieldMetadata, FieldType
 
 steps = (

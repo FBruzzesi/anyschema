@@ -12,6 +12,7 @@ nav:
     - Getting Started: user-guide/getting-started.md
     - Field Metadata: user-guide/field-metadata.md
     - Advanced Usage: user-guide/advanced.md
+    - Serialization & Deserialization: user-guide/serde.md
     - Best Practices: user-guide/best-practices.md
     - End to End Example with Custom Components: user-guide/custom-end-to-end-example.md
     - Troubleshooting: user-guide/troubleshooting.md
@@ -21,7 +22,7 @@ nav:
     - AnySchema: api-reference/anyschema.md
     - Parsers: api-reference/parsers.md
     - Spec Adapters: api-reference/adapters.md
-    - Serialization: api-reference/serde.md
+    - Serialization & Deserialization: api-reference/serde.md
     - Exceptions: api-reference/exceptions.md
     - Typing: api-reference/typing.md
 

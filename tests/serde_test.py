@@ -34,7 +34,7 @@ from narwhals.dtypes import (
     Unknown,
 )
 
-from anyschema.serde import deserialize_dtype, serialiaze_dtype
+from anyschema.serde import deserialize_dtype, serialize_dtype
 
 
 class Color(enum.Enum):
@@ -92,7 +92,7 @@ class Color(enum.Enum):
     ],
 )
 def test_serialize(dtype: DType, expected: str) -> None:
-    result = serialiaze_dtype(dtype)
+    result = serialize_dtype(dtype)
     assert result == expected
 
     # round-trip
@@ -153,4 +153,4 @@ def test_deserialize(into_dtype: str, expected: DType) -> None:
     assert result == expected
 
     # round-trip
-    assert serialiaze_dtype(result) == into_dtype
+    assert serialize_dtype(result) == into_dtype

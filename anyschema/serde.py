@@ -146,11 +146,11 @@ RGX_FIELD_NAME = re.compile(
 
 __all__ = (
     "deserialize_dtype",
-    "serialiaze_dtype",
+    "serialize_dtype",
 )
 
 
-def serialiaze_dtype(dtype: DType) -> str:
+def serialize_dtype(dtype: DType) -> str:
     """Serialize a Narwhals dtype to its string representation.
 
     Converts a Narwhals dtype object into a string that can be stored or transmitted
@@ -164,13 +164,13 @@ def serialiaze_dtype(dtype: DType) -> str:
         String representation of the dtype (e.g., "Int64", "List(String)", "Struct({'a': Int64, 'b': String})")
 
     Examples:
-        >>> serialiaze_dtype(Int64())
+        >>> serialize_dtype(Int64())
         'Int64'
-        >>> serialiaze_dtype(List(String()))
+        >>> serialize_dtype(List(String()))
         'List(String)'
-        >>> serialiaze_dtype(Datetime(time_unit="ms", time_zone="UTC"))
+        >>> serialize_dtype(Datetime(time_unit="ms", time_zone="UTC"))
         "Datetime(time_unit='ms', time_zone='UTC')"
-        >>> serialiaze_dtype(Struct({"a": Int64(), "b": String()}))
+        >>> serialize_dtype(Struct({"a": Int64(), "b": String()}))
         "Struct({'a': Int64, 'b': String})"
     """
     return str(dtype)

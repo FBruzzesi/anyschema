@@ -64,13 +64,84 @@ NON_COMPLEX_MAPPING = {
     "UInt128": UInt128(),
 }
 
-RGX_ARRAY = re.compile(r"^Array\((.+),\s*shape=(\(.+?\))\)$")
-RGX_DATETIME = re.compile(r"^Datetime\(time_unit='([^']+)'(?:,\s*time_zone=(?:'([^']+)'|None))?\)$")
-RGX_DURATION = re.compile(r"^Duration\(time_unit='([^']+)'\)$")
-RGX_ENUM = re.compile(r"^Enum\(categories=(\[.*?\])\)$")
-RGX_LIST = re.compile(r"^List\((.+)\)$")
-RGX_STRUCT = re.compile(r"^Struct\(\{(.*)\}\)$")
-RGX_FIELD_NAME = re.compile(r",? ?'([^']+)':")
+RGX_ARRAY = re.compile(
+    r"""^
+    Array\(                       # Literal "Array("
+        (.+)                      # Capture inner dtype (e.g., "Int32", "List(String)")
+        ,\s*                      # Comma and optional whitespace
+        shape=                    # Literal "shape="
+        (\(.+?\))                 # Capture shape tuple (e.g., "(2,)", "(3, 4)")
+    \)                            # Closing parenthesis
+    $""",
+    re.VERBOSE,
+)
+
+RGX_DATETIME = re.compile(
+    r"""^
+    Datetime\(                    # Literal "Datetime("
+        time_unit='([^']+)'       # Capture time_unit value (s, ms, us, or ns)
+        (?:                       # Begin non-capturing group for optional timezone
+            ,\s*                  # Comma and optional whitespace
+            time_zone=            # Literal "time_zone="
+            (?:                   # Begin non-capturing group for timezone value
+                '([^']+)'         # Capture quoted timezone (e.g., 'UTC', 'America/New_York')
+                |                 # OR
+                None              # Literal "None"
+            )
+        )?                        # End optional timezone group
+    \)                            # Closing parenthesis
+    $""",
+    re.VERBOSE,
+)
+
+RGX_DURATION = re.compile(
+    r"""^
+    Duration\(                    # Literal "Duration("
+        time_unit='([^']+)'       # Capture time_unit value (s, ms, us, or ns)
+    \)                            # Closing parenthesis
+    $""",
+    re.VERBOSE,
+)
+
+RGX_ENUM = re.compile(
+    r"""^
+    Enum\(                        # Literal "Enum("
+        categories=               # Literal "categories="
+        (\[.*?\])                 # Capture categories list (e.g., "['a', 'b']", "[1, 2]")
+    \)                            # Closing parenthesis
+    $""",
+    re.VERBOSE,
+)
+
+RGX_LIST = re.compile(
+    r"""^
+    List\(                        # Literal "List("
+        (.+)                      # Capture inner dtype (e.g., "String", "Struct({'a': Int64})")
+    \)                            # Closing parenthesis
+    $""",
+    re.VERBOSE,
+)
+
+RGX_STRUCT = re.compile(
+    r"""^
+    Struct\(                      # Literal "Struct("
+        \{                        # Opening brace for dict
+            (.*)                  # Capture field definitions (e.g., "'a': Int64, 'b': String")
+        \}                        # Closing brace for dict
+    \)                            # Closing parenthesis
+    $""",
+    re.VERBOSE,
+)
+
+RGX_FIELD_NAME = re.compile(
+    r"""
+    ,?                            # Optional comma (for subsequent fields after first)
+    \ ?                           # Optional space (after comma in Narwhals format)
+    '([^']+)'                     # Capture field name within single quotes
+    :                             # Colon separator before dtype
+    """,
+    re.VERBOSE,
+)
 
 
 __all__ = (

@@ -16,6 +16,7 @@ nav:
     - Best Practices: user-guide/best-practices.md
     - End to End Example with Custom Components: user-guide/custom-end-to-end-example.md
     - Troubleshooting: user-guide/troubleshooting.md
+    - OpenAPI Compatibility: user-guide/openapi-compatibility.md
   - Architecture: architecture.md
   - API Reference:
     - Home: api-reference/index.md

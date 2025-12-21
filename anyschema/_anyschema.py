@@ -245,7 +245,7 @@ class AnySchema:
             >>>
             >>> schema = AnySchema(spec=User)
             >>> schema.to_pandas(dtype_backend=("pyarrow", "numpy_nullable", "pyarrow", None))
-            {'id': 'Int64[pyarrow]', 'username': 'string', 'email': 'string[pyarrow]', 'is_active': 'bool'}
+            {'id': 'Int64[pyarrow]', 'username': 'string', 'email': string[pyarrow], 'is_active': 'bool'}
         """
         return self._nw_schema.to_pandas(dtype_backend=dtype_backend)
 

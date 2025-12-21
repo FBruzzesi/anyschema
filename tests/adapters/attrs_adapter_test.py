@@ -54,9 +54,9 @@ def test_attrs_adapter_with_time_metadata() -> None:
     expected: tuple[FieldSpec, ...] = (
         ("name", str, (), {}),
         ("created_at", datetime, (), {}),
-        ("scheduled_at", datetime, (), {"anyschema/time_zone": "UTC"}),
-        ("started_at", datetime, (), {"anyschema/time_unit": "ms"}),
-        ("completed_at", datetime, (), {"anyschema/time_zone": "Europe/Berlin", "anyschema/time_unit": "ns"}),
+        ("scheduled_at", datetime, (), {"anyschema": {"time_zone": "UTC"}}),
+        ("started_at", datetime, (), {"anyschema": {"time_unit": "ms"}}),
+        ("completed_at", datetime, (), {"anyschema": {"time_zone": "Europe/Berlin", "time_unit": "ns"}}),
     )
 
     assert result == expected

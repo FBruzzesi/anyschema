@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Generator, Mapping, Sequence
-from typing import TYPE_CHECKING, Annotated, Any, Literal, Protocol, TypeAlias
+from typing import TYPE_CHECKING, Annotated, Any, Literal, Protocol, TypeAlias, TypedDict
+
+from typing_extensions import NotRequired
 
 if TYPE_CHECKING:
     from dataclasses import Field as DataclassField
@@ -9,6 +11,7 @@ if TYPE_CHECKING:
 
     from attrs import AttrsInstance
     from narwhals.schema import Schema
+    from narwhals.typing import TimeUnit
     from pydantic import BaseModel
     from sqlalchemy import Table
     from sqlalchemy.orm import DeclarativeBase
@@ -77,3 +80,31 @@ class TypedDictType(Protocol):
     __annotations__: dict[str, type]
     __required_keys__: frozenset[str]
     __optional_keys__: frozenset[str]
+
+
+class AnySchemaMetadata(TypedDict, total=False):
+    """TypedDict for anyschema-specific metadata keys.
+
+    This structure defines the nested metadata format that anyschema recognizes
+    for controlling field parsing behavior. All keys are optional.
+
+    Attributes:
+        nullable: Whether the field can contain null values.
+        unique: Whether all values in the field must be unique.
+        description: Human-readable description of the field.
+        time_zone: Timezone for datetime fields (e.g., "UTC", "Europe/Berlin").
+        time_unit: Time precision for datetime fields ("s", "ms", "us", "ns").
+
+    Examples:
+        >>> metadata: AnySchemaMetadata = {"nullable": True, "time_zone": "UTC"}
+        >>> metadata["unique"] = False
+    """
+
+    description: NotRequired[str | None]
+    nullable: NotRequired[bool]
+    time_zone: NotRequired[str]
+    time_unit: NotRequired[TimeUnit]
+    unique: NotRequired[bool]
+
+
+AnySchemaMetadataKey: TypeAlias = Literal["description", "nullable", "time_zone", "time_unit", "unique"]

@@ -59,11 +59,11 @@ def test_dataclass_adapter_with_time_metadata() -> None:
     result = tuple(dataclass_adapter(DataclassEventWithTimeMetadata))
 
     expected: tuple[FieldSpec, ...] = (
-        ("name", str, (), {"anyschema/description": "Event name"}),
+        ("name", str, (), {"anyschema": {"description": "Event name"}}),
         ("created_at", datetime, (), {}),
-        ("scheduled_at", datetime, (), {"anyschema/time_zone": "UTC", "anyschema/description": "Scheduled time"}),
-        ("started_at", datetime, (), {"anyschema/time_unit": "ms"}),
-        ("completed_at", datetime, (), {"anyschema/time_zone": "Europe/Berlin", "anyschema/time_unit": "ns"}),
+        ("scheduled_at", datetime, (), {"anyschema": {"time_zone": "UTC", "description": "Scheduled time"}}),
+        ("started_at", datetime, (), {"anyschema": {"time_unit": "ms"}}),
+        ("completed_at", datetime, (), {"anyschema": {"time_zone": "Europe/Berlin", "time_unit": "ns"}}),
     )
 
     assert result == expected
@@ -76,14 +76,14 @@ def test_dataclass_adapter_with_doc_argument() -> None:
         name: str = field(doc="Product name")  # pyright: ignore[reportCallIssue]
         price: float = field(  # pyright: ignore[reportCallIssue]
             doc="Product price",
-            metadata={"anyschema/description": "From metadata"},  # anyschema metadata have precedence
+            metadata={"anyschema": {"description": "From metadata"}},  # anyschema metadata have precedence
         )
         in_stock: bool
 
     result = list(dataclass_adapter(Product))
     expected = [
-        ("name", str, (), {"anyschema/description": "Product name"}),
-        ("price", float, (), {"anyschema/description": "From metadata"}),
+        ("name", str, (), {"anyschema": {"description": "Product name"}}),
+        ("price", float, (), {"anyschema": {"description": "From metadata"}}),
         ("in_stock", bool, (), {}),
     ]
     assert result == expected

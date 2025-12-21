@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Union
 
 from typing_extensions import get_args, get_origin  # noqa: UP035
 
+from anyschema._metadata import get_anyschema_value_by_key, set_anyschema_meta
 from anyschema.exceptions import UnsupportedDTypeError
 from anyschema.parsers._base import ParserStep
 
@@ -43,8 +44,9 @@ class UnionTypeStep(ParserStep):
             # Set nullable metadata if not already explicitly set
             # This way Union[T, None] / Optional[T] automatically marks the field as nullable
             # We mutate the metadata dict in-place so parse_into_field can read it
-            if "anyschema/nullable" not in metadata:
-                metadata["anyschema/nullable"] = True
+            if get_anyschema_value_by_key(metadata, key="nullable") is None:
+                set_anyschema_meta(metadata, key="nullable", value=True)
+
             return self.pipeline.parse(extracted_type, constraints, metadata, strict=True)
 
         return None

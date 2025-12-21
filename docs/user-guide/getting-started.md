@@ -279,7 +279,7 @@ except Exception as e:
     print(f"Validation error: {e}")
 ```
 
-See the [Metadata guide](metadata.md#anyschemanullable) for more details on nullable semantics and how to override
+See the [Metadata guide](metadata.md#nullable) for more details on nullable semantics and how to override
 type-based inference.
 
 ## Nested Types

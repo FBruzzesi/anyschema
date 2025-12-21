@@ -59,7 +59,7 @@ def test_parse_into_field_nullable_type(name: str, py_type: type, expected_dtype
 @pytest.mark.parametrize("nullable", [True, False])
 def test_parse_into_field_nullable_metadata(*, nullable: bool) -> None:
     pipeline = make_pipeline()
-    field = pipeline.parse_into_field("test", int, (), {"anyschema/nullable": nullable})
+    field = pipeline.parse_into_field("test", int, (), {"anyschema": {"nullable": nullable}})
 
     assert field.nullable is nullable
 
@@ -68,43 +68,46 @@ def test_parse_into_field_nullable_metadata_overwrite() -> None:
     # !NOTE: Test that explicit nullable=False overrides Optional type
     pipeline = make_pipeline()
 
-    field = pipeline.parse_into_field("test-optional", Optional[str], (), {"anyschema/nullable": False})
+    field = pipeline.parse_into_field("test-optional", Optional[str], (), {"anyschema": {"nullable": False}})
     assert field == AnyField(name="test-optional", dtype=nw.String(), nullable=False)
 
-    field = pipeline.parse_into_field("test-required", str, (), {"anyschema/nullable": True})
+    field = pipeline.parse_into_field("test-required", str, (), {"anyschema": {"nullable": True}})
     assert field == AnyField(name="test-required", dtype=nw.String(), nullable=True)
 
 
 @pytest.mark.parametrize("unique", [True, False])
 def test_parse_into_field_unique(*, unique: bool) -> None:
     pipeline = make_pipeline()
-    field = pipeline.parse_into_field("test", str, (), {"anyschema/unique": unique})
+    field = pipeline.parse_into_field("test", str, (), {"anyschema": {"unique": unique}})
 
     assert field.unique is unique
 
 
 def test_anyschema_metadata_filtered_from_field_metadata() -> None:
-    """Test that anyschema/* keys are filtered from Field.metadata."""
+    """Test that anyschema and x-anyschema keys are filtered from Field.metadata."""
     pipeline = make_pipeline()
     field = pipeline.parse_into_field(
         "test",
         int,
         (),
         {
-            "anyschema/nullable": False,
-            "anyschema/unique": True,
-            "anyschema/time_zone": "UTC",
-            "description": "A test field",
+            "anyschema": {
+                "nullable": False,
+                "unique": True,
+                "time_zone": "UTC",
+                "description": "A test field",
+            },
             "custom_key": "custom_value",
         },
     )
     assert field.unique is True
 
-    # anyschema/* keys should not be in field.metadata
-    assert all(not k.startswith("anyschema/") for k in field.metadata)
+    # anyschema and x-anyschema keys should not be in field.metadata
+    assert "anyschema" not in field.metadata
+    assert "x-anyschema" not in field.metadata
 
     # Custom metadata should be preserved
-    assert field.metadata == {"description": "A test field", "custom_key": "custom_value"}
+    assert field.metadata == {"custom_key": "custom_value"}
 
 
 @pytest.mark.parametrize(
@@ -146,8 +149,13 @@ def test_pydantic_with_explicit_metadata() -> None:
     """Test Pydantic model with explicit nullable and unique metadata."""
 
     class UserWithMetadata(BaseModel):
-        id: int = PydanticField(json_schema_extra={"anyschema/nullable": False, "anyschema/unique": True})
-        username: str = PydanticField(json_schema_extra={"anyschema/unique": True, "description": "User's login name"})
+        id: int = PydanticField(json_schema_extra={"anyschema": {"nullable": False, "unique": True}})
+        username: str = PydanticField(
+            json_schema_extra={
+                "anyschema": {"unique": True},
+                "description": "User's login name",  # description outside anyschema namespace
+            }
+        )
         email: Optional[str] = PydanticField(json_schema_extra={"format": "email"})
 
     schema = AnySchema(spec=UserWithMetadata)
@@ -162,8 +170,8 @@ def test_pydantic_with_explicit_metadata() -> None:
         assert field.nullable is nullable
         assert field.unique is unique
         assert field.metadata == metadata
-        # anyschema/* keys should be filtered
-        assert all(not k.startswith("anyschema/") for k in field.metadata)
+        # anyschema* keys should be filtered
+        assert all(not k.startswith("anyschema") for k in field.metadata)
 
 
 def test_pydantic_with_custom_metadata() -> None:

@@ -14,7 +14,7 @@ def test_pydantic_field_metadata_not_mutated_by_optional() -> None:
     """Test that parsing Optional fields doesn't mutate Pydantic Field metadata."""
 
     class User(BaseModel):
-        name: str = PydanticField(json_schema_extra={"description": "User name"})
+        name: str = PydanticField(json_schema_extra={"anyschema": {"description": "User name"}})
         email: Optional[str] = PydanticField(json_schema_extra={"format": "email"})
 
     name_metadata_before = User.model_fields["name"].json_schema_extra
@@ -32,13 +32,6 @@ def test_pydantic_field_metadata_not_mutated_by_optional() -> None:
     assert name_metadata_before == name_metadata_after
     assert email_metadata_before == email_metadata_after
 
-    # !NOTE: isinstance check is for type checking purposes
-    assert isinstance(name_metadata_after, dict)
-    assert "anyschema/nullable" not in name_metadata_after
-
-    assert isinstance(email_metadata_after, dict)
-    assert "anyschema/nullable" not in email_metadata_after
-
 
 def test_pydantic_field_metadata_with_explicit_anyschema_keys() -> None:
     """Test that existing anyschema/* keys in Pydantic metadata are not modified."""
@@ -46,14 +39,12 @@ def test_pydantic_field_metadata_with_explicit_anyschema_keys() -> None:
     class Product(BaseModel):
         id: int = PydanticField(
             json_schema_extra={
-                "anyschema/nullable": False,
-                "anyschema/unique": True,
-                "description": "Product ID",
+                "anyschema": {"nullable": False, "unique": True, "description": "Product ID"},
             }
         )
         name: Optional[str] = PydanticField(
             json_schema_extra={
-                "anyschema/nullable": True,  # Explicitly set
+                "anyschema": {"nullable": True},
                 "max_length": 100,
             }
         )
@@ -66,15 +57,8 @@ def test_pydantic_field_metadata_with_explicit_anyschema_keys() -> None:
     id_metadata_after = Product.model_fields["id"].json_schema_extra
     name_metadata_after = Product.model_fields["name"].json_schema_extra
 
-    assert id_metadata_after == {
-        "anyschema/nullable": False,
-        "anyschema/unique": True,
-        "description": "Product ID",
-    }
-    assert name_metadata_after == {
-        "anyschema/nullable": True,
-        "max_length": 100,
-    }
+    assert id_metadata_after == {"anyschema": {"nullable": False, "unique": True, "description": "Product ID"}}
+    assert name_metadata_after == {"anyschema": {"nullable": True}, "max_length": 100}
 
 
 def test_dataclass_field_metadata_not_mutated() -> None:
@@ -103,16 +87,13 @@ def test_dataclass_field_metadata_not_mutated() -> None:
     assert dict(name_field_after.metadata) == name_metadata_before
     assert dict(email_field_after.metadata) == email_metadata_before
 
-    assert "anyschema/nullable" not in name_field_after.metadata
-    assert "anyschema/nullable" not in email_field_after.metadata
-
 
 def test_attrs_field_metadata_not_mutated() -> None:
     """Test that parsing doesn't mutate attrs field metadata."""
 
     @attrs.define
     class Book:
-        title: str = attrs.field(metadata={"description": "Book title"})
+        title: str = attrs.field(metadata={"anyschema": {"description": "Book title"}})
         isbn: Optional[str] = attrs.field(metadata={"format": "isbn"})
 
     # Get original metadata
@@ -135,9 +116,6 @@ def test_attrs_field_metadata_not_mutated() -> None:
     # !NOTE: Original metadata should not be mutated
     assert dict(title_field_after.metadata) == title_metadata_before
     assert dict(isbn_field_after.metadata) == isbn_metadata_before
-
-    assert "anyschema/nullable" not in title_field_after.metadata
-    assert "anyschema/nullable" not in isbn_field_after.metadata
 
 
 def test_dict_spec_is_safe() -> None:

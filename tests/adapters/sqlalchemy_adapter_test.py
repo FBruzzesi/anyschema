@@ -42,17 +42,17 @@ def assert_result_equal(result: Iterable[FieldSpec], expected: Iterable[FieldSpe
         (
             SimpleUserORM,
             [
-                ("id", Integer(), (), {}),
-                ("name", String(), (), {"anyschema/nullable": True}),
+                ("id", Integer(), (), {"anyschema": {"nullable": False}}),
+                ("name", String(), (), {"anyschema": {"nullable": True}}),
             ],
         ),
         (
             UserWithTypesORM,
             [
-                ("id", Integer(), (), {}),
-                ("name", String(50), (), {}),
-                ("age", Integer(), (), {"anyschema/nullable": True}),
-                ("score", Float(), (), {"anyschema/nullable": True}),
+                ("id", Integer(), (), {"anyschema": {"nullable": False}}),
+                ("name", String(50), (), {"anyschema": {"nullable": False}}),
+                ("age", Integer(), (), {"anyschema": {"nullable": True}}),
+                ("score", Float(), (), {"anyschema": {"nullable": True}}),
             ],
         ),
         (
@@ -62,25 +62,25 @@ def assert_result_equal(result: Iterable[FieldSpec], expected: Iterable[FieldSpe
                     "id",
                     Integer(),
                     (),
-                    {"anyschema/description": "Primary key"},
+                    {"anyschema": {"nullable": False, "description": "Primary key"}},
                 ),
-                ("name", String(50), (), {"anyschema/nullable": True}),
+                ("name", String(50), (), {"anyschema": {"nullable": True}}),
                 (
                     "age",
                     Integer(),
                     (),
-                    {"anyschema/description": "User age", "anyschema/nullable": True},
+                    {"anyschema": {"nullable": True, "description": "User age"}},
                 ),
-                ("email", String(100), (), {"anyschema/nullable": True}),
+                ("email", String(100), (), {"anyschema": {"nullable": True}}),
             ],
         ),
         (
             numeric_table,
             [
-                ("int_col", Integer(), (), {"anyschema/nullable": True}),
-                ("bigint_col", BigInteger(), (), {"anyschema/nullable": True}),
-                ("string_col", String(100), (), {"anyschema/nullable": True}),
-                ("float_col", Float(), (), {"anyschema/nullable": True}),
+                ("int_col", Integer(), (), {"anyschema": {"nullable": True}}),
+                ("bigint_col", BigInteger(), (), {"anyschema": {"nullable": True}}),
+                ("string_col", String(100), (), {"anyschema": {"nullable": True}}),
+                ("float_col", Float(), (), {"anyschema": {"nullable": True}}),
             ],
         ),
     ],
@@ -94,16 +94,16 @@ def test_sqlalchemy_adapter_with_time_metadata_table() -> None:
     """Test that SQLAlchemy Table adapter correctly extracts time metadata from column.info."""
     result = tuple(sqlalchemy_adapter(event_table_with_time_metadata))
     expected: Iterable[FieldSpec] = (
-        ("id", Integer(), (), {}),
-        ("name", String(100), (), {"anyschema/nullable": True}),
-        ("created_at", DateTime(), (), {"anyschema/nullable": True}),
-        ("scheduled_at", DateTime(timezone=True), (), {"anyschema/nullable": True, "anyschema/time_zone": "UTC"}),
-        ("started_at", DateTime(), (), {"anyschema/nullable": True, "anyschema/time_unit": "ms"}),
+        ("id", Integer(), (), {"anyschema": {"nullable": False}}),
+        ("name", String(100), (), {"anyschema": {"nullable": True}}),
+        ("created_at", DateTime(), (), {"anyschema": {"nullable": True}}),
+        ("scheduled_at", DateTime(timezone=True), (), {"anyschema": {"nullable": True, "time_zone": "UTC"}}),
+        ("started_at", DateTime(), (), {"anyschema": {"nullable": True, "time_unit": "ms"}}),
         (
             "completed_at",
             DateTime(timezone=True),
             (),
-            {"anyschema/nullable": True, "anyschema/time_zone": "Europe/Berlin", "anyschema/time_unit": "ns"},
+            {"anyschema": {"nullable": True, "time_zone": "Europe/Berlin", "time_unit": "ns"}},
         ),
     )
     assert_result_equal(result, expected)
@@ -113,16 +113,16 @@ def test_sqlalchemy_adapter_with_time_metadata_orm() -> None:
     """Test that SQLAlchemy ORM adapter correctly extracts time metadata from mapped_column info."""
     result = tuple(sqlalchemy_adapter(EventORMWithTimeMetadata))
     expected: Iterable[FieldSpec] = (
-        ("id", Integer(), (), {}),
-        ("name", String(), (), {}),
-        ("created_at", DateTime(), (), {}),
-        ("scheduled_at", DateTime(timezone=True), (), {"anyschema/time_zone": "UTC"}),
-        ("started_at", DateTime(), (), {"anyschema/time_unit": "ms"}),
+        ("id", Integer(), (), {"anyschema": {"nullable": False}}),
+        ("name", String(), (), {"anyschema": {"nullable": False}}),
+        ("created_at", DateTime(), (), {"anyschema": {"nullable": False}}),
+        ("scheduled_at", DateTime(timezone=True), (), {"anyschema": {"nullable": False, "time_zone": "UTC"}}),
+        ("started_at", DateTime(), (), {"anyschema": {"nullable": False, "time_unit": "ms"}}),
         (
             "completed_at",
             DateTime(timezone=True),
             (),
-            {"anyschema/time_zone": "Europe/Berlin", "anyschema/time_unit": "ns"},
+            {"anyschema": {"nullable": False, "time_zone": "Europe/Berlin", "time_unit": "ns"}},
         ),
     )
     assert_result_equal(result, expected)
@@ -132,13 +132,13 @@ def test_sqlalchemy_adapter_with_tz_aware_datetime() -> None:
     """Test that SQLAlchemy adapter correctly extracts timezone-aware datetime metadata."""
     result = tuple(sqlalchemy_adapter(event_table_with_tz_aware))
     expected: Iterable[FieldSpec] = (
-        ("id", Integer(), (), {}),
-        ("timestamp_utc", DateTime(timezone=True), (), {"anyschema/nullable": True, "anyschema/time_zone": "UTC"}),
+        ("id", Integer(), (), {"anyschema": {"nullable": False}}),
+        ("timestamp_utc", DateTime(timezone=True), (), {"anyschema": {"nullable": True, "time_zone": "UTC"}}),
         (
             "timestamp_berlin",
             DateTime(timezone=True),
             (),
-            {"anyschema/nullable": True, "anyschema/time_zone": "Europe/Berlin", "anyschema/time_unit": "ms"},
+            {"anyschema": {"nullable": True, "time_zone": "Europe/Berlin", "time_unit": "ms"}},
         ),
     )
     assert_result_equal(result, expected)

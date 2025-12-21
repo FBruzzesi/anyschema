@@ -177,7 +177,7 @@ See the [Metadata guide on nullable semantics](metadata.md#understanding-nullabl
 If a field appears nullable but your type annotations say it's not nullable, check:
 
 1. **Type annotation is correct**: Use `str`, not `str | None` or `Optional[str]`
-2. **Not overridden by metadata**: Check if `"anyschema/nullable": True` was set in metadata
+2. **Not overridden by metadata**: Check if `"anyschema": {"nullable": True}` was set in metadata
 
 ```python exec="true" source="above" result="python" session="troubleshoot-not-nullable"
 from pydantic import BaseModel, Field
@@ -186,7 +186,7 @@ from anyschema import AnySchema
 
 class Example(BaseModel):
     # This WILL be nullable despite the type annotation
-    field: str = Field(json_schema_extra={"anyschema/nullable": True})
+    field: str = Field(json_schema_extra={"anyschema": {"nullable": True}})
 
 
 schema = AnySchema(spec=Example)

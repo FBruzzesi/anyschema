@@ -12,6 +12,11 @@ Metadata is a dictionary of key-value pairs attached to individual fields.
 While you can store any custom metadata, anyschema recognizes a specific nested structure
 with the `"anyschema"` (or `"x-anyschema"` for OpenAPI compatibility) key that modifies parsing behavior.
 
+!!! tip "OpenAPI Compatibility"
+    For better integration with OpenAPI tools and specifications, you can use `"x-anyschema"` instead of `"anyschema"`.
+
+    Both work identically. See the [OpenAPI Compatibility](openapi-compatibility.md) guide for more details.
+
 Currently supported special metadata keys:
 
 * `{"anyschema": {"nullable": <bool>, ...}}`: Specifies whether the field can contain null values.

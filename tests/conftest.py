@@ -86,6 +86,14 @@ class PydanticSpecialDatetimeWithMetadata(BaseModel):
     future_ns: FutureDatetime = Field(json_schema_extra={"anyschema": {"time_unit": "ns"}})
 
 
+class PydanticEventWithXAnyschema(BaseModel):
+    """Pydantic model using x-anyschema prefix (OpenAPI compatibility)."""
+
+    name: str
+    created_at: datetime = Field(json_schema_extra={"x-anyschema": {"time_zone": "UTC"}})
+    started_at: datetime = Field(json_schema_extra={"x-anyschema": {"time_unit": "ms"}})
+
+
 @attrs.define
 class AttrsAddress:
     street: str
@@ -142,6 +150,15 @@ class AttrsEventWithTimeMetadata:
     scheduled_at: datetime = attrs.field(metadata={"anyschema": {"time_zone": "UTC"}})
     started_at: datetime = attrs.field(metadata={"anyschema": {"time_unit": "ms"}})
     completed_at: datetime = attrs.field(metadata={"anyschema": {"time_zone": "Europe/Berlin", "time_unit": "ns"}})
+
+
+@attrs.define
+class AttrsEventWithXAnyschema:
+    """Attrs class using x-anyschema prefix (OpenAPI compatibility)."""
+
+    name: str
+    created_at: datetime = attrs.field(metadata={"x-anyschema": {"time_zone": "UTC"}})
+    started_at: datetime = attrs.field(metadata={"x-anyschema": {"time_unit": "ms"}})
 
 
 class PydanticZipcode(BaseModel):

@@ -83,6 +83,15 @@ def test_parse_into_field_unique(*, unique: bool) -> None:
     assert field.unique is unique
 
 
+@pytest.mark.parametrize("unique", [True, False])
+def test_parse_into_field_unique_with_x_prefix(*, unique: bool) -> None:
+    """Test that x-anyschema prefix works (OpenAPI compatibility)."""
+    pipeline = make_pipeline()
+    field = pipeline.parse_into_field("test", str, (), {"x-anyschema": {"unique": unique}})
+
+    assert field.unique is unique
+
+
 def test_anyschema_metadata_filtered_from_field_metadata() -> None:
     """Test that anyschema and x-anyschema keys are filtered from Field.metadata."""
     pipeline = make_pipeline()
@@ -103,6 +112,34 @@ def test_anyschema_metadata_filtered_from_field_metadata() -> None:
     assert field.unique is True
 
     # anyschema and x-anyschema keys should not be in field.metadata
+    assert "anyschema" not in field.metadata
+    assert "x-anyschema" not in field.metadata
+
+    # Custom metadata should be preserved
+    assert field.metadata == {"custom_key": "custom_value"}
+
+
+def test_x_anyschema_metadata_filtered_from_field_metadata() -> None:
+    """Test that x-anyschema prefix works and is filtered from Field.metadata."""
+    pipeline = make_pipeline()
+    field = pipeline.parse_into_field(
+        "test",
+        int,
+        (),
+        {
+            "x-anyschema": {
+                "nullable": False,
+                "unique": True,
+                "description": "A test field with x-prefix",
+            },
+            "custom_key": "custom_value",
+        },
+    )
+    assert field.unique is True
+    assert field.nullable is False
+    assert field.description == "A test field with x-prefix"
+
+    # Both anyschema and x-anyschema keys should not be in field.metadata
     assert "anyschema" not in field.metadata
     assert "x-anyschema" not in field.metadata
 

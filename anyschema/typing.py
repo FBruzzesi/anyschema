@@ -3,8 +3,6 @@ from __future__ import annotations
 from collections.abc import Callable, Generator, Mapping, Sequence
 from typing import TYPE_CHECKING, Annotated, Any, Literal, Protocol, TypeAlias, TypedDict
 
-from typing_extensions import NotRequired
-
 if TYPE_CHECKING:
     from dataclasses import Field as DataclassField
     from typing import ClassVar
@@ -100,11 +98,11 @@ class AnySchemaMetadata(TypedDict, total=False):
         >>> metadata["unique"] = False
     """
 
-    description: NotRequired[str | None]
-    nullable: NotRequired[bool]
-    time_zone: NotRequired[str]
-    time_unit: NotRequired[TimeUnit]
-    unique: NotRequired[bool]
+    description: str | None
+    nullable: bool
+    time_zone: str
+    time_unit: TimeUnit
+    unique: bool
 
 
 AnySchemaMetadataKey: TypeAlias = Literal["description", "nullable", "time_zone", "time_unit", "unique"]

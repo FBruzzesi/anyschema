@@ -23,7 +23,7 @@ def _get_anyschema_metadata(metadata: FieldMetadata) -> AnySchemaMetadata:
     # Try "anyschema" first, then "x-anyschema" (OpenAPI convention)
     for key in ("anyschema", "x-anyschema"):
         if anyschema_meta := metadata.get(key):
-            return anyschema_meta
+            return anyschema_meta  # type: ignore[no-any-return]
     return {}
 
 

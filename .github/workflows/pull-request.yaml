@@ -42,7 +42,11 @@ jobs:
           enable-cache: "true"
           cache-dependency-glob: "pyproject.toml"
       - name: Run pytest
-        run: uv run --with pydantic==2.0.0,narwhals==2.0.0,attrs==22.1.0 --all-extras --group tests pytest tests --cov=anyschema --cov=tests --cov-fail-under=95
+        run: |
+          uv run \
+          --with narwhals==2.0.0,attrs==22.1.0,pydantic==2.0.0,sqlalchemy==2.0.0 \
+          --all-extras --group tests \
+          pytest tests --cov=anyschema --cov=tests --cov-fail-under=95
 
   typing:
     runs-on: ubuntu-latest

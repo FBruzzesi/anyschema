@@ -66,79 +66,77 @@ NON_COMPLEX_MAPPING = {
 
 RGX_ARRAY = re.compile(
     r"""^
-    Array\(                       # Literal "Array("
-        (.+)                      # Capture inner dtype (e.g., "Int32", "List(String)")
-        ,\s*                      # Comma and optional whitespace
-        shape=                    # Literal "shape="
-        (\(.+?\))                 # Capture shape tuple (e.g., "(2,)", "(3, 4)")
-    \)                            # Closing parenthesis
+    Array\(                 # Literal "Array("
+        (?P<inner_type>.+)  # Capture inner dtype (e.g., "Int32", "List(String)")
+        ,\s                 # Comma and whitespace
+        shape=              # Literal "shape="
+        (?P<shape>\(.+?\))  # Capture shape tuple (e.g., "(2,)", "(3, 4)")
+    \)                      # Closing parenthesis
     $""",
     re.VERBOSE,
 )
 
 RGX_DATETIME = re.compile(
     r"""^
-    Datetime\(                    # Literal "Datetime("
-        time_unit='([^']+)'       # Capture time_unit value (s, ms, us, or ns)
-        (?:                       # Begin non-capturing group for optional timezone
-            ,\s*                  # Comma and optional whitespace
-            time_zone=            # Literal "time_zone="
-            (?:                   # Begin non-capturing group for timezone value
-                '([^']+)'         # Capture quoted timezone (e.g., 'UTC', 'America/New_York')
-                |                 # OR
-                None              # Literal "None"
-            )
-        )?                        # End optional timezone group
-    \)                            # Closing parenthesis
+    Datetime\(                            # Literal "Datetime("
+        time_unit='(?P<time_unit>[^']+)'  # Capture time_unit value (s, ms, us, or ns)
+        ,\s                               # Comma and whitespace
+        time_zone=                        # Literal "time_zone="
+        (?:                               # Begin non-capturing group for timezone value
+            '(?P<time_zone>[^']+)'        # Capture quoted timezone (e.g., 'UTC', 'America/New_York')
+            |                             # OR
+            None                          # Literal "None"
+        )
+    \)                                    # Closing parenthesis
     $""",
     re.VERBOSE,
 )
 
 RGX_DURATION = re.compile(
     r"""^
-    Duration\(                    # Literal "Duration("
-        time_unit='([^']+)'       # Capture time_unit value (s, ms, us, or ns)
-    \)                            # Closing parenthesis
+    Duration\(                            # Literal "Duration("
+        time_unit='(?P<time_unit>[^']+)'  # Capture time_unit value (s, ms, us, or ns)
+    \)                                    # Closing parenthesis
     $""",
     re.VERBOSE,
 )
 
 RGX_ENUM = re.compile(
     r"""^
-    Enum\(                        # Literal "Enum("
-        categories=               # Literal "categories="
-        (\[.*?\])                 # Capture categories list (e.g., "['a', 'b']", "[1, 2]")
-    \)                            # Closing parenthesis
+    Enum\(                       # Literal "Enum("
+        categories=              # Literal "categories="
+        (?P<categories>\[.*?\])  # Capture categories list (e.g., "['a', 'b']", "[1, 2]")
+    \)                           # Closing parenthesis
     $""",
     re.VERBOSE,
 )
 
 RGX_LIST = re.compile(
     r"""^
-    List\(                        # Literal "List("
-        (.+)                      # Capture inner dtype (e.g., "String", "Struct({'a': Int64})")
-    \)                            # Closing parenthesis
+    List\(                  # Literal "List("
+        (?P<inner_type>.+)  # Capture inner dtype (e.g., "String", "Struct({'a': Int64})")
+    \)                      # Closing parenthesis
     $""",
     re.VERBOSE,
 )
 
 RGX_STRUCT = re.compile(
     r"""^
-    Struct\(                      # Literal "Struct("
-        \{                        # Opening brace for dict
-            (.*)                  # Capture field definitions (e.g., "'a': Int64, 'b': String")
-        \}                        # Closing brace for dict
-    \)                            # Closing parenthesis
+    Struct\(                # Literal "Struct("
+        \{                  # Opening brace for dict
+            (?P<fields>.*)  # Capture field definitions (e.g., "'a': Int64, 'b': String")
+        \}                  # Closing brace for dict
+    \)                      # Closing parenthesis
     $""",
     re.VERBOSE,
 )
 
 RGX_FIELD_NAME = re.compile(
     r"""
-    ,?                            # Optional comma (for subsequent fields after first)
-    \ ?                           # Optional space (after comma in Narwhals format)
-    '([^']+)'                     # Capture field name within single quotes
-    :                             # Colon separator before dtype
+    ,?                       # Optional comma (for subsequent fields after first)
+    \s?                      # Optional space (after comma in Narwhals format)
+    '(?P<field_name>[^']+)'  # Capture field name within single quotes
+    :                        # Colon separator before dtype
     """,
     re.VERBOSE,
 )
@@ -200,29 +198,29 @@ def deserialize_dtype(into_dtype: str) -> DType:
         return dtype
 
     if datetime_match := RGX_DATETIME.match(into_dtype):
-        time_unit = cast("TimeUnit", datetime_match.group(1))
-        time_zone = datetime_match.group(2) if datetime_match.group(2) else None
+        time_unit = cast("TimeUnit", datetime_match.group("time_unit"))
+        time_zone = datetime_match.group("time_zone")
         return Datetime(time_unit=time_unit, time_zone=time_zone)
 
     if duration_match := RGX_DURATION.match(into_dtype):
-        time_unit = cast("TimeUnit", duration_match.group(1))
+        time_unit = cast("TimeUnit", duration_match.group("time_unit"))
         return Duration(time_unit=time_unit)
 
     if enum_match := RGX_ENUM.match(into_dtype):
-        categories = ast.literal_eval(enum_match.group(1))
+        categories = ast.literal_eval(enum_match.group("categories"))
         return Enum(categories=categories)
 
     if list_match := RGX_LIST.match(into_dtype):
-        inner_type = deserialize_dtype(list_match.group(1))
+        inner_type = deserialize_dtype(list_match.group("inner_type"))
         return List(inner_type)
 
     if array_match := RGX_ARRAY.match(into_dtype):
-        inner_type = deserialize_dtype(array_match.group(1))
-        shape = ast.literal_eval(array_match.group(2))
+        inner_type = deserialize_dtype(array_match.group("inner_type"))
+        shape = ast.literal_eval(array_match.group("shape"))
         return Array(inner_type, shape=shape)
 
     if struct_match := RGX_STRUCT.match(into_dtype):
-        fields = _parse_struct_fields(struct_match.group(1))
+        fields = _parse_struct_fields(struct_match.group("fields"))
         return Struct(fields)
 
     return Unknown()
@@ -246,7 +244,7 @@ def _extract_field_name(fields_str: str, start_pos: int) -> tuple[str, int]:
             * ", 'fieldname': dtype"
     """
     if match := RGX_FIELD_NAME.match(fields_str, start_pos):
-        field_name = match.group(1)
+        field_name = match.group("field_name")
         new_pos = match.end()
 
         return field_name, new_pos

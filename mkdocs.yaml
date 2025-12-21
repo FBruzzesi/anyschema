@@ -10,7 +10,7 @@ nav:
   - Home: index.md
   - User Guide:
     - Getting Started: user-guide/getting-started.md
-    - Field Metadata: user-guide/field-metadata.md
+    - Metadata: user-guide/metadata.md
     - Advanced Usage: user-guide/advanced.md
     - Serialization & Deserialization: user-guide/serde.md
     - Best Practices: user-guide/best-practices.md

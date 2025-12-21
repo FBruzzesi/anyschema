@@ -1,6 +1,6 @@
-# Field Metadata
+# Metadata
 
-Field metadata allows you to provide additional information about fields that influences how they are parsed into
+Metadata allows you to provide additional information about fields that influences how they are parsed into
 dataframe schemas.
 
 This guide covers how to specify metadata for different specification formats and which metadata keys have special
@@ -14,10 +14,333 @@ parsing behavior.
 
 Currently supported special metadata keys:
 
+* `"anyschema/nullable"`: Specifies whether the field can contain null values.
+* `"anyschema/unique"`: Specifies whether all values in the field must be unique.
+* `"anyschema/description"`: Provides a human-readable description of the field.
 * `"anyschema/time_zone"`: Specifies timezone for datetime fields.
 * `"anyschema/time_unit"`: Specifies time precision for datetime fields (default: `"us"`).
 
+## The `AnyField` Class
+
+Starting from version 0.3.0, `anyschema` provides a [`AnyField`][anyschema.AnyField] class that encapsulates detailed
+information about each field in a schema.
+
+When you create an `AnySchema`, it parses each field into a `AnyField` object that contains:
+
+* `name`: The field name
+* `dtype`: The Narwhals data type
+* `nullable`: Whether the field accepts null values
+* `unique`: Whether values must be unique
+* `description`: Human-readable field description
+* `metadata`: Custom metadata dictionary (excluding `anyschema/*` keys)
+
+You can access these fields through the `fields` attribute:
+
+```python exec="true" source="above" result="python" session="field-class-intro"
+from typing import Optional
+from anyschema import AnySchema
+
+schema = AnySchema(spec={"id": int, "name": str, "email": Optional[str]})
+
+# Access fields
+id_field = schema.fields["id"]
+print(id_field)
+
+email_field = schema.fields["email"]
+print(email_field)
+```
+
 ## Supported Metadata Keys
+
+!!! info "Metadata Precedence"
+    Explicit `anyschema/*` metadata keys **always take precedence** over values inferred from types.
+
+    For example, setting `anyschema/nullable: False` will make a field non-nullable even if the type
+    is `Optional[T]`. This allows you to override type-level inference when needed.
+
+### `anyschema/nullable`
+
+Specifies whether the field can contain null values.
+
+**Precedence rules** (highest to lowest):
+
+1. Explicit `anyschema/nullable` metadata key
+2. Type inference (`Optional[T]` or `T | None`)
+3. Default: `False` (non-nullable by default)
+
+Let's take a look at an example:
+
+```python exec="true" source="above" result="python" session="nullable-example"
+from pydantic import BaseModel, Field
+from anyschema import AnySchema
+
+
+class User(BaseModel):
+    id: int = Field(json_schema_extra={"anyschema/nullable": False})
+    username: str
+    email: str | None
+
+
+schema = AnySchema(spec=User)
+
+for field in schema.fields.values():
+    print(f"field '{field.name}' nullable: {field.nullable}")
+```
+
+**Overriding type inference with explicit metadata:**
+
+```python exec="true" source="above" result="python" session="nullable-override"
+from typing import Optional
+from pydantic import BaseModel, Field
+from anyschema import AnySchema
+
+
+class Config(BaseModel):
+    # Type says Optional, but metadata overrides to non-nullable
+    required_field: Optional[str] = Field(
+        json_schema_extra={"anyschema/nullable": False}
+    )
+    # Type says non-Optional, but metadata overrides to nullable
+    optional_field: str = Field(json_schema_extra={"anyschema/nullable": True})
+
+
+schema = AnySchema(spec=Config)
+
+for field in schema.fields.values():
+    print(f"field '{field.name}' nullable: {field.nullable}")
+```
+
+#### Understanding nullable semantics
+
+The nullable property reflects whether a field **accepts null values according to the type specification**.
+This is particularly important when converting validated data (from Pydantic, attrs, dataclasses) to dataframe schemas.
+
+Consider this example:
+
+```python exec="true" source="above" result="python" session="nullable-semantics"
+from pydantic import BaseModel
+from anyschema import AnySchema
+
+
+class User(BaseModel):
+    name: str  # Non-nullable: validation will reject None
+    email: str | None  # Nullable: None is explicitly allowed
+
+
+schema = AnySchema(spec=User)
+
+for field in schema.fields.values():
+    print(f"field '{field.name}' nullable: {field.nullable}")
+```
+
+**Why this matters:**
+
+When you use Pydantic to validate data, attempting to pass `None` for a non optional field will raise a validation
+error:
+
+```python exec="true" source="above" result="python" session="nullable-semantics"
+# This works
+user1 = User(name="Alice", email="alice@example.com")
+user2 = User(name="Bob", email=None)  # email can be None
+
+try:
+    user3 = User(name=None, email="nobody@example.com")  # This raises ValidationError
+except Exception as e:
+    print(f"ValidationError: {type(e).__name__}")
+```
+
+The schema accurately reflects this constraint: `name` is not nullable, while `email` is nullable.
+
+#### PyArrow schema generation with nullability
+
+One powerful use case for explicit nullability is generating **PyArrow schemas with `not null` constraints**.
+PyArrow (and many database systems) can distinguish between nullable and non-nullable columns, which provides:
+
+* Data validation: Catch null values in supposedly non-nullable columns
+* Performance optimizations: Some engines can optimize non-nullable columns
+* Clear data contracts: Document which fields are guaranteed to have values
+
+**Without anyschema** (default PyArrow behavior):
+
+```python exec="true" source="above" result="python" session="pyarrow-nullability"
+import pyarrow as pa
+from pydantic import BaseModel
+
+
+class User(BaseModel):
+    name: str
+    email: str | None
+
+
+users = [
+    User(name="Alice", email="alice@example.com"),
+    User(name="Bob", email=None),
+]
+
+# PyArrow's default: both fields are nullable
+default_table = pa.Table.from_pylist([user.model_dump() for user in users])
+print("Default PyArrow schema:")
+print(default_table.schema)
+```
+
+**With anyschema** (explicit nullability):
+
+```python exec="true" source="above" result="python" session="pyarrow-nullability"
+from anyschema import AnySchema
+
+# Generate schema with explicit nullability from Pydantic model
+anyschema_obj = AnySchema(spec=User)
+arrow_schema = anyschema_obj.to_arrow()
+
+# Create table with explicit schema
+explicit_table = pa.Table.from_pylist(
+    [user.model_dump() for user in users], schema=arrow_schema
+)
+print("anyschema-generated PyArrow schema:")
+print(explicit_table.schema)
+```
+
+Notice that `name` is now marked as `not null` in the schema, accurately reflecting the type constraint from the
+Pydantic model!
+
+### `anyschema/unique`
+
+Specifies whether all values in the field must be unique.
+
+* Applicable to: All field types
+* Default: `False`
+* Values: `True` or `False`
+
+**Precedence rules** (highest to lowest):
+
+1. Explicit `anyschema/unique` metadata key
+2. SQLAlchemy column `unique` property (auto-detected)
+3. Default: `False`
+
+!!! tip "SQLAlchemy Auto-Detection"
+    For SQLAlchemy tables, the `unique` constraint is automatically detected from column properties.
+    You can override this by explicitly setting `anyschema/unique` in the column's `info` parameter.
+
+Example:
+
+```python exec="true" source="above" result="python" session="unique-example"
+from pydantic import BaseModel, Field
+from anyschema import AnySchema
+
+
+class User(BaseModel):
+    id: int = Field(json_schema_extra={"anyschema/unique": True})
+    username: str = Field(json_schema_extra={"anyschema/unique": True})
+    email: str
+
+
+schema = AnySchema(spec=User)
+print(f"id unique: {schema.fields['id'].unique}")
+print(f"username unique: {schema.fields['username'].unique}")
+print(f"email unique: {schema.fields['email'].unique}")
+```
+
+**Overriding SQLAlchemy unique constraint with explicit metadata:**
+
+```python exec="true" source="above" result="python" session="unique-override"
+from sqlalchemy import Column, Integer, MetaData, String, Table
+from anyschema import AnySchema
+
+metadata_obj = MetaData()
+user_table = Table(
+    "users",
+    metadata_obj,
+    Column("username", String(50), unique=True),  # SQLAlchemy unique=True
+    # Override SQLAlchemy's unique with explicit metadata
+    Column(
+        "email",
+        String(100),
+        unique=True,  # SQLAlchemy says unique=True
+        info={"anyschema/unique": False},  # But metadata overrides to False
+    ),
+)
+
+schema = AnySchema(spec=user_table)
+
+print(f"username unique (from SQLAlchemy): {schema.fields['username'].unique}")
+print(f"email unique (overridden by metadata): {schema.fields['email'].unique}")
+```
+
+### `anyschema/description`
+
+Provides a human-readable description of the field's purpose or content.
+
+* Applicable to: All field types
+* Default: `None`
+* Values: Any string value
+
+**Automatic extraction from:**
+
+1. **Pydantic**: The `description` parameter of `Field()` is automatically extracted
+2. **SQLAlchemy**: The `doc` parameter of `Column()` or `mapped_column()` is automatically extracted
+3. **Dataclasses (Python 3.14+)**: The `doc` parameter of `field()` is automatically extracted
+4. **Explicit metadata**: Set `"anyschema/description"` in field metadata
+
+Example with Pydantic:
+
+```python exec="true" source="above" result="python" session="description-pydantic"
+from pydantic import BaseModel, Field
+from anyschema import AnySchema
+
+
+class User(BaseModel):
+    id: int = Field(description="Unique user identifier")
+    username: str = Field(description="User's login name")
+    email: str
+
+
+schema = AnySchema(spec=User)
+print(f"id description: {schema.fields['id'].description!r}")
+print(f"username description: {schema.fields['username'].description!r}")
+print(f"email description: {schema.fields['email'].description!r}")
+```
+
+Example with SQLAlchemy:
+
+```python exec="true" source="above" result="python" session="description-sqlalchemy"
+from sqlalchemy import Column, Integer, MetaData, String, Table
+from anyschema import AnySchema
+
+metadata_obj = MetaData()
+user_table = Table(
+    "users",
+    metadata_obj,
+    Column("id", Integer, primary_key=True, doc="Primary key identifier"),
+    Column("username", String(50), doc="User's login name"),
+    Column("email", String(100)),
+)
+
+schema = AnySchema(spec=user_table)
+
+print(f"id description: {schema.fields['id'].description!r}")
+print(f"username description: {schema.fields['username'].description!r}")
+print(f"email description: {schema.fields['email'].description!r}")
+```
+
+Example with Dataclasses:
+
+```python exec="true" source="above" result="python" session="description-dataclass"
+from dataclasses import dataclass, field
+from anyschema import AnySchema
+
+
+@dataclass
+class User:
+    id: int = field(metadata={"anyschema/description": "Unique user identifier"})
+    username: str = field(metadata={"anyschema/description": "User's login name"})
+    email: str
+
+
+schema = AnySchema(spec=User)
+print(f"id description: {schema.fields['id'].description!r}")
+print(f"username description: {schema.fields['username'].description!r}")
+print(f"email description: {schema.fields['email'].description!r}")
+```
 
 ### `anyschema/time_zone`
 
@@ -220,6 +543,32 @@ print(schema._nw_schema)
 ### SQLAlchemy Tables
 
 For SQLAlchemy tables and ORM models, use the `info` parameter in `Column()` or `mapped_column()`.
+
+Additionally, SQLAlchemy automatically populates `anyschema/nullable` and `anyschema/unique` metadata based on
+column properties:
+
+```python exec="true" source="above" result="python" session="sqlalchemy-auto-metadata"
+from sqlalchemy import Column, Integer, MetaData, String, Table
+from anyschema import AnySchema
+
+metadata = MetaData()
+
+user_table = Table(
+    "users",
+    metadata,
+    Column("id", Integer, primary_key=True, nullable=False),  # Not nullable
+    Column("username", String(50), unique=True),  # Unique constraint
+    Column("email", String(100), nullable=True),  # Explicitly nullable
+    Column("bio", String(500)),  # Nullable by default
+)
+
+schema = AnySchema(spec=user_table)
+
+print(schema.fields["id"])
+print(schema.fields["username"])
+print(schema.fields["email"])
+print(schema.fields["bio"])
+```
 
 !!! info "SQLAlchemy DateTime Behavior"
 

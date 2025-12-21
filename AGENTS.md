@@ -12,8 +12,8 @@ or plain Python dicts) to dataframe schemas (PyArrow, Polars, Pandas) using Narw
 1. **Pipeline architecture:** Spec adapters normalize inputs → Parser pipeline converts types to Narwhals dtypes →
     Output format
 2. **Dependency isolation:** Core codebase in `anyschema/` must be dependency-free except for:
-    * Core dependencies: `narwhals` and `typing_extensions` (can always imported directly)
-    * Library-specific files: `anyschema/parsers/{pydantic,attrs,sqlalchemy}.py` (never imported directly;
+    - Core dependencies: `narwhals` and `typing_extensions` (can always imported directly)
+    - Library-specific files: `anyschema/parsers/{pydantic,attrs,sqlalchemy}.py` (never imported directly;
         loaded conditionally via `_dependencies.py`)
 3. **Lazy imports:** Optional dependencies (Pydantic, attrs, SQLAlchemy) are checked via
     `anyschema/_dependencies.py` and only imported when available
@@ -234,7 +234,6 @@ All code examples in documentation are executed during docs build.
 
 In markdown files, use exec="true" to run examples
 
-
 ````md
 ```python exec="true" source="above" result="python" session="example"
 from anyschema import AnySchema
@@ -328,12 +327,11 @@ Code agents should **NEVER** make a release. Releases happen automatically via g
 - Narwhals is lightweight - don't avoid creating intermediate schemas
 - Type inspection via `typing.get_type_hints()` can be expensive on large models
 
-
 ## Additional Resources
 
-- **Documentation site**: https://fbruzzesi.github.io/anyschema/
-- **Repository**: https://github.com/fbruzzesi/anyschema
-- **Architecture deep-dive**: Read `docs/architecture.md` first!
+- [Documentation](https://fbruzzesi.github.io/anyschema/)
+- [Repository](https://github.com/fbruzzesi/anyschema)
+- Architecture deep-dive: Read `docs/architecture.md` first!
 
 ## Before You Start
 

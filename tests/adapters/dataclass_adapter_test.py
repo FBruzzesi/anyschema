@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, make_dataclass
+import sys
+from dataclasses import dataclass, field, make_dataclass
 from datetime import date, datetime
 from typing import TYPE_CHECKING
 
@@ -58,11 +59,31 @@ def test_dataclass_adapter_with_time_metadata() -> None:
     result = tuple(dataclass_adapter(DataclassEventWithTimeMetadata))
 
     expected: tuple[FieldSpec, ...] = (
-        ("name", str, (), {}),
+        ("name", str, (), {"anyschema/description": "Event name"}),
         ("created_at", datetime, (), {}),
-        ("scheduled_at", datetime, (), {"anyschema/time_zone": "UTC"}),
+        ("scheduled_at", datetime, (), {"anyschema/time_zone": "UTC", "anyschema/description": "Scheduled time"}),
         ("started_at", datetime, (), {"anyschema/time_unit": "ms"}),
         ("completed_at", datetime, (), {"anyschema/time_zone": "Europe/Berlin", "anyschema/time_unit": "ns"}),
     )
 
+    assert result == expected
+
+
+@pytest.mark.skipif(sys.version_info < (3, 14), reason="doc parameter requires Python 3.14+")
+def test_dataclass_adapter_with_doc_argument() -> None:
+    @dataclass
+    class Product:
+        name: str = field(doc="Product name")  # pyright: ignore[reportCallIssue]
+        price: float = field(  # pyright: ignore[reportCallIssue]
+            doc="Product price",
+            metadata={"anyschema/description": "From metadata"},  # anyschema metadata have precedence
+        )
+        in_stock: bool
+
+    result = list(dataclass_adapter(Product))
+    expected = [
+        ("name", str, (), {"anyschema/description": "Product name"}),
+        ("price", float, (), {"anyschema/description": "From metadata"}),
+        ("in_stock", bool, (), {}),
+    ]
     assert result == expected

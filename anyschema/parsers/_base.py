@@ -24,8 +24,7 @@ class ParserStep(ABC):
     implementation handles specific type patterns or annotation styles.
 
     Attributes:
-        pipeline: Property to access the `ParserPipeline`, raises `UnavailablePipelineError`
-            if not set.
+        pipeline: Property to access the `ParserPipeline`, raises `UnavailablePipelineError` if not set.
 
     Raises:
         UnavailablePipelineError: When accessing pipeline before it's been set.

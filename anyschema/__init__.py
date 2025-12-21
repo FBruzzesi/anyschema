@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import typing as _t
 
-from anyschema._anyschema import AnySchema
+from anyschema._anyschema import AnyField, AnySchema
 from anyschema._utils import show_versions
 
-__all__ = ("AnySchema", "show_versions")
+__all__ = ("AnyField", "AnySchema", "show_versions")
 __title__ = __name__
 __version__: str
 

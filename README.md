@@ -9,8 +9,9 @@
 
 ---
 
-`anyschema` allows you to convert from type specifications (such as Pydantic models, SQLAlchemy tables, TypedDict,
-dataclasses, or plain Python dicts) to _any_ dataframe schema (by _"any"_ we intend those supported by Narwhals).
+`anyschema` allows you to convert from type specifications (such as attrs classes, Pydantic models, SQLAlchemy tables,
+TypedDict, dataclasses, or plain Python dicts) to _any_ dataframe schema
+(by _"any"_ we intend those supported by Narwhals).
 
 Let's see how it works in practice with an example:
 
@@ -58,12 +59,12 @@ To read more about `anyschema` functionalities and features consider checking ou
 any package manager. For instance:
 
 ```bash
+uv pip install "anyschema[attrs]"
 uv pip install "anyschema[pydantic]"
-# or with SQLAlchemy support
 uv pip install "anyschema[sqlalchemy]"
 ```
 
-To allow interoperability with Pydantic models or SQLAlchemy tables.
+To allow interoperability with attrs classes, Pydantic models or SQLAlchemy tables.
 
 ## When to use `anyschema`
 

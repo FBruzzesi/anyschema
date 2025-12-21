@@ -144,7 +144,8 @@ class SQLAlchemyTypeStep(ParserStep):
         # ARRAY.item_type is a TypeEngine instance, which is also a valid FieldType
         # SQLAlchemy's type stubs don't provide full generic parameter information for item_type
         inner_type = self.pipeline.parse(input_type.item_type, constraints=constraints, metadata=metadata, strict=True)
-        if input_type.dimensions is None:
-            return nw.List(inner=inner_type)
-        else:
-            return nw.Array(inner=inner_type, shape=input_type.dimensions)
+        return (
+            nw.List(inner=inner_type)
+            if input_type.dimensions is None
+            else nw.Array(inner=inner_type, shape=input_type.dimensions)
+        )

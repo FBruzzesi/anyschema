@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, cast
 
 from narwhals.schema import Schema
@@ -24,15 +25,90 @@ from anyschema.adapters import (
 from anyschema.parsers import ParserPipeline
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from collections.abc import Iterable, Mapping
 
     import pandas as pd
     import polars as pl
     import pyarrow as pa
+    from narwhals.dtypes import DType
     from narwhals.typing import DTypeBackend
     from typing_extensions import Self
 
     from anyschema.typing import Adapter, IntoParserPipeline, Spec
+
+
+__all__ = ("AnyField", "AnySchema")
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class AnyField:
+    """A structured field descriptor.
+
+    Arguments:
+        name: The name of the field.
+        dtype: The Narwhals data type.
+        nullable: Whether the field accepts null values.
+        unique: Whether values must be unique.
+        description: Optional field description.
+        metadata: Custom metadata dictionary.
+
+    Attributes:
+        name: The name of the field.
+        dtype: The Narwhals data type of the field.
+        nullable: Whether the field can contain null values. Defaults to False.
+            Parsing a type specification will flag this as True if:
+
+            - The `anyschema/nullable` metadata key is explicitly set to True, or
+            - The type is `Optional[T]` or `T | None` (which automatically sets the metadata)
+        unique: Whether all values in this field must be unique. Defaults to False.
+            Determined by the `anyschema/unique` metadata key or SQLAlchemy column unique argument.
+        description: Human-readable field description.
+        metadata: Custom metadata dict containing any metadata that is not under the `anyschema/*` namespace.
+
+    Examples:
+        Creating a simple field:
+
+        >>> import narwhals as nw
+        >>> from anyschema import AnyField
+        >>>
+        >>> field = AnyField(
+        ...     name="user_id",
+        ...     dtype=nw.Int64(),
+        ...     nullable=False,
+        ...     unique=True,
+        ...     description="Primary key",
+        ... )
+        >>> field
+        AnyField(name='user_id', dtype=Int64, nullable=False, unique=True, description='Primary key', metadata={})
+
+        AnyField with optional type:
+
+        >>> field = AnyField(
+        ...     name="email",
+        ...     dtype=nw.String(),
+        ...     nullable=True,
+        ...     unique=False,
+        ...     metadata={"fmt": "email"},
+        ... )
+        >>> field
+        AnyField(name='email', dtype=String, nullable=True, unique=False, description=None, metadata={'fmt': 'email'})
+    """
+
+    name: str
+    dtype: DType
+    nullable: bool = False
+    unique: bool = False
+    description: str | None = None
+    metadata: Mapping[str, Any] = field(default_factory=dict)
+
+    def __hash__(self) -> int:
+        """Return hash of the instance.
+
+        Creates a hashable tuple representation.
+        `metadata` is a dict and not hashable, we convert it to a sorted tuple of items
+        """
+        metadata_tuple = tuple(sorted(self.metadata.items()))
+        return hash((self.name, self.dtype, self.nullable, self.unique, self.description, metadata_tuple))
 
 
 class AnySchema:
@@ -87,6 +163,10 @@ class AnySchema:
 
             This allows for custom field specification logic and extensibility from user-defined adapters.
 
+    Attributes:
+        fields: A mapping from field names to [`AnyField`][anyschema.AnyField] objects,
+            containing the parsed dtype and field-level metadata (nullable, unique, etc.).
+
     Raises:
         ValueError: If `spec` type is unknown and `adapter` is not specified.
         NotImplementedError: If a type in the spec cannot be parsed by any parser in the pipeline.
@@ -101,7 +181,7 @@ class AnySchema:
         >>> class Student(BaseModel):
         ...     name: str
         ...     age: PositiveInt
-        ...     classes: list[str]
+        ...     classes: list[str] | None
         >>>
         >>> schema = AnySchema(spec=Student)
 
@@ -109,8 +189,8 @@ class AnySchema:
 
         >>> pa_schema = schema.to_arrow()
         >>> print(pa_schema)
-        name: string
-        age: uint64
+        name: string not null
+        age: uint64 not null
         classes: list<item: string>
           child 0, item: string
 
@@ -130,9 +210,9 @@ class AnySchema:
 
         >>> schema = AnySchema(spec={"id": int, "name": str, "active": bool})
         >>> print(schema.to_arrow())
-        id: int64
-        name: string
-        active: bool
+        id: int64 not null
+        name: string not null
+        active: bool not null
 
         Using a TypedDict:
 
@@ -141,12 +221,12 @@ class AnySchema:
         >>> class Product(TypedDict):
         ...     id: int
         ...     name: str
-        ...     price: float
+        ...     price: float | None
         >>>
         >>> schema = AnySchema(spec=Product)
         >>> print(schema.to_arrow())
-        id: int64
-        name: string
+        id: int64 not null
+        name: string not null
         price: double
 
     Tip: See also
@@ -156,6 +236,7 @@ class AnySchema:
     """
 
     _nw_schema: Schema
+    fields: dict[str, AnyField]
 
     def __init__(
         self: Self,
@@ -164,6 +245,9 @@ class AnySchema:
         adapter: Adapter | None = None,
     ) -> None:
         if isinstance(spec, Schema):
+            # Create Field objects from the schema with default values as Narwhals Schema's/Dtypes do not carry
+            # nullability, uniqueness nor metadata information.
+            self.fields = {name: AnyField(name=name, dtype=dtype) for name, dtype in spec.items()}
             self._nw_schema = spec
             return
 
@@ -188,12 +272,11 @@ class AnySchema:
             msg = "`spec` type is unknown and `adapter` is not specified."
             raise ValueError(msg)
 
-        self._nw_schema = Schema(
-            {
-                name: parser_pipeline.parse(input_type, constraints, metadata)
-                for name, input_type, constraints, metadata in adapter_f(cast("Any", spec))
-            }
-        )
+        self.fields = {
+            name: parser_pipeline.parse_into_field(name, input_type, constraints, metadata)
+            for name, input_type, constraints, metadata in adapter_f(cast("Any", spec))
+        }
+        self._nw_schema = Schema({name: field.dtype for name, field in self.fields.items()})
 
     def to_arrow(self: Self) -> pa.Schema:
         """Converts input model into pyarrow schema.
@@ -209,17 +292,24 @@ class AnySchema:
             >>> class User(BaseModel):
             ...     id: int
             ...     username: str
-            ...     email: str
+            ...     email: str | None
             ...     is_active: bool
             >>>
             >>> schema = AnySchema(spec=User)
             >>> schema.to_arrow()
-            id: int64
-            username: string
+            id: int64 not null
+            username: string not null
             email: string
-            is_active: bool
+            is_active: bool not null
         """
-        return self._nw_schema.to_arrow()
+        import pyarrow as pa
+
+        return pa.schema(
+            pa_field.with_nullable(field.nullable).with_metadata({k: str(v) for k, v in field.metadata.items()})
+            if field.metadata
+            else pa_field.with_nullable(field.nullable)
+            for pa_field, field in zip(self._nw_schema.to_arrow(), self.fields.values(), strict=True)
+        )
 
     def to_pandas(
         self: Self, *, dtype_backend: DTypeBackend | Iterable[DTypeBackend] = None

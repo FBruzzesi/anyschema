@@ -125,7 +125,14 @@ def dataclass_adapter(spec: DataclassType) -> FieldSpecIterable:
 
     for field in dataclass_fields:
         # Extract metadata dict from dataclass field
+        # Create a copy to avoid mutating the original dataclass field metadata
         metadata = dict(field.metadata) if field.metadata else {}
+
+        # Python 3.14+ dataclass fields have a doc parameter
+        # Check if field has doc attribute and if it's not None
+        if (doc := getattr(field, "doc", None)) is not None and ("anyschema/description" not in metadata):
+            metadata["anyschema/description"] = doc
+
         yield field.name, annot_map[field.name], (), metadata
 
 
@@ -150,12 +157,12 @@ def pydantic_adapter(spec: type[BaseModel]) -> FieldSpecIterable:
         >>> from typing import Annotated
         >>>
         >>> class Student(BaseModel):
-        ...     name: str = Field(json_schema_extra={"description": "Student name"})
+        ...     name: str = Field(description="Student name")
         ...     age: Annotated[int, Field(ge=0)]
         >>>
         >>> spec_fields = list(pydantic_adapter(Student))
         >>> spec_fields[0]
-        ('name', <class 'str'>, (), {'description': 'Student name'})
+        ('name', <class 'str'>, (), {'anyschema/description': 'Student name'})
         >>> spec_fields[1]
         ('age', ForwardRef('Annotated[int, Field(ge=0)]', is_class=True), (), {})
     """
@@ -164,7 +171,12 @@ def pydantic_adapter(spec: type[BaseModel]) -> FieldSpecIterable:
         constraints = tuple(field_info.metadata)
 
         json_schema_extra = field_info.json_schema_extra
-        metadata = json_schema_extra if json_schema_extra and not callable(json_schema_extra) else {}
+        # Create a copy of metadata to avoid mutating the original Pydantic Field
+        metadata = dict(json_schema_extra) if json_schema_extra and not callable(json_schema_extra) else {}
+
+        # Extract description from Pydantic Field if present and not already in metadata
+        if (description := field_info.description) is not None and "anyschema/description" not in metadata:
+            metadata["anyschema/description"] = description
 
         yield field_name, field_info.annotation, constraints, metadata
 
@@ -227,6 +239,7 @@ def attrs_adapter(spec: AttrsClassType) -> FieldSpecIterable:
         field_type = annot_map.get(field_name, field.type)
 
         # Extract metadata if present - attrs stores it as a mapping
+        # Create a copy to avoid mutating the original attrs field metadata
         metadata = dict(field.metadata) if field.metadata else {}
 
         yield field_name, field_type, (), metadata
@@ -260,9 +273,9 @@ def sqlalchemy_adapter(spec: SQLAlchemyTableType) -> FieldSpecIterable:
         >>>
         >>> spec_fields = list(sqlalchemy_adapter(user_table))
         >>> spec_fields[0]
-        ('id', Integer(), (), {'anyschema/nullable': False, 'anyschema/unique': False})
+        ('id', Integer(), (), {})
         >>> spec_fields[1]
-        ('name', String(length=50), (), {'anyschema/nullable': True, 'anyschema/unique': False})
+        ('name', String(length=50), (), {'anyschema/nullable': True})
 
         >>> from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column  # doctest: +SKIP
         >>>
@@ -276,17 +289,23 @@ def sqlalchemy_adapter(spec: SQLAlchemyTableType) -> FieldSpecIterable:
         >>>
         >>> spec_fields = list(sqlalchemy_adapter(User))  # doctest: +SKIP
         >>> spec_fields[0]  # doctest: +SKIP
-        ('id', Integer(), (), {'anyschema/nullable': False, 'anyschema/unique': False})
+        ('id', Integer(), (), {})
         >>> spec_fields[1]  # doctest: +SKIP
-        ('name', String(length=50), (), {'anyschema/nullable': True, 'anyschema/unique': False})
+        ('name', String(length=50), (), {'anyschema/nullable': True})
     """
     from sqlalchemy import Table
 
     table = spec if isinstance(spec, Table) else spec.__table__
 
+    meta_mapping = {
+        "anyschema/nullable": "nullable",
+        "anyschema/unique": "unique",
+        "anyschema/description": "doc",
+    }
+
     for column in table.columns:
-        anyschema_metadata = {
-            "anyschema/nullable": column.nullable or False,
-            "anyschema/unique": column.unique or False,
-        }
-        yield (column.name, column.type, (), anyschema_metadata | column.info)
+        anyschema_metadata = {key: val for key, attr in meta_mapping.items() if (val := getattr(column, attr, None))}
+
+        # Create a copy of column.info to avoid mutating the original SQLAlchemy column
+        metadata = anyschema_metadata | dict(column.info)
+        yield (column.name, column.type, (), metadata)

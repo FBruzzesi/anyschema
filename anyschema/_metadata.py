@@ -5,23 +5,25 @@ from typing import TYPE_CHECKING, Literal, overload
 if TYPE_CHECKING:
     from narwhals.typing import TimeUnit
 
-    from anyschema.typing import AnySchemaMetadata, AnySchemaMetadataKey, FieldMetadata
+    from anyschema.typing import AnySchemaMetadata, AnySchemaMetadataKey, AnySchemaNamespaceKey, FieldMetadata
 
 
 def _get_anyschema_metadata(metadata: FieldMetadata) -> AnySchemaMetadata:
     """Get the nested anyschema metadata dictionary from field metadata.
 
     Supports both "anyschema" and "x-anyschema" keys (OpenAPI convention).
-    Returns None if neither key exists or if the value is not a dictionary.
+    Returns empty dict if neither key exists or if the value is not a dictionary.
 
     Arguments:
         metadata: The field metadata dictionary.
 
     Returns:
-        The anyschema metadata dictionary, or None if not found.
+        The anyschema metadata dictionary, or empty dict if not found.
+
+    Notes:
+        This function tries "x-anyschema" (OpenAPI convention) first, then "anyschema".
     """
-    # Try "anyschema" first, then "x-anyschema" (OpenAPI convention)
-    for key in ("anyschema", "x-anyschema"):
+    for key in ("x-anyschema", "anyschema"):
         if anyschema_meta := metadata.get(key):
             return anyschema_meta  # type: ignore[no-any-return]
     return {}
@@ -113,7 +115,6 @@ def set_anyschema_meta(
         metadata: The field metadata dictionary to modify.
         key: The anyschema metadata key to set.
         value: The value to set.
-        use_x_prefix: If True, use "x-anyschema" instead of "anyschema" (OpenAPI convention).
 
     Examples:
         >>> metadata: dict = {}
@@ -123,10 +124,17 @@ def set_anyschema_meta(
         >>> set_anyschema_meta(metadata, key="unique", value=False)
         >>> metadata
         {'anyschema': {'nullable': True, 'unique': False}}
+
+    Notes:
+        If "x-anyschema" already exists in the metadata, it will be used;
+        otherwise "anyschema" is used (the default). This preserves the user's
+        choice of namespace key.
     """
-    anyschema_key = "x-anyschema" if "x-anyschema" in metadata else "anyschema"
+    # Preserve existing key if present, otherwise default to "anyschema"
+    anyschema_key: AnySchemaNamespaceKey = "x-anyschema" if "x-anyschema" in metadata else "anyschema"
     if anyschema_key not in metadata:
-        metadata[anyschema_key] = {}
+        namespace: AnySchemaMetadata = {}
+        metadata[anyschema_key] = namespace
 
     metadata[anyschema_key][key] = value
 

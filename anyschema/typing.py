@@ -106,3 +106,4 @@ class AnySchemaMetadata(TypedDict, total=False):
 
 
 AnySchemaMetadataKey: TypeAlias = Literal["description", "nullable", "time_zone", "time_unit", "unique"]
+AnySchemaNamespaceKey: TypeAlias = Literal["anyschema", "x-anyschema"]

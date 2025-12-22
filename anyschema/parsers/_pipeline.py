@@ -3,6 +3,7 @@ from __future__ import annotations
 from itertools import chain
 from typing import TYPE_CHECKING, Literal, overload
 
+from narwhals.dtypes import DType
 from typing_extensions import Self, TypeIs
 
 from anyschema._dependencies import ANNOTATED_TYPES_AVAILABLE, ATTRS_AVAILABLE, PYDANTIC_AVAILABLE, SQLALCHEMY_AVAILABLE
@@ -13,6 +14,7 @@ from anyschema.parsers._base import ParserStep
 from anyschema.parsers._builtin import PyTypeStep
 from anyschema.parsers._forward_ref import ForwardRefStep
 from anyschema.parsers._union import UnionTypeStep
+from anyschema.serde import deserialize_dtype
 
 if TYPE_CHECKING:
     from collections.abc import Generator, Sequence
@@ -23,8 +25,6 @@ if TYPE_CHECKING:
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
-
-    from narwhals.dtypes import DType
 
     from anyschema.typing import FieldConstraints, FieldMetadata, FieldType, IntoParserPipeline
 
@@ -287,7 +287,20 @@ class ParserPipeline:
         """
         from anyschema._anyschema import AnyField
 
-        dtype = self.parse(input_type, constraints, metadata, strict=True)
+        if (into_dtype := get_anyschema_value_by_key(metadata, key="dtype")) is not None:
+            if isinstance(into_dtype, DType):
+                dtype = into_dtype
+            elif isinstance(into_dtype, str):  # pyright: ignore[reportUnnecessaryIsInstance]
+                dtype = deserialize_dtype(into_dtype=into_dtype)
+            else:
+                msg = (
+                    f"Expected `dtype` value to be of type `narwhals.dtypes.DType` or `str`, \n"
+                    f"found '{qualified_type_name(into_dtype)}' instead."
+                )
+                raise TypeError(msg)
+        else:
+            dtype = self.parse(input_type, constraints, metadata, strict=True)
+
         return AnyField(
             name=name,
             dtype=dtype,

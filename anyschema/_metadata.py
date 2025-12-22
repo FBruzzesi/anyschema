@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Literal, overload
 
 if TYPE_CHECKING:
+    from narwhals.dtypes import DType
     from narwhals.typing import TimeUnit
 
     from anyschema.typing import AnySchemaMetadata, AnySchemaMetadataKey, AnySchemaNamespaceKey, FieldMetadata
@@ -59,12 +60,18 @@ def get_anyschema_value_by_key(
 ) -> str | None: ...
 
 
+@overload
+def get_anyschema_value_by_key(
+    metadata: FieldMetadata, *, key: Literal["dtype"], default: None = None
+) -> DType | str | None: ...
+
+
 def get_anyschema_value_by_key(
     metadata: FieldMetadata,
     *,
     key: AnySchemaMetadataKey,
     default: bool | str | None = None,
-) -> bool | str | TimeUnit | None:
+) -> bool | str | DType | TimeUnit | None:
     """Get a specific anyschema metadata value with fallback to default.
 
     Supports both "anyschema" and "x-anyschema" keys (OpenAPI convention).

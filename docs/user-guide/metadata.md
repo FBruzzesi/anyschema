@@ -24,6 +24,8 @@ Currently supported special metadata keys:
 * `{"anyschema": {"description": <str | None>, ...}}`: Provides a human-readable description of the field.
 * `{"anyschema": {"time_zone": <str | None>, ...}}`: Specifies timezone for datetime fields.
 * `{"anyschema": {"time_unit": <TimeUnit>, ...}}`: Specifies time precision for datetime fields (default: `"us"`).
+* `{"anyschema": {"dtype": <DType | str>, ...}}`: Specifies the Narwhals dtype of the field
+    (see the [dtype override](#dtype) section).
 
 ## The `AnyField` Class
 
@@ -365,6 +367,62 @@ Specifies the time precision for datetime fields. Valid values are
 * Applicable to: `datetime` types and Pydantic datetime types
 * Default: `"us"` (microseconds)
 * Resulting dtype: `nw.Datetime(time_unit = <time_unit value>)`
+
+### `dtype`
+
+**Override** the automatically parsed dtype with a specific Narwhals dtype. This provides fine-grained control
+over individual field dtypes without writing a custom parser.
+
+* Applicable to: All field types
+* Values: A `narwhals.dtypes.DType` instance or its string representation (e.g., `"String"`, `"List(Float64)"`)
+* Behavior: **completely bypasses the parser pipeline** and uses the specified dtype directly
+
+!!! warning "Pipeline Bypass"
+
+    When you specify a `dtype` override, the parser pipeline is **completely bypassed** for that field.
+
+    This means:
+
+    * Type information (like `Optional[int]`) won't affect `nullable` unless explicitly set
+    * Constraints and annotations are ignored
+    * The specified dtype is used exactly as provided
+
+    If you need nullable or other metadata, set them explicitly alongside `dtype`.
+
+#### When to use `"anyschema": {"dtype": value}` vs custom parsers
+
+* Use `dtype` override when you need to change the dtype for **specific fields** on a case-by-case basis.
+* Use custom parsers when you want to change how a **type is always parsed** across your entire schema
+
+See the [Custom Parsers vs dtype Override](#custom-parsers-vs-dtype-override) section below for a detailed comparison.
+
+#### Example: Override with Narwhals DType
+
+```python exec="true" source="above" result="python" session="dtype-override-narwhals"
+from pydantic import BaseModel, Field
+import narwhals as nw
+from anyschema import AnySchema
+
+
+class ProductWithOverrides(BaseModel):
+    # Parse as String even though type hint is int
+    product_id: int = Field(json_schema_extra={"anyschema": {"dtype": nw.String()}})
+
+    # Parse as Int32 instead of default Int64
+    quantity: int = Field(json_schema_extra={"anyschema": {"dtype": "Int32"}})
+
+    # Without explicit nullable, Optional[int] won't make this nullable
+    price: Optional[int] = Field(json_schema_extra={"anyschema": {"dtype": "UInt32"}})
+
+    # Explicitly set nullable=True along with dtype override
+    name: Optional[str] = Field(
+        json_schema_extra={"anyschema": {"dtype": "String", "nullable": True}}
+    )
+
+
+schema = AnySchema(spec=ProductWithOverrides)
+print(schema._nw_schema)
+```
 
 ### Combining Multiple Metadata
 
@@ -718,3 +776,71 @@ To handle custom metadata, you would need to implement a custom parser step.
 
 See the [Advanced Usage](advanced.md#custom-parser-with-metadata-handling) guide for more information on creating
 custom parsers that process metadata.
+
+## Custom parsers vs `dtype` override
+
+Both custom parsers and the `dtype` metadata override allow you to control how types are converted to Narwhals dtypes,
+but they serve different purposes and work at different levels.
+
+**Custom parser approach** characteristics:
+
+* Global scope: Affects all fields with the specified type across your entire schema
+* Runs in pipeline: Integrated into the parser pipeline, respects order and precedence
+* Reusable: Define once, applies to all schemas using that pipeline
+* Type-driven: Makes decisions based on types, constraints and metadata
+* Composable: Can be combined with other parsers in the pipeline
+
+**`dtype` override approach** characteristics:
+
+* Field-specific: Affects only the individual field where it's specified
+* Bypasses pipeline: Completely skips type parsing for that field
+* Declarative: Specified in field metadata, not in parser code
+* Granular control: Different fields with the same type can have different dtypes
+* Configuration-friendly: Can be stored in config files, database schemas, etc.
+
+It's entirely possible to combine both approaches: you can use both custom parsers and dtype overrides together.
+
+The dtype override takes precedence:
+
+```python exec="true" source="above" result="python" session="combined-example"
+from pydantic import BaseModel, Field
+import narwhals as nw
+from anyschema import AnySchema
+from anyschema.parsers import ParserStep, ParserPipeline
+from anyschema.typing import FieldConstraints, FieldMetadata, FieldType
+
+
+class Int32ParserStep(ParserStep):
+    """Default all int to Int32."""
+
+    def parse(
+        self,
+        input_type: FieldType,
+        constraints: FieldConstraints,
+        metadata: FieldMetadata,
+    ) -> nw.DType | None:
+        return nw.Int32() if input_type is int else None
+
+
+class Product(BaseModel):
+    id: int  # Will use custom parser
+    quantity: int = Field(
+        json_schema_extra={"anyschema": {"dtype": "Int16"}}
+    )  # Override to Int16
+    stock: int  # Will use custom parser
+    name: str  # Parsed normally
+
+
+pipeline = ParserPipeline.from_auto(steps=[Int32ParserStep()])
+schema = AnySchema(spec=Product, pipeline=pipeline)
+
+print("Combined approach:")
+for field_name, field in schema.fields.items():
+    print(f"  {field_name}: {field.dtype}")
+```
+
+In this example:
+
+* `id` and `stock` use the custom parser -> `Int32`
+* `quantity` uses dtype override -> `Int16` (override takes precedence)
+* `name` uses standard parsing -> `String`

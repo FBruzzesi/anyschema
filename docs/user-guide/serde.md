@@ -245,8 +245,10 @@ for field_name, field_info in json_schema["properties"].items():
 For more sophisticated workflows, create custom JSON encoder/decoder classes that automatically handle Narwhals dtypes:
 
 ```python exec="true" source="above" result="python" session="serde-decoder"
+from contextlib import suppress
 import json
 import narwhals as nw
+from anyschema.exceptions import UnsupportedDTypeError
 from anyschema.serde import serialize_dtype, deserialize_dtype
 
 
@@ -269,10 +271,11 @@ class NarwhalsDTypeDecoder(json.JSONDecoder):
     @staticmethod
     def object_hook(obj):
         """Hook to intercept dict objects during decoding."""
-        if (into_dtype := obj.get("dtype")) and (
-            dtype := deserialize_dtype(into_dtype)
-        ) != nw.Unknown:
-            obj["dtype"] = dtype
+        if isinstance((into_dtype := obj.get("dtype")), str):
+            with suppress(UnsupportedDTypeError):
+                dtype = deserialize_dtype(into_dtype)
+                obj["dtype"] = dtype
+
         return obj
 
 

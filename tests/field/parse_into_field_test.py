@@ -13,10 +13,15 @@ from sqlalchemy import Column, Integer, MetaData, String, Table
 
 from anyschema import AnyField, AnySchema
 from anyschema.parsers import make_pipeline
+from anyschema.serde import serialize_dtype
 from tests.conftest import AttrsBookWithMetadata, AttrsPerson, user_table
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
+
+    from narwhals.dtypes import DType
+
+    from anyschema.typing import AnySchemaNamespaceKey
 
 
 @pytest.mark.parametrize(
@@ -343,3 +348,60 @@ def test_nested_optional_with_constraints() -> None:
 
     assert field.dtype == nw.UInt8()  # Constrained to 0 < x < 100
     assert field.nullable is True  # Optional makes it nullable
+
+
+@pytest.mark.parametrize("namespace", ["anyschema", "x-anyschema"])
+@pytest.mark.parametrize(
+    "dtype", [nw.String(), nw.Int32(), nw.List(nw.Float64()), nw.Datetime(time_unit="ms", time_zone="UTC")]
+)
+def test_parse_into_field_dtype_override_with_narwhals_dtype(namespace: AnySchemaNamespaceKey, dtype: DType) -> None:
+    pipeline = make_pipeline()
+
+    field = pipeline.parse_into_field("test", int, (), {namespace: {"dtype": dtype}})
+    assert field.dtype == dtype
+
+
+@pytest.mark.parametrize("namespace", ["anyschema", "x-anyschema"])
+@pytest.mark.parametrize(
+    "dtype", [nw.String(), nw.Int32(), nw.List(nw.Float64()), nw.Datetime(time_unit="ms", time_zone="UTC")]
+)
+def test_parse_into_field_dtype_override_with_string(namespace: AnySchemaNamespaceKey, dtype: DType) -> None:
+    pipeline = make_pipeline()
+
+    field = pipeline.parse_into_field("test", int, (), {namespace: {"dtype": serialize_dtype(dtype)}})
+    assert field.dtype == dtype
+
+
+def test_parse_into_field_dtype_override_with_nullable() -> None:
+    pipeline = make_pipeline()
+
+    # Override dtype and set nullable
+    field = pipeline.parse_into_field(
+        "test", int, (), {"anyschema": {"dtype": nw.String(), "nullable": True, "unique": True}}
+    )
+    assert field.dtype == nw.String()
+    assert field.nullable is True
+    assert field.unique is True
+
+
+def test_parse_into_field_dtype_override_bypasses_pipeline() -> None:
+    pipeline = make_pipeline()
+
+    field = pipeline.parse_into_field("test", Optional[int], (), {"anyschema": {"dtype": "Float32"}})
+    assert field.dtype == nw.Float32()
+    assert field.nullable is False  # Pipeline bypassed, so nullable not detected
+
+    # To have both dtype override and nullable, set both explicitly
+    field = pipeline.parse_into_field("test", Optional[int], (), {"anyschema": {"dtype": "Float32", "nullable": True}})
+    assert field.dtype == nw.Float32()
+    assert field.nullable is True
+
+
+@pytest.mark.parametrize(
+    "dtype", [123, 3.14, b"foo", True, ["a", "python", "list"], ("here", "a", "tuple"), {"a": "dict"}]
+)
+def test_parse_into_field_dtype_override_invalid_type_raises(dtype: Any) -> None:
+    pipeline = make_pipeline()
+
+    with pytest.raises(TypeError, match="Expected `dtype` value to be of type"):
+        pipeline.parse_into_field("test", int, (), {"anyschema": {"dtype": dtype}})

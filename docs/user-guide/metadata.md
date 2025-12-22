@@ -17,15 +17,14 @@ with the `"anyschema"` (or `"x-anyschema"` for OpenAPI compatibility) key that m
 
     Both work identically. See the [OpenAPI Compatibility](openapi-compatibility.md) guide for more details.
 
-Currently supported special metadata keys:
+Currently supported special metadata keys under the `"anyschema"` (or `"x-anyschema"`) namespace:
 
-* `{"anyschema": {"nullable": <bool>, ...}}`: Specifies whether the field can contain null values.
-* `{"anyschema": {"unique": <bool>, ...}}`: Specifies whether all values in the field must be unique.
-* `{"anyschema": {"description": <str | None>, ...}}`: Provides a human-readable description of the field.
-* `{"anyschema": {"time_zone": <str | None>, ...}}`: Specifies timezone for datetime fields.
-* `{"anyschema": {"time_unit": <TimeUnit>, ...}}`: Specifies time precision for datetime fields (default: `"us"`).
-* `{"anyschema": {"dtype": <DType | str>, ...}}`: Specifies the Narwhals dtype of the field
-    (see the [dtype override](#dtype) section).
+* `"description": <str | None>`: Provides a human-readable description of the field.
+* `"dtype": <DType | str>`: Specifies the Narwhals dtype of the field (see the [dtype override](#dtype) section).
+* `"nullable": <bool>`: Specifies whether the field can contain null values.
+* `"time_zone": <str | None>`: Specifies timezone for datetime fields.
+* `"time_unit": <TimeUnit>`: Specifies time precision for datetime fields (default: `"us"`).
+* `"unique": <bool>`: Specifies whether all values in the field must be unique.
 
 ## The `AnyField` Class
 
@@ -64,6 +63,140 @@ print(email_field)
 
     For example, setting `{"anyschema": {"nullable": False}}` will make a field non-nullable even if the type
     is `Optional[T]`. This allows you to override type-level inference when needed.
+
+### `description`
+
+Provides a human-readable description of the field's purpose or content.
+
+* Applicable to: All field types
+* Default: `None`
+* Values: Any string value
+
+**Automatic extraction from:**
+
+1. **Pydantic**: The `description` parameter of `Field()` is automatically extracted
+2. **SQLAlchemy**: The `doc` parameter of `Column()` or `mapped_column()` is automatically extracted
+3. **Dataclasses (Python 3.14+)**: The `doc` parameter of `field()` is automatically extracted
+4. **Explicit metadata**: Set `{"anyschema": {"description": ...}}` in field metadata
+
+Example with Pydantic:
+
+```python exec="true" source="above" result="python" session="description-pydantic"
+from pydantic import BaseModel, Field
+from anyschema import AnySchema
+
+
+class User(BaseModel):
+    id: int = Field(description="Unique user identifier")
+    username: str = Field(description="User's login name")
+    email: str
+
+
+schema = AnySchema(spec=User)
+print(f"id description: {schema.fields['id'].description!r}")
+print(f"username description: {schema.fields['username'].description!r}")
+print(f"email description: {schema.fields['email'].description!r}")
+```
+
+Example with SQLAlchemy:
+
+```python exec="true" source="above" result="python" session="description-sqlalchemy"
+from sqlalchemy import Column, Integer, MetaData, String, Table
+from anyschema import AnySchema
+
+metadata_obj = MetaData()
+user_table = Table(
+    "users",
+    metadata_obj,
+    Column("id", Integer, primary_key=True, doc="Primary key identifier"),
+    Column("username", String(50), doc="User's login name"),
+    Column("email", String(100)),
+)
+
+schema = AnySchema(spec=user_table)
+
+print(f"id description: {schema.fields['id'].description!r}")
+print(f"username description: {schema.fields['username'].description!r}")
+print(f"email description: {schema.fields['email'].description!r}")
+```
+
+Example with Dataclasses:
+
+```python exec="true" source="above" result="python" session="description-dataclass"
+from dataclasses import dataclass, field
+from anyschema import AnySchema
+
+
+@dataclass
+class User:
+    id: int = field(metadata={"anyschema": {"description": "Unique user identifier"}})
+    username: str = field(metadata={"anyschema": {"description": "User's login name"}})
+    email: str
+
+
+schema = AnySchema(spec=User)
+print(f"id description: {schema.fields['id'].description!r}")
+print(f"username description: {schema.fields['username'].description!r}")
+print(f"email description: {schema.fields['email'].description!r}")
+```
+
+### `dtype`
+
+**Override** the automatically parsed dtype with a specific Narwhals dtype. This provides fine-grained control
+over individual field dtypes without writing a custom parser.
+
+* Applicable to: All field types
+* Values: A `narwhals.dtypes.DType` instance or its string representation (e.g., `"String"`, `"List(Float64)"`)
+* Behavior: **completely bypasses the parser pipeline** and uses the specified dtype directly
+
+!!! warning "Pipeline Bypass"
+
+    When you specify a `dtype` override, the parser pipeline is **completely bypassed** for that field.
+
+    This means:
+
+    * Type information (like `Optional[int]`) won't affect `nullable` unless explicitly set
+    * Constraints and annotations are ignored
+    * The specified dtype is used exactly as provided
+
+    If you need nullable or other metadata, set them explicitly alongside `dtype`.
+
+#### When to override dtype vs writing a custom parser
+
+* Use `dtype` override when you need to change the dtype for **specific fields** on a case-by-case basis.
+* Use custom parsers when you want to change how a **type is always parsed** across your entire schema
+
+See the [Custom parsers vs dtype override](#custom-parsers-vs-dtype-override) section below for a detailed comparison.
+
+#### Example: Override with Narwhals DType
+
+```python exec="true" source="above" result="python" session="dtype-override-narwhals"
+from typing import Optional
+
+from anyschema import AnySchema
+from pydantic import BaseModel, Field
+import narwhals as nw
+
+
+class ProductWithOverrides(BaseModel):
+    # Parse as String even though type hint is int
+    product_id: int = Field(json_schema_extra={"anyschema": {"dtype": nw.String()}})
+
+    # Parse as Int32 instead of default Int64
+    quantity: int = Field(json_schema_extra={"anyschema": {"dtype": "Int32"}})
+
+    # Without explicit nullable, Optional[int] won't make this nullable
+    price: Optional[int] = Field(json_schema_extra={"anyschema": {"dtype": "UInt32"}})
+
+    # Explicitly set nullable=True along with dtype override
+    name: Optional[str] = Field(
+        json_schema_extra={"anyschema": {"dtype": "String", "nullable": True}}
+    )
+
+
+schema = AnySchema(spec=ProductWithOverrides)
+print(schema._nw_schema)
+```
 
 ### `nullable`
 
@@ -210,6 +343,25 @@ print(explicit_table.schema)
 Notice that `name` is now marked as `not null` in the schema, accurately reflecting the type constraint from the
 Pydantic model!
 
+### `time_zone`
+
+Specifies the timezone for datetime fields as a string defined in `zoneinfo`.
+
+To see valid values run `import zoneinfo; zoneinfo.available_timezones()` for the full list.
+
+* Applicable to: `datetime` types and Pydantic datetime types.
+* Default: `None` (no timezone, i.e., naive datetime)
+* Resulting dtype: `nw.Datetime(time_zone = <time_zone value>)`
+
+### `time_unit`
+
+Specifies the time precision for datetime fields. Valid values are
+`"s"` (seconds), `"ms"`(milliseconds),`"us"`(microseconds, default),`"ns"`(nanoseconds).
+
+* Applicable to: `datetime` types and Pydantic datetime types
+* Default: `"us"` (microseconds)
+* Resulting dtype: `nw.Datetime(time_unit = <time_unit value>)`
+
 ### `unique`
 
 Specifies whether all values in the field must be unique.
@@ -271,157 +423,6 @@ schema = AnySchema(spec=user_table)
 
 print(f"username unique (from SQLAlchemy): {schema.fields['username'].unique}")
 print(f"email unique (overridden by metadata): {schema.fields['email'].unique}")
-```
-
-### `description`
-
-Provides a human-readable description of the field's purpose or content.
-
-* Applicable to: All field types
-* Default: `None`
-* Values: Any string value
-
-**Automatic extraction from:**
-
-1. **Pydantic**: The `description` parameter of `Field()` is automatically extracted
-2. **SQLAlchemy**: The `doc` parameter of `Column()` or `mapped_column()` is automatically extracted
-3. **Dataclasses (Python 3.14+)**: The `doc` parameter of `field()` is automatically extracted
-4. **Explicit metadata**: Set `{"anyschema": {"description": ...}}` in field metadata
-
-Example with Pydantic:
-
-```python exec="true" source="above" result="python" session="description-pydantic"
-from pydantic import BaseModel, Field
-from anyschema import AnySchema
-
-
-class User(BaseModel):
-    id: int = Field(description="Unique user identifier")
-    username: str = Field(description="User's login name")
-    email: str
-
-
-schema = AnySchema(spec=User)
-print(f"id description: {schema.fields['id'].description!r}")
-print(f"username description: {schema.fields['username'].description!r}")
-print(f"email description: {schema.fields['email'].description!r}")
-```
-
-Example with SQLAlchemy:
-
-```python exec="true" source="above" result="python" session="description-sqlalchemy"
-from sqlalchemy import Column, Integer, MetaData, String, Table
-from anyschema import AnySchema
-
-metadata_obj = MetaData()
-user_table = Table(
-    "users",
-    metadata_obj,
-    Column("id", Integer, primary_key=True, doc="Primary key identifier"),
-    Column("username", String(50), doc="User's login name"),
-    Column("email", String(100)),
-)
-
-schema = AnySchema(spec=user_table)
-
-print(f"id description: {schema.fields['id'].description!r}")
-print(f"username description: {schema.fields['username'].description!r}")
-print(f"email description: {schema.fields['email'].description!r}")
-```
-
-Example with Dataclasses:
-
-```python exec="true" source="above" result="python" session="description-dataclass"
-from dataclasses import dataclass, field
-from anyschema import AnySchema
-
-
-@dataclass
-class User:
-    id: int = field(metadata={"anyschema": {"description": "Unique user identifier"}})
-    username: str = field(metadata={"anyschema": {"description": "User's login name"}})
-    email: str
-
-
-schema = AnySchema(spec=User)
-print(f"id description: {schema.fields['id'].description!r}")
-print(f"username description: {schema.fields['username'].description!r}")
-print(f"email description: {schema.fields['email'].description!r}")
-```
-
-### `time_zone`
-
-Specifies the timezone for datetime fields as a string defined in `zoneinfo`.
-
-To see valid values run `import zoneinfo; zoneinfo.available_timezones()` for the full list.
-
-* Applicable to: `datetime` types and Pydantic datetime types.
-* Default: `None` (no timezone, i.e., naive datetime)
-* Resulting dtype: `nw.Datetime(time_zone = <time_zone value>)`
-
-### `time_unit`
-
-Specifies the time precision for datetime fields. Valid values are
-`"s"` (seconds), `"ms"`(milliseconds),`"us"`(microseconds, default),`"ns"`(nanoseconds).
-
-* Applicable to: `datetime` types and Pydantic datetime types
-* Default: `"us"` (microseconds)
-* Resulting dtype: `nw.Datetime(time_unit = <time_unit value>)`
-
-### `dtype`
-
-**Override** the automatically parsed dtype with a specific Narwhals dtype. This provides fine-grained control
-over individual field dtypes without writing a custom parser.
-
-* Applicable to: All field types
-* Values: A `narwhals.dtypes.DType` instance or its string representation (e.g., `"String"`, `"List(Float64)"`)
-* Behavior: **completely bypasses the parser pipeline** and uses the specified dtype directly
-
-!!! warning "Pipeline Bypass"
-
-    When you specify a `dtype` override, the parser pipeline is **completely bypassed** for that field.
-
-    This means:
-
-    * Type information (like `Optional[int]`) won't affect `nullable` unless explicitly set
-    * Constraints and annotations are ignored
-    * The specified dtype is used exactly as provided
-
-    If you need nullable or other metadata, set them explicitly alongside `dtype`.
-
-#### When to use `"anyschema": {"dtype": value}` vs custom parsers
-
-* Use `dtype` override when you need to change the dtype for **specific fields** on a case-by-case basis.
-* Use custom parsers when you want to change how a **type is always parsed** across your entire schema
-
-See the [Custom Parsers vs dtype Override](#custom-parsers-vs-dtype-override) section below for a detailed comparison.
-
-#### Example: Override with Narwhals DType
-
-```python exec="true" source="above" result="python" session="dtype-override-narwhals"
-from pydantic import BaseModel, Field
-import narwhals as nw
-from anyschema import AnySchema
-
-
-class ProductWithOverrides(BaseModel):
-    # Parse as String even though type hint is int
-    product_id: int = Field(json_schema_extra={"anyschema": {"dtype": nw.String()}})
-
-    # Parse as Int32 instead of default Int64
-    quantity: int = Field(json_schema_extra={"anyschema": {"dtype": "Int32"}})
-
-    # Without explicit nullable, Optional[int] won't make this nullable
-    price: Optional[int] = Field(json_schema_extra={"anyschema": {"dtype": "UInt32"}})
-
-    # Explicitly set nullable=True along with dtype override
-    name: Optional[str] = Field(
-        json_schema_extra={"anyschema": {"dtype": "String", "nullable": True}}
-    )
-
-
-schema = AnySchema(spec=ProductWithOverrides)
-print(schema._nw_schema)
 ```
 
 ### Combining Multiple Metadata

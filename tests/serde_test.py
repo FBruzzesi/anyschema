@@ -34,7 +34,8 @@ from narwhals.dtypes import (
     Unknown,
 )
 
-from anyschema.serde import deserialize_dtype, serialize_dtype
+from anyschema.exceptions import UnsupportedDTypeError
+from anyschema.serde import _extract_field_name, deserialize_dtype, serialize_dtype
 
 
 class Color(enum.Enum):
@@ -154,3 +155,15 @@ def test_deserialize(into_dtype: str, expected: DType) -> None:
 
     # round-trip
     assert serialize_dtype(result) == into_dtype
+
+
+@pytest.mark.parametrize("into_dtype", ["InvalidType", "List(", "not a dtype at all"])
+def test_deserialize_invalid_dtype_raises(into_dtype: str) -> None:
+    with pytest.raises(UnsupportedDTypeError, match="Unable to deserialize"):
+        deserialize_dtype(into_dtype)
+
+
+@pytest.mark.parametrize("field_str", ["fieldname: Int64", "123: Int64"])
+def test_extract_field_name_invalid_raises(field_str: str) -> None:
+    with pytest.raises(ValueError, match="Failed to parse field name"):
+        _extract_field_name(field_str, start_pos=0)

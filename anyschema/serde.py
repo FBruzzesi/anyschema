@@ -36,6 +36,8 @@ from narwhals.dtypes import (
     Unknown,
 )
 
+from anyschema.exceptions import UnsupportedDTypeError
+
 if TYPE_CHECKING:
     from narwhals.dtypes import DType
     from narwhals.typing import TimeUnit
@@ -62,6 +64,7 @@ NON_COMPLEX_MAPPING = {
     "UInt32": UInt32(),
     "UInt64": UInt64(),
     "UInt128": UInt128(),
+    "Unknown": Unknown(),
 }
 
 RGX_ARRAY = re.compile(
@@ -223,7 +226,8 @@ def deserialize_dtype(into_dtype: str) -> DType:
         fields = _parse_struct_fields(struct_match.group("fields"))
         return Struct(fields)
 
-    return Unknown()
+    msg = f"Unable to deserialize '{into_dtype}' into a Narwhals DType"
+    raise UnsupportedDTypeError(msg)
 
 
 def _extract_field_name(fields_str: str, start_pos: int) -> tuple[str, int]:

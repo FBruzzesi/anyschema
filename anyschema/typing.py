@@ -8,6 +8,7 @@ if TYPE_CHECKING:
     from typing import ClassVar
 
     from attrs import AttrsInstance
+    from narwhals.dtypes import DType
     from narwhals.schema import Schema
     from narwhals.typing import TimeUnit
     from pydantic import BaseModel
@@ -87,11 +88,12 @@ class AnySchemaMetadata(TypedDict, total=False):
     for controlling field parsing behavior. All keys are optional.
 
     Attributes:
-        nullable: Whether the field can contain null values.
-        unique: Whether all values in the field must be unique.
         description: Human-readable description of the field.
+        dtype: Narwhals DType (or its serialized/string representation)
+        nullable: Whether the field can contain null values.
         time_zone: Timezone for datetime fields (e.g., "UTC", "Europe/Berlin").
         time_unit: Time precision for datetime fields ("s", "ms", "us", "ns").
+        unique: Whether all values in the field must be unique.
 
     Examples:
         >>> metadata: AnySchemaMetadata = {"nullable": True, "time_zone": "UTC"}
@@ -99,11 +101,12 @@ class AnySchemaMetadata(TypedDict, total=False):
     """
 
     description: str | None
+    dtype: str | DType
     nullable: bool
     time_zone: str
     time_unit: TimeUnit
     unique: bool
 
 
-AnySchemaMetadataKey: TypeAlias = Literal["description", "nullable", "time_zone", "time_unit", "unique"]
+AnySchemaMetadataKey: TypeAlias = Literal["description", "dtype", "nullable", "time_zone", "time_unit", "unique"]
 AnySchemaNamespaceKey: TypeAlias = Literal["anyschema", "x-anyschema"]

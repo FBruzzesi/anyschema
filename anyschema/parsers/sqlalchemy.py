@@ -6,6 +6,7 @@ import narwhals as nw
 from sqlalchemy import types as sqltypes
 from typing_extensions import TypeIs
 
+from anyschema._metadata import get_anyschema_value_by_key
 from anyschema.exceptions import UnsupportedDTypeError
 from anyschema.parsers._base import ParserStep
 
@@ -120,18 +121,20 @@ class SQLAlchemyTypeStep(ParserStep):
         if isinstance(input_type, sqltypes.Date):
             return nw.Date()
         if isinstance(input_type, sqltypes.DateTime):
-            is_tz_aware, time_zone = input_type.timezone, metadata.get("anyschema/time_zone")
+            is_tz_aware, time_zone = input_type.timezone, get_anyschema_value_by_key(metadata, key="time_zone")
             if is_tz_aware and (time_zone is None):
                 msg = (
                     "SQLAlchemy `DateTime(timezone=True)` does not specify a fixed timezone.\n\n"
-                    "Hint: You can specify a timezone via `Column(..., info={'anyschema/time_zone': 'UTC'}` "
-                    "or `mapped_column(..., info={'anyschema/time_zone': 'UTC'}`."
+                    "Hint: You can specify a timezone via `Column(..., info={'anyschema': {'time_zone': 'UTC'}})` "
+                    "or `mapped_column(..., info={'anyschema': {'time_zone': 'UTC'}})`."
                 )
                 raise UnsupportedDTypeError(msg)
             if (not is_tz_aware) and (time_zone is not None):
                 msg = f"SQLAlchemy `DateTime(timezone=False)` should not specify a fixed timezone, found {time_zone}"
                 raise UnsupportedDTypeError(msg)
-            return nw.Datetime(time_unit=metadata.get("anyschema/time_unit", "us"), time_zone=time_zone)
+            return nw.Datetime(
+                time_unit=get_anyschema_value_by_key(metadata, key="time_unit", default="us"), time_zone=time_zone
+            )
         if isinstance(input_type, sqltypes.Time):
             return nw.Time()
         if isinstance(input_type, sqltypes.Interval):

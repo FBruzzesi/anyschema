@@ -29,7 +29,7 @@ class ModelWithConstraints(BaseModel):
 class ModelWithDescriptions(BaseModel):
     id: int = Field(description="ID")
     name: str = Field(description="Product name", json_schema_extra={"format": "name"})
-    tags: list[str] = Field(description="tags", json_schema_extra={"anyschema/description": "Override"})
+    tags: list[str] = Field(description="tags", json_schema_extra={"anyschema": {"description": "Override"}})
 
 
 @pytest.mark.parametrize(
@@ -40,9 +40,9 @@ class ModelWithDescriptions(BaseModel):
         (
             ModelWithDescriptions,
             (
-                ("id", int, (), {"anyschema/description": "ID"}),
-                ("name", str, (), {"anyschema/description": "Product name", "format": "name"}),
-                ("tags", list[str], (), {"anyschema/description": "Override"}),
+                ("id", int, (), {"anyschema": {"description": "ID"}}),
+                ("name", str, (), {"format": "name", "anyschema": {"description": "Product name"}}),
+                ("tags", list[str], (), {"anyschema": {"description": "Override"}}),
             ),
         ),
     ],
@@ -58,9 +58,9 @@ def test_pydantic_adapter_with_json_schema_extra() -> None:
     expected: tuple[FieldSpec, ...] = (
         ("name", str, (), EMPTY_METADATA),
         ("created_at", datetime, (), EMPTY_METADATA),
-        ("scheduled_at", datetime, (), {"anyschema/time_zone": "UTC"}),
-        ("started_at", datetime, (), {"anyschema/time_unit": "ms"}),
-        ("completed_at", datetime, (), {"anyschema/time_zone": "Europe/Berlin", "anyschema/time_unit": "ns"}),
+        ("scheduled_at", datetime, (), {"anyschema": {"time_zone": "UTC"}}),
+        ("started_at", datetime, (), {"anyschema": {"time_unit": "ms"}}),
+        ("completed_at", datetime, (), {"anyschema": {"time_zone": "Europe/Berlin", "time_unit": "ns"}}),
     )
 
     assert result == expected

@@ -40,20 +40,20 @@ def test_parse_pydantic_types(pydantic_parser: PydanticTypeStep, input_type: typ
 @pytest.mark.parametrize(
     ("input_type", "metadata", "expected"),
     [
-        (NaiveDatetime, {"anyschema/time_unit": "ms"}, nw.Datetime("ms")),
-        (NaiveDatetime, {"anyschema/time_unit": "ns"}, nw.Datetime("ns")),
-        (PastDatetime, {"anyschema/time_unit": "ms"}, nw.Datetime("ms")),
-        (PastDatetime, {"anyschema/time_zone": "UTC"}, nw.Datetime("us", time_zone="UTC")),
+        (NaiveDatetime, {"anyschema": {"time_unit": "ms"}}, nw.Datetime("ms")),
+        (NaiveDatetime, {"anyschema": {"time_unit": "ns"}}, nw.Datetime("ns")),
+        (PastDatetime, {"anyschema": {"time_unit": "ms"}}, nw.Datetime("ms")),
+        (PastDatetime, {"anyschema": {"time_zone": "UTC"}}, nw.Datetime("us", time_zone="UTC")),
         (
             PastDatetime,
-            {"anyschema/time_unit": "ms", "anyschema/time_zone": "UTC"},
+            {"anyschema": {"time_unit": "ms", "time_zone": "UTC"}},
             nw.Datetime("ms", time_zone="UTC"),
         ),
-        (FutureDatetime, {"anyschema/time_unit": "ns"}, nw.Datetime("ns")),
-        (FutureDatetime, {"anyschema/time_zone": "Europe/Rome"}, nw.Datetime("us", time_zone="Europe/Rome")),
+        (FutureDatetime, {"anyschema": {"time_unit": "ns"}}, nw.Datetime("ns")),
+        (FutureDatetime, {"anyschema": {"time_zone": "Europe/Rome"}}, nw.Datetime("us", time_zone="Europe/Rome")),
         (
             FutureDatetime,
-            {"anyschema/time_unit": "ns", "anyschema/time_zone": "America/Los_Angeles"},
+            {"anyschema": {"time_unit": "ns", "time_zone": "America/Los_Angeles"}},
             nw.Datetime("ns", time_zone="America/Los_Angeles"),
         ),
     ],
@@ -76,7 +76,9 @@ def test_parse_aware_datetime_raises(pydantic_parser: PydanticTypeStep) -> None:
 
 
 def test_parse_aware_datetime_with_tz(pydantic_parser: PydanticTypeStep) -> None:
-    result = pydantic_parser.parse(AwareDatetime, constraints=(), metadata={"anyschema/time_zone": "Europe/Berlin"})
+    result = pydantic_parser.parse(
+        AwareDatetime, constraints=(), metadata={"anyschema": {"time_zone": "Europe/Berlin"}}
+    )
     assert result == nw.Datetime(time_zone="Europe/Berlin")
 
 
@@ -84,7 +86,7 @@ def test_parse_aware_datetime_with_tz_and_time_unit(pydantic_parser: PydanticTyp
     result = pydantic_parser.parse(
         AwareDatetime,
         constraints=(),
-        metadata={"anyschema/time_zone": "Europe/Berlin", "anyschema/time_unit": "ms"},
+        metadata={"anyschema": {"time_zone": "Europe/Berlin", "time_unit": "ms"}},
     )
     assert result == nw.Datetime(time_unit="ms", time_zone="Europe/Berlin")
 
@@ -184,4 +186,4 @@ def test_parse_naive_datetime_with_timezone_raises(pydantic_parser: PydanticType
     """Test that NaiveDatetime with timezone raises an error."""
     expected_msg = "pydantic NaiveDatetime should not specify a timezone, found UTC."
     with pytest.raises(UnsupportedDTypeError, match=expected_msg):
-        pydantic_parser.parse(NaiveDatetime, constraints=(), metadata={"anyschema/time_zone": "UTC"})
+        pydantic_parser.parse(NaiveDatetime, constraints=(), metadata={"anyschema": {"time_zone": "UTC"}})

@@ -71,23 +71,27 @@ class PydanticEventWithTimeMetadata(BaseModel):
 
     name: str
     created_at: datetime
-    scheduled_at: datetime = Field(json_schema_extra={"anyschema/time_zone": "UTC"})
-    started_at: datetime = Field(json_schema_extra={"anyschema/time_unit": "ms"})
-    completed_at: datetime = Field(
-        json_schema_extra={"anyschema/time_zone": "Europe/Berlin", "anyschema/time_unit": "ns"}
-    )
+    scheduled_at: datetime = Field(json_schema_extra={"anyschema": {"time_zone": "UTC"}})
+    started_at: datetime = Field(json_schema_extra={"anyschema": {"time_unit": "ms"}})
+    completed_at: datetime = Field(json_schema_extra={"anyschema": {"time_zone": "Europe/Berlin", "time_unit": "ns"}})
 
 
 class PydanticSpecialDatetimeWithMetadata(BaseModel):
     """Pydantic model with special datetime types and metadata."""
 
-    aware: AwareDatetime = Field(json_schema_extra={"anyschema/time_zone": "UTC"})
-    aware_ms: AwareDatetime = Field(
-        json_schema_extra={"anyschema/time_zone": "Asia/Tokyo", "anyschema/time_unit": "ms"}
-    )
-    naive_ms: NaiveDatetime = Field(json_schema_extra={"anyschema/time_unit": "ms"})
-    past_utc: PastDatetime = Field(json_schema_extra={"anyschema/time_zone": "UTC"})
-    future_ns: FutureDatetime = Field(json_schema_extra={"anyschema/time_unit": "ns"})
+    aware: AwareDatetime = Field(json_schema_extra={"anyschema": {"time_zone": "UTC"}})
+    aware_ms: AwareDatetime = Field(json_schema_extra={"anyschema": {"time_zone": "Asia/Tokyo", "time_unit": "ms"}})
+    naive_ms: NaiveDatetime = Field(json_schema_extra={"anyschema": {"time_unit": "ms"}})
+    past_utc: PastDatetime = Field(json_schema_extra={"anyschema": {"time_zone": "UTC"}})
+    future_ns: FutureDatetime = Field(json_schema_extra={"anyschema": {"time_unit": "ns"}})
+
+
+class PydanticEventWithXAnyschema(BaseModel):
+    """Pydantic model using x-anyschema prefix (OpenAPI compatibility)."""
+
+    name: str
+    created_at: datetime = Field(json_schema_extra={"x-anyschema": {"time_zone": "UTC"}})
+    started_at: datetime = Field(json_schema_extra={"x-anyschema": {"time_unit": "ms"}})
 
 
 @attrs.define
@@ -143,9 +147,18 @@ class AttrsEventWithTimeMetadata:
 
     name: str
     created_at: datetime
-    scheduled_at: datetime = attrs.field(metadata={"anyschema/time_zone": "UTC"})
-    started_at: datetime = attrs.field(metadata={"anyschema/time_unit": "ms"})
-    completed_at: datetime = attrs.field(metadata={"anyschema/time_zone": "Europe/Berlin", "anyschema/time_unit": "ns"})
+    scheduled_at: datetime = attrs.field(metadata={"anyschema": {"time_zone": "UTC"}})
+    started_at: datetime = attrs.field(metadata={"anyschema": {"time_unit": "ms"}})
+    completed_at: datetime = attrs.field(metadata={"anyschema": {"time_zone": "Europe/Berlin", "time_unit": "ns"}})
+
+
+@attrs.define
+class AttrsEventWithXAnyschema:
+    """Attrs class using x-anyschema prefix (OpenAPI compatibility)."""
+
+    name: str
+    created_at: datetime = attrs.field(metadata={"x-anyschema": {"time_zone": "UTC"}})
+    started_at: datetime = attrs.field(metadata={"x-anyschema": {"time_unit": "ms"}})
 
 
 class PydanticZipcode(BaseModel):
@@ -163,11 +176,11 @@ class AttrsAddressWithPydantic:
 class DataclassEventWithTimeMetadata:
     """Dataclass with datetime fields that have time metadata."""
 
-    name: str = field(metadata={"anyschema/description": "Event name"})
+    name: str = field(metadata={"anyschema": {"description": "Event name"}})
     created_at: datetime
-    scheduled_at: datetime = field(metadata={"anyschema/time_zone": "UTC", "anyschema/description": "Scheduled time"})
-    started_at: datetime = field(metadata={"anyschema/time_unit": "ms"})
-    completed_at: datetime = field(metadata={"anyschema/time_zone": "Europe/Berlin", "anyschema/time_unit": "ns"})
+    scheduled_at: datetime = field(metadata={"anyschema": {"time_zone": "UTC", "description": "Scheduled time"}})
+    started_at: datetime = field(metadata={"anyschema": {"time_unit": "ms"}})
+    completed_at: datetime = field(metadata={"anyschema": {"time_zone": "Europe/Berlin", "time_unit": "ns"}})
 
 
 def create_missing_decorator_test_case() -> tuple[type, str]:
@@ -236,11 +249,11 @@ class ComplexORM(SQLAlchemyBase):
 
 
 # Core Table instances
-metadata = MetaData()
+sql_metadata = MetaData()
 
 user_table = Table(
     "user",
-    metadata,
+    sql_metadata,
     Column[int]("id", Integer, primary_key=True, nullable=False, doc="Primary key"),
     Column[str]("name", String(50)),
     Column[int]("age", Integer, doc="User age"),
@@ -249,7 +262,7 @@ user_table = Table(
 
 numeric_table = Table(
     "numeric_table",
-    metadata,
+    sql_metadata,
     Column[int]("int_col", Integer),
     Column[int]("bigint_col", BigInteger),
     Column[str]("string_col", String(100)),
@@ -258,7 +271,7 @@ numeric_table = Table(
 
 complex_table = Table(
     "complex_table",
-    metadata,
+    sql_metadata,
     Column[int]("id", Integer, primary_key=True),
     Column[str]("name", String(50)),
     Column[str]("description", String),
@@ -271,14 +284,14 @@ complex_table = Table(
 
 bigint_table = Table(
     "bigint_table",
-    metadata,
+    sql_metadata,
     Column[int]("id", BigInteger, primary_key=True),
     Column[int]("count", BigInteger),
 )
 
 array_list_table = Table(
     "array_list_table",
-    metadata,
+    sql_metadata,
     Column[int]("id", Integer, primary_key=True),
     Column[Sequence[str]]("tags", ARRAY(String)),
     Column[Sequence[float]]("scores", ARRAY(Float())),
@@ -286,7 +299,7 @@ array_list_table = Table(
 
 array_fixed_table = Table(
     "array_fixed_table",
-    metadata,
+    sql_metadata,
     Column[int]("id", Integer, primary_key=True),
     Column[Sequence[float]]("coordinates", ARRAY(Float(), dimensions=3)),
     Column[Sequence[int]]("matrix", ARRAY(Integer, dimensions=2)),
@@ -295,16 +308,16 @@ array_fixed_table = Table(
 # Tables with datetime metadata
 event_table_with_time_metadata = Table(
     "event_with_time_metadata",
-    metadata,
+    sql_metadata,
     Column[int]("id", Integer, primary_key=True),
     Column[str]("name", String(100)),
     Column[datetime]("created_at", DateTime),  # No metadata
-    Column[datetime]("scheduled_at", DateTime(timezone=True), info={"anyschema/time_zone": "UTC"}),
-    Column[datetime]("started_at", DateTime, info={"anyschema/time_unit": "ms"}),
+    Column[datetime]("scheduled_at", DateTime(timezone=True), info={"anyschema": {"time_zone": "UTC"}}),
+    Column[datetime]("started_at", DateTime, info={"anyschema": {"time_unit": "ms"}}),
     Column[datetime](
         "completed_at",
         DateTime(timezone=True),
-        info={"anyschema/time_zone": "Europe/Berlin", "anyschema/time_unit": "ns"},
+        info={"anyschema": {"time_zone": "Europe/Berlin", "time_unit": "ns"}},
     ),
 )
 
@@ -317,26 +330,26 @@ class EventORMWithTimeMetadata(SQLAlchemyBase):
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str]
     created_at: Mapped[DateTime] = mapped_column(DateTime)
-    scheduled_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), info={"anyschema/time_zone": "UTC"})
-    started_at: Mapped[DateTime] = mapped_column(DateTime, info={"anyschema/time_unit": "ms"})
+    scheduled_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), info={"anyschema": {"time_zone": "UTC"}})
+    started_at: Mapped[DateTime] = mapped_column(DateTime, info={"anyschema": {"time_unit": "ms"}})
     completed_at: Mapped[DateTime] = mapped_column(
-        DateTime(timezone=True), info={"anyschema/time_zone": "Europe/Berlin", "anyschema/time_unit": "ns"}
+        DateTime(timezone=True), info={"anyschema": {"time_zone": "Europe/Berlin", "time_unit": "ns"}}
     )
 
 
 # Table with timezone-aware datetime (timezone=True)
 event_table_with_tz_aware = Table(
     "event_with_tz_aware",
-    metadata,
+    sql_metadata,
     Column("id", Integer, primary_key=True),
     Column(
         "timestamp_utc",
         DateTime(timezone=True),
-        info={"anyschema/time_zone": "UTC"},
+        info={"anyschema": {"time_zone": "UTC"}},
     ),
     Column(
         "timestamp_berlin",
         DateTime(timezone=True),
-        info={"anyschema/time_zone": "Europe/Berlin", "anyschema/time_unit": "ms"},
+        info={"anyschema": {"time_zone": "Europe/Berlin", "time_unit": "ms"}},
     ),
 )

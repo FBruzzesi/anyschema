@@ -58,12 +58,13 @@ class AnyField:
         nullable: Whether the field can contain null values. Defaults to False.
             Parsing a type specification will flag this as True if:
 
-            - The `anyschema/nullable` metadata key is explicitly set to True, or
+            - The `{"anyschema": {"nullable": True}}` metadata key is explicitly set to True, or
             - The type is `Optional[T]` or `T | None` (which automatically sets the metadata)
         unique: Whether all values in this field must be unique. Defaults to False.
-            Determined by the `anyschema/unique` metadata key or SQLAlchemy column unique argument.
+            Determined by the `{"anyschema": {"unique": ...}}` metadata key or SQLAlchemy column unique argument.
         description: Human-readable field description.
-        metadata: Custom metadata dict containing any metadata that is not under the `anyschema/*` namespace.
+        metadata: Custom metadata dict containing any metadata that is not under the `anyschema` or `x-anyschema`
+            namespace.
 
     Examples:
         Creating a simple field:

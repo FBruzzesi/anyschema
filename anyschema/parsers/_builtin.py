@@ -10,6 +10,7 @@ import narwhals as nw
 from typing_extensions import get_args, get_origin, get_type_hints  # noqa: UP035
 
 from anyschema._dependencies import is_typed_dict
+from anyschema._metadata import get_anyschema_value_by_key
 from anyschema.exceptions import UnsupportedDTypeError
 from anyschema.parsers._base import ParserStep
 
@@ -67,8 +68,8 @@ class PyTypeStep(ParserStep):
                 return nw.Float64()
             if issubclass(input_type, datetime):
                 return nw.Datetime(
-                    time_unit=metadata.get("anyschema/time_unit", "us"),
-                    time_zone=metadata.get("anyschema/time_zone"),
+                    time_unit=get_anyschema_value_by_key(metadata, key="time_unit", default="us"),
+                    time_zone=get_anyschema_value_by_key(metadata, key="time_zone"),
                 )
             if issubclass(input_type, date):
                 return nw.Date()

@@ -75,7 +75,7 @@ def test_sqlalchemy_datetime_naive_with_time_unit_metadata(
     sqlalchemy_step: SQLAlchemyTypeStep, time_unit: TimeUnit
 ) -> None:
     result = sqlalchemy_step.parse(
-        input_type=sqltypes.DateTime(), constraints=(), metadata={"anyschema/time_unit": time_unit}
+        input_type=sqltypes.DateTime(), constraints=(), metadata={"anyschema": {"time_unit": time_unit}}
     )
     assert result == nw.Datetime(time_unit)
 
@@ -89,11 +89,11 @@ def test_sqlalchemy_datetime_tz_aware_without_metadata_raises(sqlalchemy_step: S
 @pytest.mark.parametrize(
     ("metadata", "expected"),
     [
-        ({"anyschema/time_zone": "UTC"}, nw.Datetime("us", time_zone="UTC")),
-        ({"anyschema/time_zone": "Europe/Rome"}, nw.Datetime("us", time_zone="Europe/Rome")),
-        ({"anyschema/time_unit": "ms", "anyschema/time_zone": "UTC"}, nw.Datetime("ms", time_zone="UTC")),
+        ({"anyschema": {"time_zone": "UTC"}}, nw.Datetime("us", time_zone="UTC")),
+        ({"anyschema": {"time_zone": "Europe/Rome"}}, nw.Datetime("us", time_zone="Europe/Rome")),
+        ({"anyschema": {"time_unit": "ms", "time_zone": "UTC"}}, nw.Datetime("ms", time_zone="UTC")),
         (
-            {"anyschema/time_unit": "ns", "anyschema/time_zone": "America/New_York"},
+            {"anyschema": {"time_unit": "ns", "time_zone": "America/New_York"}},
             nw.Datetime("ns", time_zone="America/New_York"),
         ),
     ],
@@ -115,7 +115,7 @@ def test_sqlalchemy_datetime_naive_with_timezone_raises(sqlalchemy_step: SQLAlch
         sqlalchemy_step.parse(
             input_type=sqltypes.DateTime(timezone=False),
             constraints=(),
-            metadata={"anyschema/time_zone": "UTC"},
+            metadata={"anyschema": {"time_zone": "UTC"}},
         )
 
 

@@ -7,6 +7,7 @@ from sqlalchemy import types as sqltypes
 from typing_extensions import TypeIs
 
 from anyschema._metadata import get_anyschema_value_by_key
+from anyschema._utils import is_sequence_of
 from anyschema.exceptions import UnsupportedDTypeError
 from anyschema.parsers._base import ParserStep
 
@@ -147,8 +148,9 @@ class SQLAlchemyTypeStep(ParserStep):
         # ARRAY.item_type is a TypeEngine instance, which is also a valid FieldType
         # SQLAlchemy's type stubs don't provide full generic parameter information for item_type
         inner_type = self.pipeline.parse(input_type.item_type, constraints=constraints, metadata=metadata, strict=True)
+        shape = input_type.dimensions
         return (
-            nw.List(inner=inner_type)
-            if input_type.dimensions is None
-            else nw.Array(inner=inner_type, shape=input_type.dimensions)
+            nw.Array(inner=inner_type, shape=tuple(shape) if is_sequence_of(shape, int) else shape)
+            if isinstance(shape, int) or is_sequence_of(shape, int)
+            else nw.List(inner=inner_type)
         )

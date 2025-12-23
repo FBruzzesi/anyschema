@@ -61,6 +61,7 @@ jobs:
           cache-dependency-glob: "pyproject.toml"
       - name: Run type checking
         run: |
+          uv run --all-extras --group typing ty check anyschema tests --output-format github
           uv run --all-extras --group typing pyright anyschema tests
           uv run --all-extras --group typing mypy anyschema tests
 

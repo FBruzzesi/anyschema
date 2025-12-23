@@ -52,7 +52,7 @@ class PydanticTypeStep(ParserStep):
             return None
 
         # Handle AwareDatetime
-        if issubclass(input_type, AwareDatetime):  # pyright: ignore[reportArgumentType]
+        if issubclass(input_type, AwareDatetime):  # pyright: ignore[reportArgumentType]  # ty: ignore[invalid-argument-type]
             # Pydantic AwareDatetime does not fix a single timezone, but any timezone would work.
             # See https://github.com/pydantic/pydantic/issues/5829
             # Unless a timezone is specified via {"anyschema": {"time_zone": ...}}, we raise an error.
@@ -68,7 +68,7 @@ class PydanticTypeStep(ParserStep):
                 time_unit=get_anyschema_value_by_key(metadata, key="time_unit", default="us"), time_zone=time_zone
             )
 
-        if issubclass(input_type, NaiveDatetime):  # pyright: ignore[reportArgumentType]
+        if issubclass(input_type, NaiveDatetime):  # pyright: ignore[reportArgumentType] # ty: ignore[invalid-argument-type]
             # Pydantic NaiveDatetime should not receive a timezone.
             # If a timezone is specified via {"anyschema": {"time_zone": ...}}, we raise an error.
             if (time_zone := get_anyschema_value_by_key(metadata, key="time_zone")) is not None:

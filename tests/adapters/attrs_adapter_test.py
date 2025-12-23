@@ -34,23 +34,23 @@ def test_attrs_adapter(spec: AttrsClassType) -> None:
 
 
 def test_attrs_adapter_with_metadata() -> None:
-    result = list(attrs_adapter(AttrsBookWithMetadata))
+    result = list(attrs_adapter(AttrsBookWithMetadata))  # ty: ignore[invalid-argument-type]
     assert result == [("title", str, (), {"description": "Book title"}), ("author", str, (), {"max_length": 100})]
 
 
 def test_attrs_adapter_with_inheritance() -> None:
-    result = list(attrs_adapter(AttrsDerived))
+    result = list(attrs_adapter(AttrsDerived))  # ty: ignore[invalid-argument-type]
     assert result == [("foo", str, (), {}), ("bar", int, (), {}), ("baz", float, (), {})]
 
 
 def test_attrs_adapter_missing_decorator_raises() -> None:
     child_cls, expected_msg = create_missing_decorator_test_case()
     with pytest.raises(AssertionError, match=expected_msg.replace("(", r"\(").replace(")", r"\)")):
-        list(attrs_adapter(child_cls))
+        list(attrs_adapter(child_cls))  # ty: ignore[invalid-argument-type]
 
 
 def test_attrs_adapter_with_time_metadata() -> None:
-    result = tuple(attrs_adapter(AttrsEventWithTimeMetadata))
+    result = tuple(attrs_adapter(AttrsEventWithTimeMetadata))  # ty: ignore[invalid-argument-type]
     expected: tuple[FieldSpec, ...] = (
         ("name", str, (), {}),
         ("created_at", datetime, (), {}),

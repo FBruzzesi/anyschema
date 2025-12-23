@@ -53,9 +53,9 @@ tests = [
 ]
 
 typing = [
+  "mypy",
   "pandas-stubs",
   "pyarrow-stubs",
-  "mypy",
   "pyright",
   "ty",
   {include-group = "tests"},

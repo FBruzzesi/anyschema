@@ -15,6 +15,7 @@ test:
 	uv run --active --no-sync --group tests pytest anyschema --doctest-modules
 
 typing:
+	uv run --active --no-sync --group typing ty check $(sources) --output-format concise
 	uv run --active --no-sync --group typing pyright $(sources)
 	uv run --active --no-sync --group typing mypy $(sources)
 

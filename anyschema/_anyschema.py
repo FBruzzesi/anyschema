@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from operator import attrgetter
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, Literal, TypeVar, cast, overload
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, TypeAlias, TypeVar, cast, overload
 
 from narwhals.schema import Schema
 
@@ -36,8 +36,8 @@ if TYPE_CHECKING:
 
     from anyschema.typing import Adapter, IntoParserPipeline, Spec
 
-T = TypeVar("T")
-
+    T = TypeVar("T", bool, str | None, DType)
+    AnyFieldAttrAccessor: TypeAlias = Callable[["AnyField"], T]
 
 __all__ = ("AnyField", "AnySchema")
 
@@ -238,8 +238,15 @@ class AnySchema:
         - [Spec Adapters][anyschema.adapters]: Adapters for various specifications
     """
 
+    __slots__ = ("_fields", "_nw_schema")
+
     _nw_schema: Schema
     _fields: MappingProxyType[str, AnyField]
+
+    _get_description: ClassVar[AnyFieldAttrAccessor[str | None]] = attrgetter("description")
+    _get_dtype: ClassVar[AnyFieldAttrAccessor[DType]] = attrgetter("dtype")
+    _get_nullable: ClassVar[AnyFieldAttrAccessor[bool]] = attrgetter("nullable")
+    _get_unique: ClassVar[AnyFieldAttrAccessor[bool]] = attrgetter("unique")
 
     def __init__(
         self,
@@ -342,13 +349,13 @@ class AnySchema:
         return dict(self._fields)
 
     @overload
-    def _get_field_attribute(self, attr_getter: Callable[[AnyField], T], *, named: Literal[True]) -> dict[str, T]: ...
+    def _get_field_attribute(self, attr_getter: AnyFieldAttrAccessor[T], *, named: Literal[True]) -> dict[str, T]: ...
 
     @overload
-    def _get_field_attribute(self, attr_getter: Callable[[AnyField], T], *, named: Literal[False]) -> tuple[T, ...]: ...
+    def _get_field_attribute(self, attr_getter: AnyFieldAttrAccessor[T], *, named: Literal[False]) -> tuple[T, ...]: ...
 
     def _get_field_attribute(
-        self, attr_getter: Callable[[AnyField], T], *, named: bool
+        self, attr_getter: AnyFieldAttrAccessor[T], *, named: bool
     ) -> dict[str, T] | tuple[T, ...]:
         """Extract an attribute from all fields, returning either a dict or tuple.
 
@@ -359,9 +366,11 @@ class AnySchema:
         Returns:
             Either a dict mapping field names to attribute values, or a tuple of attribute values.
         """
-        if named:
-            return {_field.name: attr_getter(_field) for _field in self._fields.values()}
-        return tuple(attr_getter(_field) for _field in self._fields.values())
+        return (
+            {_field.name: attr_getter(_field) for _field in self._fields.values()}
+            if named
+            else tuple(attr_getter(_field) for _field in self._fields.values())
+        )
 
     @overload
     def dtypes(self, *, named: Literal[True]) -> dict[str, DType]: ...
@@ -388,7 +397,7 @@ class AnySchema:
             >>> schema.dtypes(named=True)
             {'id': Int64, 'name': String, 'score': Float64}
         """
-        return self._get_field_attribute(attrgetter("dtype"), named=named)  # type: ignore[no-any-return, call-overload]
+        return self._get_field_attribute(self._get_dtype, named=named)  # type: ignore[call-overload, misc, no-any-return]
 
     @overload
     def descriptions(self, *, named: Literal[True]) -> dict[str, str | None]: ...
@@ -421,7 +430,7 @@ class AnySchema:
             >>> schema.descriptions(named=True)
             {'id': 'User ID', 'name': None}
         """
-        return self._get_field_attribute(attrgetter("description"), named=named)  # type: ignore[no-any-return, call-overload]
+        return self._get_field_attribute(self._get_description, named=named)  # type: ignore[call-overload, misc, no-any-return]
 
     @overload
     def nullables(self, *, named: Literal[True]) -> dict[str, bool]: ...
@@ -449,7 +458,7 @@ class AnySchema:
             >>> schema.nullables(named=True)
             {'id': False, 'name': False, 'age': True}
         """
-        return self._get_field_attribute(attrgetter("nullable"), named=named)  # type: ignore[no-any-return, call-overload]
+        return self._get_field_attribute(self._get_nullable, named=named)  # type: ignore[call-overload, misc, no-any-return]
 
     @overload
     def uniques(self, *, named: Literal[True]) -> dict[str, bool]: ...
@@ -486,7 +495,7 @@ class AnySchema:
             >>> schema.uniques(named=True)
             {'id': False, 'email': True, 'name': False}
         """
-        return self._get_field_attribute(attrgetter("unique"), named=named)  # type: ignore[no-any-return, call-overload]
+        return self._get_field_attribute(self._get_unique, named=named)  # type: ignore[call-overload, misc, no-any-return]
 
     def __eq__(self, other: object) -> bool:
         """Check equality between two AnySchema instances.

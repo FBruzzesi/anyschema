@@ -32,7 +32,6 @@ if TYPE_CHECKING:
     import pyarrow as pa
     from narwhals.dtypes import DType
     from narwhals.typing import DTypeBackend
-    from typing_extensions import Self
 
     from anyschema.typing import Adapter, IntoParserPipeline, Spec
 
@@ -240,7 +239,7 @@ class AnySchema:
     fields: dict[str, AnyField]
 
     def __init__(
-        self: Self,
+        self,
         spec: Spec,
         pipeline: ParserPipeline | IntoParserPipeline = "auto",
         adapter: Adapter | None = None,
@@ -279,7 +278,53 @@ class AnySchema:
         }
         self._nw_schema = Schema({name: field.dtype for name, field in self.fields.items()})
 
-    def to_arrow(self: Self) -> pa.Schema:
+    def __eq__(self, other: object) -> bool:
+        """Check equality between two AnySchema instances.
+
+        Two AnySchema instances are considered equal if they have the same fields.
+
+        Arguments:
+            other: Object to compare with.
+
+        Returns:
+            True if both instances have identical fields, False otherwise.
+
+        Examples:
+            >>> from anyschema import AnySchema
+            >>>
+            >>> schema1 = AnySchema(spec={"name": str, "age": int})
+            >>> schema2 = AnySchema(spec={"name": str, "age": int})
+            >>> schema3 = AnySchema(spec={"name": str})
+            >>>
+            >>> schema1 == schema2
+            True
+            >>> schema1 == schema3
+            False
+        """
+        return isinstance(other, AnySchema) and tuple(self.fields.values()) == tuple(other.fields.values())
+
+    def __hash__(self) -> int:
+        """Compute hash value for the AnySchema instance.
+
+        This allows AnySchema instances to be used in sets and as dictionary keys.
+
+        Returns:
+            Hash value of the schema.
+
+        Examples:
+            >>> from anyschema import AnySchema
+            >>>
+            >>> schema1 = AnySchema(spec={"name": str, "age": int})
+            >>> schema2 = AnySchema(spec={"name": str, "age": int})
+            >>>
+            >>> hash(schema1) == hash(schema2)
+            True
+            >>> len({schema1, schema2})
+            1
+        """
+        return hash(tuple(self.fields.values()))
+
+    def to_arrow(self) -> pa.Schema:
         """Converts input model into pyarrow schema.
 
         Returns:
@@ -313,7 +358,7 @@ class AnySchema:
         )
 
     def to_pandas(
-        self: Self, *, dtype_backend: DTypeBackend | Iterable[DTypeBackend] = None
+        self, *, dtype_backend: DTypeBackend | Iterable[DTypeBackend] = None
     ) -> dict[str, str | pd.ArrowDtype | type]:
         """Converts input model into mapping of {field_name: pandas_dtype}.
 
@@ -340,7 +385,7 @@ class AnySchema:
         """
         return self._nw_schema.to_pandas(dtype_backend=dtype_backend)
 
-    def to_polars(self: Self) -> pl.Schema:
+    def to_polars(self) -> pl.Schema:
         """Converts input model into polars Schema.
 
         Returns:

@@ -52,11 +52,11 @@ def test_dataclass_adapter_missing_decorator_raises() -> None:
     )
 
     with pytest.raises(AssertionError, match=expected_msg.replace("(", r"\(").replace(")", r"\)")):
-        list(dataclass_adapter(ChildWithoutDecorator))
+        list(dataclass_adapter(ChildWithoutDecorator))  # ty: ignore[invalid-argument-type]
 
 
 def test_dataclass_adapter_with_time_metadata() -> None:
-    result = tuple(dataclass_adapter(DataclassEventWithTimeMetadata))
+    result = tuple(dataclass_adapter(DataclassEventWithTimeMetadata))  # ty: ignore[invalid-argument-type]
 
     expected: tuple[FieldSpec, ...] = (
         ("name", str, (), {"anyschema": {"description": "Event name"}}),
@@ -73,14 +73,14 @@ def test_dataclass_adapter_with_time_metadata() -> None:
 def test_dataclass_adapter_with_doc_argument() -> None:
     @dataclass
     class Product:
-        name: str = field(doc="Product name")  # pyright: ignore[reportCallIssue]
-        price: float = field(  # pyright: ignore[reportCallIssue]
+        name: str = field(doc="Product name")  # pyright: ignore[reportCallIssue]  # ty: ignore[no-matching-overload]
+        price: float = field(  # pyright: ignore[reportCallIssue]  # ty: ignore[no-matching-overload]
             doc="Product price",
             metadata={"anyschema": {"description": "From metadata"}},  # anyschema metadata have precedence
         )
         in_stock: bool
 
-    result = list(dataclass_adapter(Product))
+    result = list(dataclass_adapter(Product))  # ty: ignore[invalid-argument-type]
     expected = [
         ("name", str, (), {"anyschema": {"description": "Product name"}}),
         ("price", float, (), {"anyschema": {"description": "From metadata"}}),

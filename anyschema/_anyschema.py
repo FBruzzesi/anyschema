@@ -405,7 +405,7 @@ class AnySchema:
 
         Returns:
             Either a dict of {field_name: description} or a tuple of descriptions.
-            Description values are None for fields without descriptions.
+                Description values are None for fields without descriptions.
 
         Examples:
             >>> from anyschema import AnySchema
@@ -437,8 +437,8 @@ class AnySchema:
                 If False (default), return a tuple of nullable flags in field order.
 
         Returns:
-            Either a dict of {field_name: nullable} or a tuple of nullable flags.
-            A field is nullable if it accepts None values (e.g., `Optional[int]` or `int | None`).
+            Either a dict of {field_name: nullable} or a tuple of nullable flags. A field is nullable if it accepts
+                None values (e.g., `Optional[int]` or `int | None`).
 
         Examples:
             >>> from anyschema import AnySchema
@@ -465,8 +465,8 @@ class AnySchema:
                 If False (default), return a tuple of unique flags in field order.
 
         Returns:
-            Either a dict of {field_name: unique} or a tuple of unique flags.
-            A field is unique if it has a uniqueness constraint (e.g., from SQLAlchemy or metadata).
+            Either a dict of {field_name: unique} or a tuple of unique flags. A field is unique if it has a uniqueness
+                constraint (e.g., from SQLAlchemy or metadata).
 
         Examples:
             >>> from anyschema import AnySchema

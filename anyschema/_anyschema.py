@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from collections.abc import Iterable
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, cast
+from operator import attrgetter
+from types import MappingProxyType
+from typing import TYPE_CHECKING, Any, Literal, TypeVar, cast, overload
 
 from narwhals.schema import Schema
 
@@ -25,7 +26,7 @@ from anyschema.adapters import (
 from anyschema.parsers import ParserPipeline
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Mapping
+    from collections.abc import Callable, Iterable, Mapping
 
     import pandas as pd
     import polars as pl
@@ -34,6 +35,8 @@ if TYPE_CHECKING:
     from narwhals.typing import DTypeBackend
 
     from anyschema.typing import Adapter, IntoParserPipeline, Spec
+
+T = TypeVar("T")
 
 
 __all__ = ("AnyField", "AnySchema")
@@ -236,7 +239,7 @@ class AnySchema:
     """
 
     _nw_schema: Schema
-    fields: dict[str, AnyField]
+    _fields: MappingProxyType[str, AnyField]
 
     def __init__(
         self,
@@ -247,7 +250,7 @@ class AnySchema:
         if isinstance(spec, Schema):
             # Create Field objects from the schema with default values as Narwhals Schema's/Dtypes do not carry
             # nullability, uniqueness nor metadata information.
-            self.fields = {name: AnyField(name=name, dtype=dtype) for name, dtype in spec.items()}
+            self._fields = MappingProxyType({name: AnyField(name=name, dtype=dtype) for name, dtype in spec.items()})
             self._nw_schema = spec
             return
 
@@ -272,11 +275,218 @@ class AnySchema:
             msg = "`spec` type is unknown and `adapter` is not specified."
             raise ValueError(msg)
 
-        self.fields = {
-            name: parser_pipeline.parse_into_field(name, input_type, constraints, metadata)
-            for name, input_type, constraints, metadata in adapter_f(cast("Any", spec))
-        }
-        self._nw_schema = Schema({name: field.dtype for name, field in self.fields.items()})
+        self._fields = MappingProxyType(
+            {
+                name: parser_pipeline.parse_into_field(name, input_type, constraints, metadata)
+                for name, input_type, constraints, metadata in adapter_f(cast("Any", spec))
+            }
+        )
+        self._nw_schema = Schema({name: field.dtype for name, field in self._fields.items()})
+
+    def names(self) -> tuple[str, ...]:
+        """Return the names of all fields in the schema.
+
+        Returns:
+            Tuple of field names in the order they appear in the schema.
+
+        Examples:
+            >>> from anyschema import AnySchema
+            >>>
+            >>> schema = AnySchema(spec={"id": int, "name": str, "age": int})
+            >>> schema.names()
+            ('id', 'name', 'age')
+        """
+        return tuple(self._fields.keys())
+
+    def field(self, name: str) -> AnyField:
+        """Get a specific field by name.
+
+        Arguments:
+            name: The name of the field to retrieve.
+
+        Returns:
+            The AnyField object for the specified field name.
+
+        Raises:
+            KeyError: If the field name does not exist in the schema.
+
+        Examples:
+            >>> from anyschema import AnySchema
+            >>>
+            >>> schema = AnySchema(spec={"id": int, "name": str})
+            >>> field = schema.field("name")
+            >>> field.dtype
+            String
+            >>> field.nullable
+            False
+        """
+        return self._fields[name]
+
+    @property
+    def fields(self) -> dict[str, AnyField]:
+        """Get all fields as a dictionary.
+
+        Returns:
+            Dictionary mapping field names to AnyField objects.
+
+        Examples:
+            >>> from anyschema import AnySchema
+            >>>
+            >>> schema = AnySchema(spec={"id": int, "name": str})
+            >>> fields = schema.fields
+            >>> fields["name"].dtype
+            String
+            >>> list(fields.keys())
+            ['id', 'name']
+        """
+        return dict(self._fields)
+
+    @overload
+    def _get_field_attribute(self, attr_getter: Callable[[AnyField], T], *, named: Literal[True]) -> dict[str, T]: ...
+
+    @overload
+    def _get_field_attribute(self, attr_getter: Callable[[AnyField], T], *, named: Literal[False]) -> tuple[T, ...]: ...
+
+    def _get_field_attribute(
+        self, attr_getter: Callable[[AnyField], T], *, named: bool
+    ) -> dict[str, T] | tuple[T, ...]:
+        """Extract an attribute from all fields, returning either a dict or tuple.
+
+        Arguments:
+            attr_getter: Function that extracts the desired attribute from an AnyField.
+            named: If True, return a dict mapping field names to values. If False, return a tuple of values.
+
+        Returns:
+            Either a dict mapping field names to attribute values, or a tuple of attribute values.
+        """
+        if named:
+            return {_field.name: attr_getter(_field) for _field in self._fields.values()}
+        return tuple(attr_getter(_field) for _field in self._fields.values())
+
+    @overload
+    def dtypes(self, *, named: Literal[True]) -> dict[str, DType]: ...
+
+    @overload
+    def dtypes(self, *, named: Literal[False] = False) -> tuple[DType, ...]: ...
+
+    def dtypes(self, *, named: bool = False) -> dict[str, DType] | tuple[DType, ...]:
+        """Get the data types of all fields.
+
+        Arguments:
+            named: If True, return a dict mapping field names to dtypes.
+                If False (default), return a tuple of dtypes in field order.
+
+        Returns:
+            Either a dict of {field_name: dtype} or a tuple of dtypes.
+
+        Examples:
+            >>> from anyschema import AnySchema
+            >>>
+            >>> schema = AnySchema(spec={"id": int, "name": str, "score": float})
+            >>> schema.dtypes()
+            (Int64, String, Float64)
+            >>> schema.dtypes(named=True)
+            {'id': Int64, 'name': String, 'score': Float64}
+        """
+        return self._get_field_attribute(attrgetter("dtype"), named=named)  # type: ignore[no-any-return, call-overload]
+
+    @overload
+    def descriptions(self, *, named: Literal[True]) -> dict[str, str | None]: ...
+
+    @overload
+    def descriptions(self, *, named: Literal[False] = False) -> tuple[str | None, ...]: ...
+
+    def descriptions(self, *, named: bool = False) -> dict[str, str | None] | tuple[str | None, ...]:
+        """Get the descriptions of all fields.
+
+        Arguments:
+            named: If True, return a dict mapping field names to descriptions.
+                If False (default), return a tuple of descriptions in field order.
+
+        Returns:
+            Either a dict of {field_name: description} or a tuple of descriptions.
+            Description values are None for fields without descriptions.
+
+        Examples:
+            >>> from anyschema import AnySchema
+            >>> from pydantic import BaseModel, Field
+            >>>
+            >>> class User(BaseModel):
+            ...     id: int = Field(description="User ID")
+            ...     name: str
+            >>>
+            >>> schema = AnySchema(spec=User)
+            >>> schema.descriptions()
+            ('User ID', None)
+            >>> schema.descriptions(named=True)
+            {'id': 'User ID', 'name': None}
+        """
+        return self._get_field_attribute(attrgetter("description"), named=named)  # type: ignore[no-any-return, call-overload]
+
+    @overload
+    def nullables(self, *, named: Literal[True]) -> dict[str, bool]: ...
+
+    @overload
+    def nullables(self, *, named: Literal[False] = False) -> tuple[bool, ...]: ...
+
+    def nullables(self, *, named: bool = False) -> dict[str, bool] | tuple[bool, ...]:
+        """Get the nullable flags of all fields.
+
+        Arguments:
+            named: If True, return a dict mapping field names to nullable flags.
+                If False (default), return a tuple of nullable flags in field order.
+
+        Returns:
+            Either a dict of {field_name: nullable} or a tuple of nullable flags.
+            A field is nullable if it accepts None values (e.g., `Optional[int]` or `int | None`).
+
+        Examples:
+            >>> from anyschema import AnySchema
+            >>>
+            >>> schema = AnySchema(spec={"id": int, "name": str, "age": int | None})
+            >>> schema.nullables()
+            (False, False, True)
+            >>> schema.nullables(named=True)
+            {'id': False, 'name': False, 'age': True}
+        """
+        return self._get_field_attribute(attrgetter("nullable"), named=named)  # type: ignore[no-any-return, call-overload]
+
+    @overload
+    def uniques(self, *, named: Literal[True]) -> dict[str, bool]: ...
+
+    @overload
+    def uniques(self, *, named: Literal[False] = False) -> tuple[bool, ...]: ...
+
+    def uniques(self, *, named: bool = False) -> dict[str, bool] | tuple[bool, ...]:
+        """Get the unique constraint flags of all fields.
+
+        Arguments:
+            named: If True, return a dict mapping field names to unique flags.
+                If False (default), return a tuple of unique flags in field order.
+
+        Returns:
+            Either a dict of {field_name: unique} or a tuple of unique flags.
+            A field is unique if it has a uniqueness constraint (e.g., from SQLAlchemy or metadata).
+
+        Examples:
+            >>> from anyschema import AnySchema
+            >>> from sqlalchemy import Column, Integer, String, Table, MetaData
+            >>>
+            >>> users_table = Table(
+            ...     "users",
+            ...     MetaData(),
+            ...     Column("id", Integer, primary_key=True),
+            ...     Column("email", String, unique=True),
+            ...     Column("name", String),
+            ... )
+            >>>
+            >>> schema = AnySchema(spec=users_table)
+            >>> schema.uniques()
+            (False, True, False)
+            >>> schema.uniques(named=True)
+            {'id': False, 'email': True, 'name': False}
+        """
+        return self._get_field_attribute(attrgetter("unique"), named=named)  # type: ignore[no-any-return, call-overload]
 
     def __eq__(self, other: object) -> bool:
         """Check equality between two AnySchema instances.
@@ -301,7 +511,7 @@ class AnySchema:
             >>> schema1 == schema3
             False
         """
-        return isinstance(other, AnySchema) and tuple(self.fields.values()) == tuple(other.fields.values())
+        return isinstance(other, AnySchema) and tuple(self._fields.values()) == tuple(other._fields.values())
 
     def __hash__(self) -> int:
         """Compute hash value for the AnySchema instance.
@@ -322,7 +532,7 @@ class AnySchema:
             >>> len({schema1, schema2})
             1
         """
-        return hash(tuple(self.fields.values()))
+        return hash(tuple(self._fields.values()))
 
     def to_arrow(self) -> pa.Schema:
         """Converts input model into pyarrow schema.
@@ -354,7 +564,7 @@ class AnySchema:
             pa_field.with_nullable(field.nullable).with_metadata({k: str(v) for k, v in field.metadata.items()})
             if field.metadata
             else pa_field.with_nullable(field.nullable)
-            for pa_field, field in zip(self._nw_schema.to_arrow(), self.fields.values(), strict=True)
+            for pa_field, field in zip(self._nw_schema.to_arrow(), self._fields.values(), strict=True)
         )
 
     def to_pandas(

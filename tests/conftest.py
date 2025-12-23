@@ -228,7 +228,7 @@ class ProductORM(SQLAlchemyBase):
     """ORM model with multiple field types for testing."""
 
     __tablename__ = "product_orm"
-    id: Mapped[int] = mapped_column(primary_key=True)
+    id: Mapped[int] = mapped_column(primary_key=True, unique=True)
     name: Mapped[str]
     price: Mapped[float]
     in_stock: Mapped[bool]
@@ -300,7 +300,7 @@ array_list_table = Table(
 array_fixed_table = Table(
     "array_fixed_table",
     sql_metadata,
-    Column[int]("id", Integer, primary_key=True),
+    Column[int]("id", Integer, primary_key=True, unique=True),
     Column[Sequence[float]]("coordinates", ARRAY(Float(), dimensions=3)),
     Column[Sequence[int]]("matrix", ARRAY(Integer, dimensions=2)),
 )

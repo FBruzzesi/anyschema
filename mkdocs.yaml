@@ -72,7 +72,7 @@ plugins:
         options:
           members_order: alphabetical
           line_length: 100
-          show_overloads: false
+          show_overloads: true
           show_signature_annotations: true
           signature_crossrefs: true
 

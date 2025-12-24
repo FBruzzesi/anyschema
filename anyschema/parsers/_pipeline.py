@@ -6,7 +6,13 @@ from typing import TYPE_CHECKING, Literal, overload
 from narwhals.dtypes import DType
 from typing_extensions import Self, TypeIs
 
-from anyschema._dependencies import ANNOTATED_TYPES_AVAILABLE, ATTRS_AVAILABLE, PYDANTIC_AVAILABLE, SQLALCHEMY_AVAILABLE
+from anyschema._dependencies import (
+    ANNOTATED_TYPES_AVAILABLE,
+    ATTRS_AVAILABLE,
+    MARSHMALLOW_AVAILABLE,
+    PYDANTIC_AVAILABLE,
+    SQLALCHEMY_AVAILABLE,
+)
 from anyschema._metadata import filter_anyschema_metadata, get_anyschema_value_by_key
 from anyschema._utils import qualified_type_name
 from anyschema.parsers._annotated import AnnotatedStep
@@ -387,7 +393,13 @@ def _auto_pipeline() -> tuple[ParserStep, ...]:
 
             yield SQLAlchemyTypeStep()
 
-        # 8. PyTypeStep - handles basic Python types (fallback)
+        # 8. MarshmallowTypeStep - handles Marshmallow-specific field types (if marshmallow is available)
+        if MARSHMALLOW_AVAILABLE:
+            from anyschema.parsers.marshmallow import MarshmallowTypeStep
+
+            yield MarshmallowTypeStep()
+
+        # 9. PyTypeStep - handles basic Python types (fallback)
         yield PyTypeStep()
 
     return tuple(_generate_steps())

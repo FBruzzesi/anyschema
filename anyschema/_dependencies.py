@@ -11,14 +11,21 @@ from typing_extensions import TypeIs, is_typeddict
 if TYPE_CHECKING:
     from types import ModuleType
 
-    from pydantic import BaseModel
-
-    from anyschema.typing import AttrsClassType, DataclassType, IntoOrderedDict, SQLAlchemyTableType, TypedDictType
+    from anyschema.typing import (
+        AttrsClassType,
+        DataclassType,
+        IntoOrderedDict,
+        MarshmallowSchemaType,
+        PydanticBaseModelType,
+        SQLAlchemyTableType,
+        TypedDictType,
+    )
 
 ANNOTATED_TYPES_AVAILABLE = find_spec("annotated_types") is not None
 PYDANTIC_AVAILABLE = find_spec("pydantic") is not None
 ATTRS_AVAILABLE = find_spec("attrs") is not None
 SQLALCHEMY_AVAILABLE = find_spec("sqlalchemy") is not None
+MARSHMALLOW_AVAILABLE = find_spec("marshmallow") is not None
 
 
 def get_pydantic() -> ModuleType | None:
@@ -29,6 +36,11 @@ def get_pydantic() -> ModuleType | None:
 def get_attrs() -> ModuleType | None:
     """Get attrs module (if already imported - else return None)."""
     return sys.modules.get("attrs", None)
+
+
+def get_marshmallow() -> ModuleType | None:
+    """Get marshmallow module (if already imported - else return None)."""
+    return sys.modules.get("marshmallow", None)
 
 
 def is_into_ordered_dict(obj: object) -> TypeIs[IntoOrderedDict]:
@@ -49,7 +61,7 @@ def is_dataclass(obj: object) -> TypeIs[DataclassType]:
     return dc_is_dataclass(obj)
 
 
-def is_pydantic_base_model(obj: object) -> TypeIs[type[BaseModel]]:
+def is_pydantic_base_model(obj: object) -> TypeIs[PydanticBaseModelType]:
     """Check if the object is a pydantic BaseModel."""
     return (
         (pydantic := get_pydantic()) is not None
@@ -93,3 +105,10 @@ def is_sqlalchemy_table(obj: object) -> TypeIs[SQLAlchemyTableType]:
         and issubclass(obj, sql_orm.DeclarativeBase)
     )
     return is_table or is_declarative_base
+
+
+def is_marshmallow_schema(obj: object) -> TypeIs[MarshmallowSchemaType]:
+    """Check if the object is a marshmallow Schema class."""
+    return (
+        (marshmallow := get_marshmallow()) is not None and isinstance(obj, type) and issubclass(obj, marshmallow.Schema)
+    )

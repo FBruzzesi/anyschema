@@ -8,8 +8,9 @@ if TYPE_CHECKING:
     from typing import ClassVar
 
     from attrs import AttrsInstance
+    from marshmallow import Schema as MarshmallowSchema
     from narwhals.dtypes import DType
-    from narwhals.schema import Schema
+    from narwhals.schema import Schema as NarwhalsSchema
     from narwhals.typing import TimeUnit
     from pydantic import BaseModel
     from sqlalchemy import Table
@@ -19,6 +20,8 @@ if TYPE_CHECKING:
     from anyschema.parsers import ParserStep
 
     AttrsClassType: TypeAlias = type[AttrsInstance]
+    MarshmallowSchemaType: TypeAlias = type[MarshmallowSchema]
+    PydanticBaseModelType: TypeAlias = type[BaseModel]
     SQLAlchemyTableType: TypeAlias = Table | type[DeclarativeBase]
 
 
@@ -39,7 +42,7 @@ Either "auto" or a sequence of [`ParserStep`][anyschema.parsers.ParserStep].
 UnknownSpec: TypeAlias = Any
 """An unknown specification."""
 
-Spec: TypeAlias = "Schema | IntoOrderedDict | type[BaseModel] | DataclassType | TypedDictType | AttrsClassType | SQLAlchemyTableType | UnknownSpec"  # noqa: E501
+Spec: TypeAlias = "NarwhalsSchema | IntoOrderedDict | PydanticBaseModelType | DataclassType | TypedDictType | AttrsClassType | SQLAlchemyTableType | MarshmallowSchemaType | UnknownSpec"  # noqa: E501
 """Input specification supported directly by [`AnySchema`][anyschema.AnySchema]."""
 
 FieldName: TypeAlias = str

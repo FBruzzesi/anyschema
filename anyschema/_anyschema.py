@@ -11,6 +11,7 @@ from anyschema._dependencies import (
     is_attrs_class,
     is_dataclass,
     is_into_ordered_dict,
+    is_marshmallow_schema,
     is_pydantic_base_model,
     is_sqlalchemy_table,
     is_typed_dict,
@@ -19,6 +20,7 @@ from anyschema.adapters import (
     attrs_adapter,
     dataclass_adapter,
     into_ordered_dict_adapter,
+    marshmallow_adapter,
     pydantic_adapter,
     sqlalchemy_adapter,
     typed_dict_adapter,
@@ -143,6 +145,8 @@ class AnySchema:
                 instance or [DeclarativeBase](https://docs.sqlalchemy.org/en/20/orm/mapping_api.html#sqlalchemy.orm.DeclarativeBase)
                 subclass (not an instance).
                 The fields are extracted using SQLAlchemy's schema introspection.
+            - A [Marshmallow Schema](https://marshmallow.readthedocs.io/en/latest/) class (not an instance).
+                The fields are extracted using Marshmallow's schema introspection.
 
         pipeline: Control how types are parsed into Narwhals dtypes. Options:
 
@@ -269,6 +273,8 @@ class AnySchema:
             adapter_f = attrs_adapter
         elif is_sqlalchemy_table(spec):
             adapter_f = sqlalchemy_adapter
+        elif is_marshmallow_schema(spec):
+            adapter_f = marshmallow_adapter
         elif adapter is not None:
             adapter_f = adapter
         else:

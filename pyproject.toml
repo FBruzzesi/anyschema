@@ -37,12 +37,13 @@ Repository = "https://github.com/fbruzzesi/anyschema"
 
 [project.optional-dependencies]
 attrs = ["attrs>=22.1.0"]
+marshmallow = ["marshmallow>=3.0.0"]
 pydantic = ["pydantic>=2.0.0"]
 sqlalchemy = ["sqlalchemy>=2.0.0"]
 
 [dependency-groups]
 tests = [
-  "anyschema[attrs,pydantic,sqlalchemy]",
+  "anyschema[attrs,marshmallow,pydantic,sqlalchemy]",
   "covdefaults>=2.3.0",
   "hypothesis>=6.0.0",
   "narwhals[pandas,polars,pyarrow]",
@@ -62,7 +63,7 @@ typing = [
 ]
 
 docs = [
-  "anyschema[attrs,pydantic,sqlalchemy]",
+  "anyschema[attrs,marshmallow,pydantic,sqlalchemy]",
   "black",  # required by mkdocstrings_handlers
   "markdown-exec[ansi]",
   "mkdocs",

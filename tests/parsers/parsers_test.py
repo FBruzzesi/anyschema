@@ -18,6 +18,7 @@ from anyschema.parsers import (
 )
 from anyschema.parsers.annotated_types import AnnotatedTypesStep
 from anyschema.parsers.attrs import AttrsTypeStep
+from anyschema.parsers.marshmallow import MarshmallowTypeStep
 from anyschema.parsers.pydantic import PydanticTypeStep
 from anyschema.parsers.sqlalchemy import SQLAlchemyTypeStep
 
@@ -29,6 +30,7 @@ AUTO_PIPELINE_CLS_ORDER = (
     AttrsTypeStep,
     PydanticTypeStep,
     SQLAlchemyTypeStep,
+    MarshmallowTypeStep,
     PyTypeStep,
 )
 

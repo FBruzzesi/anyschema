@@ -4,7 +4,7 @@ This guide will help you get started with `anyschema` and explore its core funct
 
 ## Basic Usage
 
-`anyschema` accepts specifications in multiple formats including Pydantic models, SQLAlchemy tables, TypedDict,
+`anyschema` accepts specifications in multiple formats including Pydantic models, Marshmallow schemas, SQLAlchemy tables, TypedDict,
 dataclasses, attrs classes, and plain Python dicts (and more to come, see [anyschema#11](https://github.com/FBruzzesi/anyschema/issues/11)).
 
 Let's explore each approach and when to use it.
@@ -134,6 +134,71 @@ class User:
 
 
 schema = AnySchema(spec=User)
+print(schema.to_arrow())
+```
+
+### With Marshmallow Schemas
+
+[Marshmallow](https://marshmallow.readthedocs.io/) is a popular library for object serialization/deserialization and validation:
+
+```python exec="true" source="above" result="python" session="basic-marshmallow"
+from anyschema import AnySchema
+from marshmallow import Schema, fields
+
+
+class UserSchema(Schema):
+    id = fields.Integer()
+    username = fields.String()
+    email = fields.Email()
+    is_active = fields.Boolean()
+
+
+schema = AnySchema(spec=UserSchema)
+print(schema.to_arrow())
+```
+
+Marshmallow schemas support rich field types and metadata:
+
+```python exec="true" source="above" result="python" session="marshmallow-metadata"
+from anyschema import AnySchema
+from marshmallow import Schema, fields
+
+
+class ProductSchema(Schema):
+    id = fields.Integer(required=True)
+    name = fields.String(required=True, metadata={"description": "Product name"})
+    price = fields.Decimal()
+    tags = fields.List(fields.String())
+    created_at = fields.DateTime()
+
+
+schema = AnySchema(spec=ProductSchema)
+print(schema.to_arrow())
+
+# Check field metadata
+print(f"\nName field: {schema.fields['name']}")
+```
+
+Marshmallow supports nested schemas for complex data structures:
+
+```python exec="true" source="above" result="python" session="marshmallow-nested"
+from anyschema import AnySchema
+from marshmallow import Schema, fields
+
+
+class AddressSchema(Schema):
+    street = fields.String()
+    city = fields.String()
+    zip_code = fields.String()
+
+
+class UserSchema(Schema):
+    name = fields.String()
+    email = fields.Email()
+    address = fields.Nested(AddressSchema)
+
+
+schema = AnySchema(spec=UserSchema)
 print(schema.to_arrow())
 ```
 

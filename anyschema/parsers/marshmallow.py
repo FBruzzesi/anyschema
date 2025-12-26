@@ -88,9 +88,8 @@ class MarshmallowTypeStep(ParserStep):
     Handles:
 
     - Marshmallow field types (String, Integer, Float, Boolean, etc.)
-    - Marshmallow nested schemas (Nested, Pluck)
     - Marshmallow date/time fields (DateTime, Date, Time, TimeDelta)
-    - Marshmallow collection fields (List, Dict, Tuple)
+    - Marshmallow collection fields (List, Nested)
 
     Warning:
         It requires [marshmallow](https://marshmallow.readthedocs.io/) to be installed.
@@ -134,9 +133,7 @@ class MarshmallowTypeStep(ParserStep):
             return nw.Float64()
 
         if isinstance(input_type, fields.AwareDateTime):  # pyright: ignore[reportArgumentType]
-            if (
-                time_zone := (input_type.default_timezone or get_anyschema_value_by_key(metadata, key="time_zone"))
-            ) is None:
+            if (time_zone := get_anyschema_value_by_key(metadata, key="time_zone")) is None:
                 msg = (
                     "marwshmallow AwareDateTime does not specify a fixed timezone.\n\n"
                     "Hint: You can specify a timezone via "
@@ -150,9 +147,7 @@ class MarshmallowTypeStep(ParserStep):
             )
 
         if isinstance(input_type, fields.NaiveDateTime):  # pyright: ignore[reportArgumentType]
-            if (
-                time_zone := (input_type.timezone or get_anyschema_value_by_key(metadata, key="time_zone"))
-            ) is not None:
+            if (time_zone := get_anyschema_value_by_key(metadata, key="time_zone")) is not None:
                 msg = f"marwshmallow NaiveDateTime should not not specify a timezone, found {time_zone}."
                 raise UnsupportedDTypeError(msg)
 
@@ -200,14 +195,7 @@ class MarshmallowTypeStep(ParserStep):
         return self._parse_nested_schema(type(nested_schema))
 
     def _parse_nested_schema(self, schema: MarshmallowSchemaType) -> DType:
-        """Parse a nested Marshmallow schema into a Struct type.
-
-        Arguments:
-            schema: The Marshmallow Schema class.
-
-        Returns:
-            A Narwhals Struct dtype.
-        """
+        """Parse a nested Marshmallow schema into a Struct type."""
         from anyschema.adapters import marshmallow_adapter
 
         return nw.Struct(

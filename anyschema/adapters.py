@@ -381,13 +381,15 @@ def marshmallow_adapter(spec: MarshmallowSchemaType) -> FieldSpecIterable:
             ):
                 if field_attr == "precision" and (time_unit := precision_to_time_unit.get(value)) is not None:
                     msg = (
-                        "Unsupported precisionvalue, expected one of {'seconds', 'milliseconds', 'microseconds'}, "
+                        "Unsupported precision value, expected one of {'seconds', 'milliseconds', 'microseconds'}, "
                         f"found {value}"
                     )
                     raise NotImplementedError(msg)
 
                     value = time_unit
+                if meta_key == "time_zone":
+                    set_anyschema_meta(metadata, key="time_zone", value=str(value))
+                else:
+                    set_anyschema_meta(metadata, key=meta_key, value=value)
 
-                set_anyschema_meta(metadata, key=meta_key, value=value)
-
-            yield field_name, field_info, (), metadata
+        yield field_name, field_info, (), metadata

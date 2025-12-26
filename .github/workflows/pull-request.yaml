@@ -44,7 +44,7 @@ jobs:
       - name: Run pytest
         run: |
           uv run \
-          --with narwhals==2.0.0,attrs==22.1.0,pydantic==2.0.0,sqlalchemy==2.0.0 \
+          --with narwhals==2.0.0,attrs==22.1.0,marshmallow==3.0.0,pydantic==2.0.0,sqlalchemy==2.0.0 \
           --all-extras --group tests \
           pytest tests --cov=anyschema --cov=tests --cov-fail-under=95
 

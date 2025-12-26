@@ -9,6 +9,7 @@ if TYPE_CHECKING:
 
     from attrs import AttrsInstance
     from marshmallow import Schema as MarshmallowSchema
+    from marshmallow.fields import Field as MarshmallowField
     from narwhals.dtypes import DType
     from narwhals.schema import Schema as NarwhalsSchema
     from narwhals.typing import TimeUnit
@@ -46,7 +47,7 @@ Spec: TypeAlias = "NarwhalsSchema | IntoOrderedDict | PydanticBaseModelType | Da
 """Input specification supported directly by [`AnySchema`][anyschema.AnySchema]."""
 
 FieldName: TypeAlias = str
-FieldType: TypeAlias = "type[Any] | Annotated[Any, ...] | TypeEngine[Any]"
+FieldType: TypeAlias = "type[Any] | Annotated[Any, ...] | TypeEngine[Any] | MarshmallowField[Any]"
 FieldConstraints: TypeAlias = tuple[Any, ...]
 FieldMetadata: TypeAlias = dict[str, Any]
 

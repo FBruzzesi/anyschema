@@ -139,7 +139,8 @@ class SQLAlchemyTypeStep(ParserStep):
         if isinstance(input_type, sqltypes.Time):
             return nw.Time()
         if isinstance(input_type, sqltypes.Interval):
-            return nw.Duration()
+            time_unit = get_anyschema_value_by_key(metadata, key="time_unit", default="us")
+            return nw.Duration(time_unit)
         if isinstance(input_type, sqltypes._Binary):  # noqa: SLF001
             # All binary dtypes inherit from this one, namely: LargeBinary, BINARY, VARBINARY, BLOB, etc..
             return nw.Binary()

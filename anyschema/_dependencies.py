@@ -22,10 +22,10 @@ if TYPE_CHECKING:
     )
 
 ANNOTATED_TYPES_AVAILABLE = find_spec("annotated_types") is not None
-PYDANTIC_AVAILABLE = find_spec("pydantic") is not None
 ATTRS_AVAILABLE = find_spec("attrs") is not None
-SQLALCHEMY_AVAILABLE = find_spec("sqlalchemy") is not None
 MARSHMALLOW_AVAILABLE = find_spec("marshmallow") is not None
+PYDANTIC_AVAILABLE = find_spec("pydantic") is not None
+SQLALCHEMY_AVAILABLE = find_spec("sqlalchemy") is not None
 
 
 def get_pydantic() -> ModuleType | None:

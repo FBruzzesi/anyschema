@@ -50,7 +50,7 @@ def get_anyschema_value_by_key(
 
 @overload
 def get_anyschema_value_by_key(
-    metadata: FieldMetadata, *, key: Literal["time_unit"], default: Literal["us"] | None
+    metadata: FieldMetadata, *, key: Literal["time_unit"], default: Literal["us"] | None = None
 ) -> TimeUnit | None: ...
 
 

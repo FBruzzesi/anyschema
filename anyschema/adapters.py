@@ -2,28 +2,38 @@ from __future__ import annotations
 
 from collections import OrderedDict
 from dataclasses import fields as dc_fields
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Literal, TypeAlias
 
 from typing_extensions import get_type_hints
 
 from anyschema._metadata import get_anyschema_value_by_key, set_anyschema_meta
 
 if TYPE_CHECKING:
-    from pydantic import BaseModel
+    from narwhals.typing import TimeUnit
 
     from anyschema.typing import (
         AttrsClassType,
         DataclassType,
         FieldSpecIterable,
         IntoOrderedDict,
+        MarshmallowSchemaType,
+        PydanticBaseModelType,
         SQLAlchemyTableType,
         TypedDictType,
     )
+
+    MarshmallowFromKW: TypeAlias = Literal["allow_none", "timezone", "default_timezone", "precision"]
+    MarshmallowToKW: TypeAlias = Literal["nullable", "time_zone", "time_unit"]
+
+    SQLAlchemyFromKW: TypeAlias = Literal["nullable", "unique", "doc"]
+    SQLAlchemyToKW: TypeAlias = Literal["nullable", "unique", "description"]
+
 
 __all__ = (
     "attrs_adapter",
     "dataclass_adapter",
     "into_ordered_dict_adapter",
+    "marshmallow_adapter",
     "pydantic_adapter",
     "sqlalchemy_adapter",
     "typed_dict_adapter",
@@ -138,7 +148,7 @@ def dataclass_adapter(spec: DataclassType) -> FieldSpecIterable:
         yield field.name, annot_map[field.name], (), metadata
 
 
-def pydantic_adapter(spec: type[BaseModel]) -> FieldSpecIterable:
+def pydantic_adapter(spec: PydanticBaseModelType) -> FieldSpecIterable:
     """Adapter for Pydantic BaseModel classes.
 
     Extracts field information from a Pydantic model class and converts it into an iterator
@@ -300,10 +310,10 @@ def sqlalchemy_adapter(spec: SQLAlchemyTableType) -> FieldSpecIterable:
 
     table = spec if isinstance(spec, Table) else spec.__table__
 
-    meta_mapping: dict[Literal["nullable", "unique", "description"], Literal["nullable", "unique", "doc"]] = {
+    meta_mapping: dict[SQLAlchemyFromKW, SQLAlchemyToKW] = {
         "nullable": "nullable",
         "unique": "unique",
-        "description": "doc",
+        "doc": "description",
     }
 
     for column in table.columns:
@@ -311,10 +321,73 @@ def sqlalchemy_adapter(spec: SQLAlchemyTableType) -> FieldSpecIterable:
         metadata = dict(column.info)
 
         # Extract anyschema metadata from SQLAlchemy column attributes
-        for key, column_attr in meta_mapping.items():
-            if (value := getattr(column, column_attr, None)) is not None and (
-                get_anyschema_value_by_key(metadata, key=key) is None
+        for field_attr, meta_key in meta_mapping.items():
+            if (value := getattr(column, field_attr, None)) is not None and (
+                get_anyschema_value_by_key(metadata, key=meta_key) is None
             ):
-                set_anyschema_meta(metadata, key=key, value=value)
+                set_anyschema_meta(metadata, key=meta_key, value=value)
 
         yield (column.name, column.type, (), metadata)
+
+
+def marshmallow_adapter(spec: MarshmallowSchemaType) -> FieldSpecIterable:
+    """Adapter for Marshmallow Schema classes.
+
+    Extracts field information from a Marshmallow Schema class and converts it into an iterator
+    yielding field information as `(field_name, field_type, constraints, metadata)` tuples.
+
+    Arguments:
+        spec: A Marshmallow `Schema` class (not an instance).
+
+    Yields:
+        A tuple of `(field_name, field_type, constraints, metadata)` for each field.
+            - `field_name`: The name of the field as defined in the schema
+            - `field_type`: The marshmallow Field instance
+            - `constraints`: Always empty tuple (marshmallow doesn't use annotated-types constraints)
+            - `metadata`: A dict of custom metadata from the field's metadata attribute
+
+    Examples:
+        >>> from marshmallow import Schema, fields
+        >>>
+        >>> class StudentSchema(Schema):
+        ...     name = fields.String(required=True)
+        ...     age = fields.Integer(metadata={"description": "Student age"})
+        >>>
+        >>> spec_fields = list(marshmallow_adapter(StudentSchema))
+        >>> spec_fields[0]
+        ('name', <fields.String(default=<marshmallow.missing>, ...)>, (), {})
+        >>> spec_fields[1]
+        ('age', <fields.Integer(default=<marshmallow.missing>, ...)>, (), {'description': 'Student age'})
+    """
+    meta_mapping: dict[MarshmallowFromKW, MarshmallowToKW] = {
+        "allow_none": "nullable",
+        "timezone": "time_zone",
+        "default_timezone": "time_zone",
+        "precision": "time_unit",
+    }
+
+    precision_to_time_unit: dict[str, TimeUnit] = {
+        "seconds": "s",
+        "milliseconds": "ms",
+        "microseconds": "us",
+    }
+
+    for field_name, field_info in spec._declared_fields.items():  # noqa: SLF001
+        metadata = dict(field_info.metadata) if field_info.metadata else {}
+
+        for field_attr, meta_key in meta_mapping.items():
+            if (value := getattr(field_info, field_attr, None)) is not None and (
+                get_anyschema_value_by_key(metadata, key=meta_key, default=None) is None
+            ):
+                if field_attr == "precision" and (time_unit := precision_to_time_unit.get(value)) is not None:
+                    msg = (
+                        "Unsupported precisionvalue, expected one of {'seconds', 'milliseconds', 'microseconds'}, "
+                        f"found {value}"
+                    )
+                    raise NotImplementedError(msg)
+
+                    value = time_unit
+
+                set_anyschema_meta(metadata, key=meta_key, value=value)
+
+            yield field_name, field_info, (), metadata

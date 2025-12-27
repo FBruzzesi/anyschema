@@ -111,6 +111,7 @@ jobs:
       - name: Run rumdl linter and formatter
         run: |
           uv tool run rumdl version
+          uv tool run rumdl config --no-defaults
           uv tool run rumdl check --output-format=github .
 
   check-typos:

@@ -1,0 +1,1721 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+        <meta name="author" content="Francesco Bruzzesi">
+      
+      
+        <link rel="canonical" href="https://fbruzzesi.github.io/anyschema/architecture/">
+      
+      
+        <link rel="prev" href="../user-guide/openapi-compatibility/">
+      
+      
+        <link rel="next" href="../api-reference/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
+    
+    
+      
+        <title>Architecture - AnySchema</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+    
+    
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../css/extra.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#architecture" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="AnySchema" class="md-header__button md-logo" aria-label="AnySchema" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            AnySchema
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Architecture
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to system preference"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Switch to system preference" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/FBruzzesi/anyschema" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    FBruzzesi/anyschema
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="AnySchema" class="md-nav__button md-logo" aria-label="AnySchema" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    AnySchema
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/FBruzzesi/anyschema" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    FBruzzesi/anyschema
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User Guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    User Guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/metadata/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Metadata
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/advanced/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Advanced Usage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/serde/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Serialization & Deserialization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/best-practices/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Best Practices
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/custom-end-to-end-example/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    End to End Example with Custom Components
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/troubleshooting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Troubleshooting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/openapi-compatibility/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    OpenAPI Compatibility
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#tldr-quick-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TL;DR - Quick Summary
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#core-components" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Core Components
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Core Components">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#spec-adapters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Spec Adapters
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#parser-pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parser Pipeline
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#parser-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parser Steps
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#parser-order-and-rationale" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parser Order and Rationale
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#benefits-of-this-architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Benefits of This Architecture
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#creating-custom-components" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Creating Custom Components
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Creating Custom Components">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#adding-custom-parser-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Adding Custom Parser Steps
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#metadata-preservation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Metadata Preservation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#recursion-and-nested-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Recursion and Nested Types
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#complete-flow-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Complete Flow Example
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../api-reference/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api-reference/anyschema/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AnySchema
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api-reference/parsers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Parsers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api-reference/adapters/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Spec Adapters
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api-reference/serde/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Serialization & Deserialization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api-reference/exceptions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Exceptions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api-reference/typing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Typing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#tldr-quick-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TL;DR - Quick Summary
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#core-components" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Core Components
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Core Components">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#spec-adapters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Spec Adapters
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#parser-pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parser Pipeline
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#parser-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parser Steps
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#parser-order-and-rationale" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parser Order and Rationale
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#benefits-of-this-architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Benefits of This Architecture
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#creating-custom-components" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Creating Custom Components
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Creating Custom Components">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#adding-custom-parser-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Adding Custom Parser Steps
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#metadata-preservation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Metadata Preservation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#recursion-and-nested-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Recursion and Nested Types
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#complete-flow-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Complete Flow Example
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="architecture">Architecture<a class="headerlink" href="#architecture" title="Permanent link">&para;</a></h1>
+<p>This page provides a deep dive into anyschema's internal design and architecture.
+Understanding these concepts will help you extend anyschema and troubleshoot issues.</p>
+<h2 id="tldr-quick-summary">TL;DR - Quick Summary<a class="headerlink" href="#tldr-quick-summary" title="Permanent link">&para;</a></h2>
+<ul>
+<li>
+<p><code>anyschema</code> uses a pipeline architecture with two main phases:</p>
+<ol>
+<li>Adapters normalize input specs (Pydantic, dict, etc.) into <code>(name, type, constraints, metadata)</code> tuples.</li>
+<li>Parser pipeline converts each type to a Narwhals dtype by running parser steps in sequence.</li>
+</ol>
+</li>
+<li>
+<p>Parser steps run in order and the first step to handle a type to Narwhals returns:</p>
+<ol>
+<li><code>ForwardRefStep</code> - Resolves <code>ForwardRef('ClassName')</code></li>
+<li><code>UnionTypeStep</code> - Extracts non-None from <code>T | None</code></li>
+<li><code>AnnotatedStep</code> - Separates <code>Annotated[T, ...]</code> into type + metadata</li>
+<li><code>AnnotatedTypesStep</code> - Refines types based on constraints (e.g., <code>PositiveInt</code> -&gt; <code>UInt64</code>)</li>
+<li><code>PydanticTypeStep</code> - Handles Pydantic-specific types</li>
+<li><code>PyTypeStep</code> - Fallback for standard Python types</li>
+</ol>
+</li>
+<li>
+<p>Key concepts:</p>
+<ul>
+<li>Return <code>None</code> if your parser can't handle a type (lets next parser try).</li>
+<li>Use <code>self.pipeline.parse(..., constraints=constraints, metadata=metadata)</code> for recursion (handles nested types
+    like <code>list[YourType]</code>).</li>
+<li>Pass metadata through when recursing (<code>metadata=metadata</code>).</li>
+<li>Order matters - specialized parsers before general ones.</li>
+</ul>
+</li>
+<li>
+<p>To extend anyschema:</p>
+<ul>
+<li>Create custom <strong>parser steps</strong> to handle new types.</li>
+<li>Create custom <strong>adapters</strong> to support new schema formats.</li>
+<li>See <a href="../user-guide/advanced/">Advanced Usage</a> for examples.</li>
+</ul>
+</li>
+</ul>
+<h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
+<p><code>anyschema</code> follows a pipeline architecture with two main components:</p>
+<ol>
+<li><strong>Spec Adapters</strong>: Convert input specifications into a normalized format.
+    For specifications supported directly by anyschema there is no need to create custom adapters.</li>
+<li><strong>Parser Pipeline</strong>: A sequence of parser steps that convert types into Narwhals dtypes.</li>
+</ol>
+<pre class="mermaid"><code>---
+config:
+  look: handDrawn
+  theme: neutral
+---
+flowchart TD
+    A[Input Specification] --&gt; B[Spec Adapter]
+    B --&gt; C[ParserPipeline]
+    C --&gt; D[Narwhals Schema]
+    D --&gt; E[Output Format]
+
+    NA["Pydantic Models&lt;br/&gt;Python mappings or sequences"]
+    NB["pydantic_adapter&lt;br/&gt;into_ordered_dict_adapter"]
+    NE["pyarrow, polars or pandas schema"]
+
+    A -.-&gt; NA
+    B -.-&gt; NB
+    E -.-&gt; NE
+
+    C -.-&gt;|steps| P[Parser Steps]
+
+    subgraph Pipeline["Parser Pipeline Steps"]
+        P1[ForwardRefStep] --&gt; P2[UnionTypeStep]
+        P2 --&gt; P3[AnnotatedStep]
+        P3 --&gt; P4[AnnotatedTypesStep]
+        P4 --&gt; P5[PydanticTypeStep]
+        P5 --&gt; P6[PyTypeStep]
+
+        N1["Resolves forward references"]
+        N2["Extracts non-None types"]
+        N3["Separates base type from metadata"]
+        N4["Refines types based on constraints"]
+        N5["Handles Pydantic-specific types"]
+        N6["Fallback for standard Python types"]
+
+        P1 -.-&gt; N1
+        P2 -.-&gt; N2
+        P3 -.-&gt; N3
+        P4 -.-&gt; N4
+        P5 -.-&gt; N5
+        P6 -.-&gt; N6
+    end
+
+    P -.-&gt; P1
+
+    style A fill:#e1f5ff
+    style B fill:#fff4e6
+    style C fill:#f3e5f5
+    style D fill:#e8f5e9
+    style E fill:#e1f5ff
+    style NA fill:#fff,stroke:#999,stroke-dasharray: 5 5
+    style NB fill:#fff,stroke:#999,stroke-dasharray: 5 5
+    style NE fill:#fff,stroke:#999,stroke-dasharray: 5 5
+    style N1 fill:#fff,stroke:#999,stroke-dasharray: 5 5
+    style N2 fill:#fff,stroke:#999,stroke-dasharray: 5 5
+    style N3 fill:#fff,stroke:#999,stroke-dasharray: 5 5
+    style N4 fill:#fff,stroke:#999,stroke-dasharray: 5 5
+    style N5 fill:#fff,stroke:#999,stroke-dasharray: 5 5
+    style N6 fill:#fff,stroke:#999,stroke-dasharray: 5 5
+    style P fill:#f3e5f5</code></pre>
+<h2 id="core-components">Core Components<a class="headerlink" href="#core-components" title="Permanent link">&para;</a></h2>
+<h3 id="spec-adapters">Spec Adapters<a class="headerlink" href="#spec-adapters" title="Permanent link">&para;</a></h3>
+<p>Spec adapters are functions that convert various input formats into a unified representation, namely an iterable of
+<code>(name, type, constraints, metadata)</code> tuples.</p>
+<p>See the <a href="../api-reference/adapters/">API Reference</a> for detailed documentation.</p>
+<h3 id="parser-pipeline">Parser Pipeline<a class="headerlink" href="#parser-pipeline" title="Permanent link">&para;</a></h3>
+<p>The <a href="../api-reference/parsers/#anyschema.parsers.ParserPipeline"><code>ParserPipeline</code></a> orchestrates multiple parser steps, executing each step
+in sequence until one successfully handles the type (or raises an error).</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">anyschema.parsers</span><span class="w"> </span><span class="kn">import</span> <span class="n">ParserPipeline</span><span class="p">,</span> <span class="n">PyTypeStep</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="n">pipeline</span> <span class="o">=</span> <span class="n">ParserPipeline</span><span class="p">(</span><span class="n">steps</span><span class="o">=</span><span class="p">[</span><span class="n">PyTypeStep</span><span class="p">()])</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="n">dtype</span> <span class="o">=</span> <span class="n">pipeline</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="n">constraints</span><span class="o">=</span><span class="p">(),</span> <span class="n">metadata</span><span class="o">=</span><span class="p">{})</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="nb">print</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span>
+</span></code></pre></div>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="n">Int64</span>
+</span></code></pre></div>
+<h3 id="parser-steps">Parser Steps<a class="headerlink" href="#parser-steps" title="Permanent link">&para;</a></h3>
+<p>Each parser step is responsible for handling specific type patterns.
+Steps inherit from the <a href="../api-reference/parsers/#anyschema.parsers.ParserStep"><code>ParserStep</code></a> abstract base class.</p>
+<table>
+<thead>
+<tr>
+<th>Step</th>
+<th>Purpose</th>
+<th>Handles</th>
+<th>Order</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ForwardRefStep</code></td>
+<td>Resolves forward references before any type inspection can happen</td>
+<td><code>ForwardRef('ClassName')</code></td>
+<td>Must be first</td>
+</tr>
+<tr>
+<td><code>UnionTypeStep</code></td>
+<td>Extracts non-None types from Optional/Union types (dataframe libraries don't have Union types)</td>
+<td><code>Union[T, None]</code>, <code>T | None</code>, <code>Optional[T]</code></td>
+<td>Early - simplifies downstream parsers</td>
+</tr>
+<tr>
+<td><code>AnnotatedStep</code></td>
+<td>Separates base types from their constraints/metadata for independent processing</td>
+<td><code>Annotated[T, metadata1, ...]</code></td>
+<td>Before type-specific parsers</td>
+</tr>
+<tr>
+<td><code>AnnotatedTypesStep</code></td>
+<td>Refines types based on constraints (e.g., positive integers become unsigned types)</td>
+<td>Types with <code>annotated_types</code> or Pydantic constraints</td>
+<td>After <code>AnnotatedStep</code>, before type parsers</td>
+</tr>
+<tr>
+<td><code>PydanticTypeStep</code></td>
+<td>Handles Pydantic-specific types that need special processing beyond Python type inspection</td>
+<td>Pydantic types like <code>FutureDate</code></td>
+<td>After metadata extraction, before fallback</td>
+</tr>
+<tr>
+<td><code>PyTypeStep</code></td>
+<td>Fallback parser for all standard Python types</td>
+<td>Basic (<code>int</code>, <code>str</code>, <code>bool</code>), temporal (<code>date</code>, <code>datetime</code>), container (<code>list[T]</code>, <code>tuple[T, ...]</code>), other (<code>Decimal</code>, <code>Enum</code>)</td>
+<td>Must be last</td>
+</tr>
+</tbody>
+</table>
+<h3 id="parser-order-and-rationale">Parser Order and Rationale<a class="headerlink" href="#parser-order-and-rationale" title="Permanent link">&para;</a></h3>
+<p>The order of parsers is critical:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">steps</span> <span class="o">=</span> <span class="p">(</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>    <span class="n">ForwardRefStep</span><span class="p">(),</span>  <span class="c1"># 1. Resolve forward references first, before any type inspection</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>    <span class="n">UnionTypeStep</span><span class="p">(),</span>  <span class="c1"># 2. Extract non-None types from Optional/Union, it simplifies all downstream parsers</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>    <span class="n">AnnotatedStep</span><span class="p">(),</span>  <span class="c1"># 3. Extract metadata from Annotated, it should happen before type-specific logic</span>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>    <span class="n">AnnotatedTypesStep</span><span class="p">(),</span>  <span class="c1"># 4. Refine types based on metadata in `annotated_types` library</span>
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>    <span class="n">PydanticTypeStep</span><span class="p">(),</span>  <span class="c1"># 5. Handle Pydantic-specific types before falling back to Python types</span>
+</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>    <span class="n">PyTypeStep</span><span class="p">(),</span>  <span class="c1"># 6. The catch-all fallback for standard Python types</span>
+</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="p">)</span>
+</span></code></pre></div>
+<h2 id="benefits-of-this-architecture">Benefits of This Architecture<a class="headerlink" href="#benefits-of-this-architecture" title="Permanent link">&para;</a></h2>
+<p>With this architecture we aim to achieve multiple goals at once:</p>
+<ul>
+<li><strong>Modularity</strong>: Each parser has a single, well-defined responsibility.</li>
+<li><strong>Composability</strong>: Parsers can be re-ordered, re-used, mixed and matched.</li>
+<li><strong>Extensibility</strong>: New parsers can be added without modifying existing code.</li>
+<li><strong>Recursion Simplification</strong>: Union/Optional extraction happens once, simplifying other parsers.</li>
+<li><strong>Metadata Flow</strong>: Metadata is preserved and passed through the pipeline.</li>
+</ul>
+<h2 id="creating-custom-components">Creating Custom Components<a class="headerlink" href="#creating-custom-components" title="Permanent link">&para;</a></h2>
+<p>This architecture is designed to be easily extensible and customizable, both in terms of adding new parser steps and
+creating custom adapters.</p>
+<h3 id="adding-custom-parser-steps">Adding Custom Parser Steps<a class="headerlink" href="#adding-custom-parser-steps" title="Permanent link">&para;</a></h3>
+<p>You can extend the parser pipeline in two ways:</p>
+<ol>
+<li>
+<p>Using <a href="../api-reference/parsers/#anyschema.parsers.ParserPipeline"><code>ParserPipeline.with_steps</code></a> method (recommended): Extend the pipeline
+    with custom steps:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">anyschema</span><span class="w"> </span><span class="kn">import</span> <span class="n">AnySchema</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">anyschema.parsers</span><span class="w"> </span><span class="kn">import</span> <span class="n">ParserPipeline</span><span class="p">,</span> <span class="n">ParserStep</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="kn">import</span><span class="w"> </span><span class="nn">narwhals</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">nw</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="k">class</span><span class="w"> </span><span class="nc">MyCustomStep</span><span class="p">(</span><span class="n">ParserStep</span><span class="p">):</span>
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">parse</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">input_type</span><span class="p">,</span> <span class="n">constraints</span><span class="p">,</span> <span class="n">metadata</span><span class="p">):</span>
+</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>        <span class="c1"># Your custom parsing logic</span>
+</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>        <span class="o">...</span>
+</span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a>
+</span><span id="__span-3-11"><a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a>
+</span><span id="__span-3-12"><a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a><span class="c1"># Extend the auto pipeline with custom step</span>
+</span><span id="__span-3-13"><a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a><span class="n">custom_pipeline</span> <span class="o">=</span> <span class="n">ParserPipeline</span><span class="o">.</span><span class="n">from_auto</span><span class="p">(</span><span class="n">steps</span><span class="o">=</span><span class="n">MyCustomStep</span><span class="p">())</span>
+</span><span id="__span-3-14"><a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a>
+</span><span id="__span-3-15"><a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a><span class="c1"># Use it with AnySchema</span>
+</span><span id="__span-3-16"><a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a><span class="n">schema</span> <span class="o">=</span> <span class="n">AnySchema</span><span class="p">(</span><span class="n">spec</span><span class="o">=</span><span class="n">my_spec</span><span class="p">,</span> <span class="n">pipeline</span><span class="o">=</span><span class="n">custom_pipeline</span><span class="p">)</span>
+</span></code></pre></div>
+<p>By default, <code>with_steps</code> positions your custom step right after the last preprocessing step found
+(trying <code>AnnotatedStep</code>, <code>UnionTypeStep</code>, <code>ForwardRefStep</code> in that order), ensuring it runs after
+type preprocessing but before library-specific or fallback parsers.</p>
+</li>
+<li>
+<p>Building from scratch: Create a pipeline with explicit steps:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">anyschema.parsers</span><span class="w"> </span><span class="kn">import</span> <span class="n">ParserPipeline</span><span class="p">,</span> <span class="n">PyTypeStep</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="n">custom_pipeline</span> <span class="o">=</span> <span class="n">ParserPipeline</span><span class="p">(</span><span class="n">steps</span><span class="o">=</span><span class="p">[</span><span class="n">MyCustomStep</span><span class="p">(),</span> <span class="n">PyTypeStep</span><span class="p">()])</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="n">schema</span> <span class="o">=</span> <span class="n">AnySchema</span><span class="p">(</span><span class="n">spec</span><span class="o">=</span><span class="n">my_spec</span><span class="p">,</span> <span class="n">pipeline</span><span class="o">=</span><span class="n">custom_pipeline</span><span class="p">)</span>
+</span></code></pre></div>
+</li>
+</ol>
+<p>Learn how to extend <code>anyschema</code> with custom functionality. For more detailed examples, see the
+<a href="../user-guide/advanced/">Advanced Usage</a> guide.</p>
+<h2 id="metadata-preservation">Metadata Preservation<a class="headerlink" href="#metadata-preservation" title="Permanent link">&para;</a></h2>
+<p>Metadata flows through the pipeline:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Annotated</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">pydantic</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseModel</span><span class="p">,</span> <span class="n">Field</span><span class="p">,</span> <span class="n">PositiveInt</span>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="k">class</span><span class="w"> </span><span class="nc">Product</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
+</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>    <span class="n">quantity</span><span class="p">:</span> <span class="n">PositiveInt</span>  <span class="c1"># PositiveInt is itself an Annotated type with constraints</span>
+</span></code></pre></div>
+<p>The pipeline processes this as:</p>
+<ol>
+<li><code>pydantic_adapter</code> extracts: <code>("quantity", int, (Gt(gt=0),), {})</code></li>
+<li><code>AnnotatedStep</code> extracts constraints: <code>(Gt(gt=0),)</code> and passes through</li>
+<li><code>AnnotatedTypesStep</code> refines based on constraints and converts to <code>UInt64</code> (instead of <code>Int64</code>)</li>
+</ol>
+<h2 id="recursion-and-nested-types">Recursion and Nested Types<a class="headerlink" href="#recursion-and-nested-types" title="Permanent link">&para;</a></h2>
+<p>Parser steps can recursively call the pipeline for nested types:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">anyschema</span><span class="w"> </span><span class="kn">import</span> <span class="n">AnySchema</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">pydantic</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseModel</span>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="k">class</span><span class="w"> </span><span class="nc">Address</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
+</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>    <span class="n">street</span><span class="p">:</span> <span class="nb">str</span>
+</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>    <span class="n">city</span><span class="p">:</span> <span class="nb">str</span>
+</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>
+</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>
+</span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a><span class="k">class</span><span class="w"> </span><span class="nc">Person</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
+</span><span id="__span-6-11"><a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a>    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span>
+</span><span id="__span-6-12"><a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a>    <span class="n">addresses</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Address</span><span class="p">]</span>  <span class="c1"># Nested type!</span>
+</span></code></pre></div>
+<p>Processing flow:</p>
+<ol>
+<li><code>pydantic_adapter</code> yields: <code>("addresses", list[Address], (), {})</code></li>
+<li><code>PyTypeStep</code> sees <code>list[T]</code> and recursively calls: <code>pipeline.parse(Address, constraints=(), metadata={})</code></li>
+<li>The pipeline handles <code>Address</code> as a Pydantic model (which is considered a <code>Struct</code>)</li>
+<li>Result: <code>List(Struct([('street', String), ('city', String)]))</code></li>
+</ol>
+<h2 id="complete-flow-example">Complete Flow Example<a class="headerlink" href="#complete-flow-example" title="Permanent link">&para;</a></h2>
+<p>Let's trace a complete example through the system:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">pydantic</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseModel</span><span class="p">,</span> <span class="n">PositiveInt</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">anyschema</span><span class="w"> </span><span class="kn">import</span> <span class="n">AnySchema</span>
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="k">class</span><span class="w"> </span><span class="nc">Student</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
+</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span>
+</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>    <span class="n">age</span><span class="p">:</span> <span class="n">PositiveInt</span>
+</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a>    <span class="n">classes</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span>
+</span><span id="__span-7-9"><a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a>
+</span><span id="__span-7-10"><a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a>
+</span><span id="__span-7-11"><a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a><span class="n">schema</span> <span class="o">=</span> <span class="n">AnySchema</span><span class="p">(</span><span class="n">spec</span><span class="o">=</span><span class="n">Student</span><span class="p">)</span>
+</span></code></pre></div>
+<p>Complete processing flow:</p>
+<ol>
+<li>
+<p>Spec Adapter: (<code>pydantic_adapter</code>):</p>
+<ul>
+<li>Extracts: <code>("name", str, (), {})</code></li>
+<li>Extracts: <code>("age", PositiveInt, (), {})</code></li>
+<li>Extracts: <code>("classes", list[str] | None, (), {})</code></li>
+</ul>
+</li>
+<li>
+<p>Parser pipeline for <code>name: str</code>:</p>
+<ul>
+<li><code>ForwardRefStep</code>: Not a <code>ForwardRef</code> -&gt; returns <code>None</code></li>
+<li><code>UnionTypeStep</code>: Not a <code>Union</code> -&gt; returns <code>None</code></li>
+<li><code>AnnotatedStep</code>: Not <code>Annotated</code> -&gt; returns <code>None</code></li>
+<li><code>AnnotatedTypesStep</code>: No metadata -&gt; returns <code>None</code></li>
+<li><code>PydanticTypeStep</code>: Not a Pydantic type -&gt; returns <code>None</code></li>
+<li><code>PyTypeStep</code>: <code>str</code> -&gt; returns <code>String()</code></li>
+<li><strong>Result</strong>: <code>String()</code></li>
+</ul>
+</li>
+<li>
+<p>Parser pipeline for <code>age: PositiveInt</code>:</p>
+<ul>
+<li><code>ForwardRefStep</code>: Not a <code>ForwardRef</code> -&gt; returns <code>None</code></li>
+<li><code>UnionTypeStep</code>: Not a <code>Union</code> -&gt; returns <code>None</code></li>
+<li><code>AnnotatedStep</code>: <code>PositiveInt</code> is <code>Annotated[int, ...]</code> -&gt; extracts <code>int</code> with metadata</li>
+<li>
+<p>Recursively parse <code>int</code> with metadata:</p>
+<ul>
+<li><code>AnnotatedTypesStep</code>: Metadata indicates positive constraint -&gt; returns <code>UInt64()</code></li>
+<li><strong>Result</strong>: <code>UInt64()</code></li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p>Parse <code>classes: list[str] | None</code>:</p>
+<ul>
+<li><code>ForwardRefStep</code>: Not a <code>ForwardRef</code> -&gt; returns <code>None</code></li>
+<li><code>UnionTypeStep</code>: Is a <code>Union</code>! Extracts <code>list[str]</code> (non-None type)</li>
+<li>
+<p>Recursively parse <code>list[str]</code>:</p>
+<ul>
+<li><code>ForwardRefStep</code>: Not a <code>ForwardRef</code> -&gt; returns <code>None</code></li>
+<li><code>UnionTypeStep</code>: Not a <code>Union</code> -&gt; returns <code>None</code></li>
+<li><code>AnnotatedStep</code>: Not <code>Annotated</code> -&gt; returns <code>None</code></li>
+<li><code>AnnotatedTypesStep</code>: No metadata -&gt; returns <code>None</code></li>
+<li><code>PydanticTypeStep</code>: Not a Pydantic type -&gt; returns <code>None</code></li>
+<li><code>PyTypeStep</code>: <code>list[str]</code> -&gt; recursively parse <code>str</code> (within the generic) -&gt; returns <code>List(String())</code></li>
+<li><strong>Result</strong>: <code>List(String())</code> (nullable)</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p>Final Schema:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="n">Schema</span><span class="p">({</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="n">String</span><span class="p">(),</span> <span class="s2">&quot;age&quot;</span><span class="p">:</span> <span class="n">UInt64</span><span class="p">(),</span> <span class="s2">&quot;classes&quot;</span><span class="p">:</span> <span class="n">List</span><span class="p">(</span><span class="n">String</span><span class="p">())})</span>
+</span></code></pre></div>
+</li>
+</ol>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../user-guide/openapi-compatibility/" class="md-footer__link md-footer__link--prev" aria-label="Previous: OpenAPI Compatibility">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                OpenAPI Compatibility
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../api-reference/" class="md-footer__link md-footer__link--next" aria-label="Next: Home">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                Home
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["content.code.copy", "content.code.annotate", "navigation.footer", "navigation.indexes", "navigation.top"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+        <script src="../javascript/extra.js"></script>
+      
+    
+  </body>
+</html>

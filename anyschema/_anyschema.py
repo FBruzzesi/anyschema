@@ -354,6 +354,11 @@ class AnySchema:
     @overload
     def _get_field_attribute(self, attr_getter: AnyFieldAttrAccessor[T], *, named: Literal[False]) -> tuple[T, ...]: ...
 
+    @overload
+    def _get_field_attribute(
+        self, attr_getter: AnyFieldAttrAccessor[T], *, named: bool
+    ) -> dict[str, T] | tuple[T, ...]: ...
+
     def _get_field_attribute(
         self, attr_getter: AnyFieldAttrAccessor[T], *, named: bool
     ) -> dict[str, T] | tuple[T, ...]:

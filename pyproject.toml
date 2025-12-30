@@ -45,7 +45,7 @@ tests = [
   "anyschema[attrs,pydantic,sqlalchemy]",
   "covdefaults>=2.3.0",
   "hypothesis>=6.0.0",
-  "narwhals[pandas,polars,pyarrow]",
+  "narwhals[pandas,polars,pyarrow,pyspark]",
   "pydantic-extra-types[pycountry,phonenumbers]",
   "pytest>=8.0.0",
   "pytest-cov>=6.0.0",

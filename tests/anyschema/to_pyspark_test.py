@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import pytest
 from narwhals import Schema
@@ -128,7 +128,7 @@ def test_to_pyspark_nullable_flags(
 def test_to_pyspark_with_metadata(
     pyspark_session: SparkSession,  # noqa: ARG001
     spec: Spec,
-    expected_metadata: tuple[dict[bytes, bytes], ...],
+    expected_metadata: tuple[dict[str, Any], ...],
 ) -> None:
     schema = AnySchema(spec=spec)
     spark_schema = schema.to_pyspark()

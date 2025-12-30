@@ -8,6 +8,7 @@ import attrs
 import narwhals as nw
 import pytest
 from pydantic import AwareDatetime, BaseModel, Field, FutureDatetime, NaiveDatetime, PastDate, PastDatetime, PositiveInt
+from pyspark.sql import SparkSession
 from sqlalchemy import ARRAY, BigInteger, Boolean, Column, Date, DateTime, Float, Integer, MetaData, String, Table
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -50,6 +51,19 @@ def nw_schema() -> nw.Schema:
             "uint128": nw.UInt128(),
             "unknown": nw.Unknown(),
         }
+    )
+
+
+@pytest.fixture(scope="session")
+def pyspark_session() -> SparkSession:
+    return (
+        SparkSession.builder.appName("unit-tests")
+        .master("local[1]")
+        .config("spark.ui.enabled", "false")
+        .config("spark.default.parallelism", "1")
+        .config("spark.sql.shuffle.partitions", "2")
+        .config("spark.sql.session.timeZone", "UTC")
+        .getOrCreate()
     )
 
 

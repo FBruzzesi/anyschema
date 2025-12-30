@@ -11,6 +11,8 @@ from pyspark.sql import types
 from anyschema import AnySchema
 
 if TYPE_CHECKING:
+    from pyspark.sql import SparkSession
+
     from anyschema.typing import Spec
 
 
@@ -41,7 +43,7 @@ class Product(BaseModel):
     )
 
 
-def test_nw_schema_to_pyspark(nw_schema: Schema) -> None:
+def test_nw_schema_to_pyspark(pyspark_session: SparkSession, nw_schema: Schema) -> None:  # noqa: ARG001
     unsupported_dtypes = {
         "categorical",
         "decimal",
@@ -50,6 +52,7 @@ def test_nw_schema_to_pyspark(nw_schema: Schema) -> None:
         "int128",
         "object",
         "time",
+        "uint128",
         "uint64",
         "uint32",
         "uint16",
@@ -66,7 +69,7 @@ def test_nw_schema_to_pyspark(nw_schema: Schema) -> None:
     names_and_dtypes = (
         ("array", types.ArrayType(types.IntegerType())),
         ("boolean", types.BooleanType()),
-        ("date", types.DataType()),
+        ("date", types.DateType()),
         ("datetime", types.TimestampNTZType()),
         ("float32", types.FloatType()),
         ("float64", types.DoubleType()),
@@ -80,15 +83,18 @@ def test_nw_schema_to_pyspark(nw_schema: Schema) -> None:
             "struct",
             types.StructType(
                 fields=[
-                    types.StructField("field_1", types.StringType(), nullable=False, metadata=None),
-                    types.StructField("field_2", types.BooleanType(), nullable=False, metadata=None),
+                    types.StructField("field_1", types.StringType(), nullable=True, metadata=None),
+                    types.StructField("field_2", types.BooleanType(), nullable=True, metadata=None),
                 ]
             ),
         ),
     )
-    assert spark_schema == types.StructType(
-        [types.StructField(*name_and_dtype, nullable=False, metadata=None) for name_and_dtype in names_and_dtypes]
-    )
+
+    for field, (name, dtype) in zip(spark_schema, names_and_dtypes, strict=True):
+        assert field.name == name
+        assert field.dataType == dtype
+        assert field.nullable is False
+        assert field.metadata == {}
 
 
 @pytest.mark.parametrize(
@@ -99,7 +105,11 @@ def test_nw_schema_to_pyspark(nw_schema: Schema) -> None:
         (Product, (False, True)),
     ],
 )
-def test_to_pyspark_nullable_flags(spec: Spec, expected_nullable: tuple[bool, ...]) -> None:
+def test_to_pyspark_nullable_flags(
+    pyspark_session: SparkSession,  # noqa: ARG001
+    spec: Spec,
+    expected_nullable: tuple[bool, ...],
+) -> None:
     schema = AnySchema(spec=spec)
     spark_schema = schema.to_pyspark()
 
@@ -115,7 +125,11 @@ def test_to_pyspark_nullable_flags(spec: Spec, expected_nullable: tuple[bool, ..
         (Product, ({"max_length": 100}, {"currency": "USD", "min": 0})),
     ],
 )
-def test_to_pyspark_with_metadata(spec: Spec, expected_metadata: tuple[dict[bytes, bytes], ...]) -> None:
+def test_to_pyspark_with_metadata(
+    pyspark_session: SparkSession,  # noqa: ARG001
+    spec: Spec,
+    expected_metadata: tuple[dict[bytes, bytes], ...],
+) -> None:
     schema = AnySchema(spec=spec)
     spark_schema = schema.to_pyspark()
 

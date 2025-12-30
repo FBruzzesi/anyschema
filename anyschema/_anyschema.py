@@ -33,6 +33,7 @@ if TYPE_CHECKING:
     import pyarrow as pa
     from narwhals.dtypes import DType
     from narwhals.typing import DTypeBackend
+    from pyspark.sql.types import StructType as PySparkStructType
 
     from anyschema.typing import Adapter, IntoParserPipeline, Spec
 
@@ -631,3 +632,41 @@ class AnySchema:
             Schema({'id': Int64, 'username': String, 'email': String, 'is_active': Boolean})
         """
         return self._nw_schema.to_polars()
+
+    def to_pyspark(self) -> PySparkStructType:
+        """Converts input model into pyspark [StructType](https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.types.StructType.html).
+
+        Returns:
+            The converted pyspark StructType.
+
+        Examples:
+            >>> from anyschema import AnySchema
+            >>> from pydantic import BaseModel
+            >>>
+            >>>
+            >>> class User(BaseModel):
+            ...     id: int
+            ...     username: str | None
+            >>>
+            >>> schema = AnySchema(spec=User)
+            >>> schema.to_pyspark()
+            StructType([StructField('id', LongType(), False), StructField('username', StringType(), True)])
+        """
+        from narwhals._spark_like.utils import narwhals_to_native_dtype
+        from narwhals.utils import Version
+        from pyspark.sql import SparkSession, types
+
+        session = SparkSession.builder.getOrCreate()
+        version = Version.MAIN
+
+        return types.StructType(
+            fields=[
+                types.StructField(
+                    name=field.name,
+                    dataType=narwhals_to_native_dtype(field.dtype, version=version, spark_types=types, session=session),
+                    nullable=field.nullable,
+                    metadata=dict(field.metadata),
+                )
+                for field in self._fields.values()
+            ]
+        )

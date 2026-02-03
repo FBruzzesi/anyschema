@@ -3,9 +3,11 @@ from __future__ import annotations
 import sys
 from collections.abc import Mapping, Sequence
 from dataclasses import is_dataclass as dc_is_dataclass
+from importlib.metadata import version as get_version
 from importlib.util import find_spec
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypeAlias
 
+from narwhals.utils import parse_version
 from typing_extensions import TypeIs, is_typeddict
 
 if TYPE_CHECKING:
@@ -15,10 +17,49 @@ if TYPE_CHECKING:
 
     from anyschema.typing import AttrsClassType, DataclassType, IntoOrderedDict, SQLAlchemyTableType, TypedDictType
 
+    Version: TypeAlias = tuple[int, ...]
+
+MIN_VERSIONS: dict[str, Version] = {
+    "attrs": (22, 1),
+    "pydantic": (2, 0),
+    "sqlalchemy": (2, 0),
+}
+"""Minimum required versions for optional dependencies"""
+
+
+def check_version(package: str) -> bool:
+    """Check if a package is installed and meets the minimum version requirement.
+
+    Arguments:
+        package: Name of the package to check.
+
+    Returns:
+        True if the package is installed and meets the minimum version requirement.
+
+    Raises:
+        ImportError: If the package is installed but does not meet the minimum version.
+    """
+    # Not installed case
+    if find_spec(package) is None:
+        return False
+
+    # Installed & no min version requirement case
+    if (min_version := MIN_VERSIONS.get(package)) is None:
+        return True
+
+    installed_version = get_version(package)
+    if parse_version(installed_version) < min_version:
+        min_version_str = ".".join(str(v) for v in min_version)
+        msg = f"anyschema requires {package}>={min_version_str}, but version {installed_version} is installed."
+        raise ImportError(msg)
+
+    return True
+
+
 ANNOTATED_TYPES_AVAILABLE = find_spec("annotated_types") is not None
-PYDANTIC_AVAILABLE = find_spec("pydantic") is not None
-ATTRS_AVAILABLE = find_spec("attrs") is not None
-SQLALCHEMY_AVAILABLE = find_spec("sqlalchemy") is not None
+PYDANTIC_AVAILABLE = check_version("pydantic")
+ATTRS_AVAILABLE = check_version("attrs")
+SQLALCHEMY_AVAILABLE = check_version("sqlalchemy")
 
 
 def get_pydantic() -> ModuleType | None:

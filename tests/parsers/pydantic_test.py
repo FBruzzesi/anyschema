@@ -1,11 +1,48 @@
 from __future__ import annotations
 
 from datetime import date, datetime
+from pathlib import Path
 from typing import Any
+from uuid import UUID
 
 import narwhals as nw
 import pytest
-from pydantic import AwareDatetime, BaseModel, FutureDate, FutureDatetime, NaiveDatetime, PastDate, PastDatetime
+from pydantic import (
+    AwareDatetime,
+    BaseModel,
+    FutureDate,
+    FutureDatetime,
+    NaiveDatetime,
+    PastDate,
+    PastDatetime,
+    SecretBytes,
+    SecretStr,
+)
+from pydantic.networks import (
+    AmqpDsn,
+    AnyHttpUrl,
+    AnyUrl,
+    AnyWebsocketUrl,
+    ClickHouseDsn,
+    CockroachDsn,
+    EmailStr,
+    FileUrl,
+    FtpUrl,
+    HttpUrl,
+    IPvAnyAddress,
+    IPvAnyInterface,
+    IPvAnyNetwork,
+    KafkaDsn,
+    MariaDBDsn,
+    MongoDsn,
+    MySQLDsn,
+    NameEmail,
+    NatsDsn,
+    PostgresDsn,
+    RedisDsn,
+    SnowflakeDsn,
+    WebsocketUrl,
+)
 
 from anyschema.exceptions import UnsupportedDTypeError
 from anyschema.parsers import ParserPipeline
@@ -187,3 +224,127 @@ def test_parse_naive_datetime_with_timezone_raises(pydantic_parser: PydanticType
     expected_msg = "pydantic NaiveDatetime should not specify a timezone, found UTC."
     with pytest.raises(UnsupportedDTypeError, match=expected_msg):
         pydantic_parser.parse(NaiveDatetime, constraints=(), metadata={"anyschema": {"time_zone": "UTC"}})
+
+
+# --- Tests for new pydantic.types ---
+
+
+@pytest.mark.parametrize(
+    ("input_type", "expected"),
+    [
+        # Secret types
+        (SecretStr, nw.String()),
+        (SecretBytes, nw.Binary()),
+        # Path types
+        (Path, nw.String()),
+        # UUID types
+        (UUID, nw.String()),
+    ],
+)
+def test_parse_pydantic_types_new(
+    pydantic_parser: PydanticTypeStep, input_type: type, expected: nw.dtypes.DType
+) -> None:
+    """Test parsing of new pydantic types (secrets, paths, UUIDs)."""
+    result = pydantic_parser.parse(input_type, constraints=(), metadata={})
+    assert result == expected
+
+
+# --- Tests for pydantic.networks ---
+
+
+@pytest.mark.parametrize(
+    "input_type",
+    [
+        # URL types
+        AnyUrl,
+        AnyHttpUrl,
+        HttpUrl,
+        AnyWebsocketUrl,
+        WebsocketUrl,
+        FileUrl,
+        FtpUrl,
+        # DSN types
+        PostgresDsn,
+        CockroachDsn,
+        MySQLDsn,
+        MariaDBDsn,
+        RedisDsn,
+        MongoDsn,
+        KafkaDsn,
+        NatsDsn,
+        AmqpDsn,
+        ClickHouseDsn,
+        SnowflakeDsn,
+        # Email types
+        EmailStr,
+        NameEmail,
+        # IP types
+        IPvAnyAddress,
+        IPvAnyInterface,
+        IPvAnyNetwork,
+    ],
+)
+def test_parse_pydantic_network_types(pydantic_parser: PydanticTypeStep, input_type: type) -> None:
+    """Test parsing of pydantic network types (URLs, DSNs, emails, IPs)."""
+    result = pydantic_parser.parse(input_type, constraints=(), metadata={})
+    assert result == nw.String()
+
+
+# --- Tests for models with new types ---
+
+
+def test_parse_model_with_network_types(pydantic_parser: PydanticTypeStep) -> None:
+    """Test parsing a model that uses network types."""
+
+    class ServerConfig(BaseModel):
+        database_url: PostgresDsn
+        cache_url: RedisDsn
+        homepage: HttpUrl
+
+    result = pydantic_parser.parse(ServerConfig, constraints=(), metadata={})
+
+    expected_fields = [
+        nw.Field(name="database_url", dtype=nw.String()),
+        nw.Field(name="cache_url", dtype=nw.String()),
+        nw.Field(name="homepage", dtype=nw.String()),
+    ]
+    expected = nw.Struct(expected_fields)
+    assert result == expected
+
+
+def test_parse_model_with_secret_types(pydantic_parser: PydanticTypeStep) -> None:
+    """Test parsing a model that uses secret types."""
+
+    class Credentials(BaseModel):
+        username: str
+        password: SecretStr
+        api_key: SecretBytes
+
+    result = pydantic_parser.parse(Credentials, constraints=(), metadata={})
+
+    expected_fields = [
+        nw.Field(name="username", dtype=nw.String()),
+        nw.Field(name="password", dtype=nw.String()),
+        nw.Field(name="api_key", dtype=nw.Binary()),
+    ]
+    expected = nw.Struct(expected_fields)
+    assert result == expected
+
+
+def test_parse_model_with_url_types(pydantic_parser: PydanticTypeStep) -> None:
+    """Test parsing a model that uses URL types."""
+
+    class Website(BaseModel):
+        homepage: HttpUrl
+        websocket_endpoint: WebsocketUrl
+        file_location: FileUrl
+
+    result = pydantic_parser.parse(Website, constraints=(), metadata={})
+
+    expected_fields = [
+        nw.Field(name="homepage", dtype=nw.String()),
+        nw.Field(name="websocket_endpoint", dtype=nw.String()),
+        nw.Field(name="file_location", dtype=nw.String()),
+    ]
+    expected = nw.Struct(expected_fields)
+    assert result == expected

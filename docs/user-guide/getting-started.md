@@ -410,6 +410,75 @@ schema = AnySchema(spec=Product)
 print(schema.to_polars())
 ```
 
+## Supported Pydantic Types
+
+anyschema supports a wide range of Pydantic types from `pydantic.types`, `pydantic.networks`, and `pydantic-extra-types`.
+Since schema systems don't support the validation semantics of these types, they are mapped to basic data types.
+
+### pydantic.types
+
+| Pydantic Type | Narwhals DType | Notes |
+|---------------|----------------|-------|
+| `SecretStr` | `String` | Sensitive string data |
+| `SecretBytes` | `Binary` | Sensitive binary data |
+| `FilePath`, `DirectoryPath`, `NewPath` | `String` | Path types |
+| `UUID`, `UUID1`-`UUID8` | `String` | UUID types |
+| `PositiveInt`, `NegativeInt`, etc. | `Int*` | Constrained integers (refined by constraints) |
+| `PositiveFloat`, `NegativeFloat`, etc. | `Float64` | Constrained floats |
+| `StrictStr`, `StrictBytes` | `String`/`Binary` | Strict mode types |
+
+[Pydantic docs](https://docs.pydantic.dev/latest/api/types/)
+
+### pydantic.networks
+
+| Pydantic Type | Narwhals DType | Notes |
+|---------------|----------------|-------|
+| `AnyUrl`, `HttpUrl`, `AnyHttpUrl` | `String` | URL types |
+| `WebsocketUrl`, `AnyWebsocketUrl` | `String` | WebSocket URLs |
+| `FileUrl`, `FtpUrl` | `String` | File/FTP URLs |
+| `PostgresDsn`, `MySQLDsn`, `RedisDsn`, etc. | `String` | Database DSNs |
+| `EmailStr`, `NameEmail` | `String` | Email types |
+| `IPvAnyAddress`, `IPvAnyInterface`, `IPvAnyNetwork` | `String` | IP address types |
+
+[Pydantic docs](https://docs.pydantic.dev/latest/api/networks/)
+
+### pydantic-extra-types
+
+| Pydantic Type | Narwhals DType | Notes |
+|---------------|----------------|-------|
+| `Color` | `String` | CSS color |
+| `Latitude`, `Longitude` | `Float64` | Coordinate types |
+| `CountryAlpha2`, `CountryAlpha3`, etc. | `String` | Country codes |
+| `PhoneNumber` | `String` | Phone numbers |
+| `Currency` | `String` | Currency codes |
+| `MacAddress` | `String` | MAC addresses |
+| `ISBN` | `String` | ISBN numbers |
+| `LanguageAlpha2`, `LanguageName` | `String` | Language codes |
+| `TimeZoneName` | `String` | Timezone names |
+
+[pydantic-extra-types repository](https://github.com/pydantic/pydantic-extra-types)
+
+### Example with Network Types
+
+```python exec="true" source="above" result="python" session="network-types"
+from anyschema import AnySchema
+from pydantic import BaseModel, SecretStr
+from pydantic.networks import HttpUrl, PostgresDsn
+
+
+class ServerConfig(BaseModel):
+    name: str
+    homepage: HttpUrl
+    database_url: PostgresDsn
+    api_key: SecretStr
+
+
+schema = AnySchema(spec=ServerConfig)
+print(schema.to_arrow())
+```
+
+As you can see, all the specialized Pydantic types are mapped to their underlying data types (`String` in this case).
+
 ## Using Narwhals Directly
 
 You can also work with Narwhals schemas directly (and pass them to `AnySchema`, which acts as a no-op in this case):

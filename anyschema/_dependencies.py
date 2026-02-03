@@ -19,15 +19,15 @@ if TYPE_CHECKING:
 
     Version: TypeAlias = tuple[int, ...]
 
-_MIN_VERSIONS: dict[str, Version] = {
-    "attrs": (22, 1, 0),
-    "pydantic": (2, 0, 0),
-    "sqlalchemy": (2, 0, 0),
+MIN_VERSIONS: dict[str, Version] = {
+    "attrs": (22, 1),
+    "pydantic": (2, 0),
+    "sqlalchemy": (2, 0),
 }
 """Minimum required versions for optional dependencies"""
 
 
-def _check_version(package: str) -> bool:
+def check_version(package: str) -> bool:
     """Check if a package is installed and meets the minimum version requirement.
 
     Arguments:
@@ -44,7 +44,7 @@ def _check_version(package: str) -> bool:
         return False
 
     # Installed & no min version requirement case
-    if (min_version := _MIN_VERSIONS.get(package)) is None:
+    if (min_version := MIN_VERSIONS.get(package)) is None:
         return True
 
     installed_version = get_version(package)
@@ -57,9 +57,9 @@ def _check_version(package: str) -> bool:
 
 
 ANNOTATED_TYPES_AVAILABLE = find_spec("annotated_types") is not None
-PYDANTIC_AVAILABLE = _check_version("pydantic")
-ATTRS_AVAILABLE = _check_version("attrs")
-SQLALCHEMY_AVAILABLE = _check_version("sqlalchemy")
+PYDANTIC_AVAILABLE = check_version("pydantic")
+ATTRS_AVAILABLE = check_version("attrs")
+SQLALCHEMY_AVAILABLE = check_version("sqlalchemy")
 
 
 def get_pydantic() -> ModuleType | None:

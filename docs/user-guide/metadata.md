@@ -22,6 +22,8 @@ Currently supported special metadata keys under the `"anyschema"` (or `"x-anysch
 * `"description": <str | None>`: Provides a human-readable description of the field.
 * `"dtype": <DType | str>`: Specifies the Narwhals dtype of the field (see the [dtype override](#dtype) section).
 * `"nullable": <bool>`: Specifies whether the field can contain null values.
+* `"precision": <int | None>`: Specifies total number of digits for decimal fields.
+* `"scale": <int | None>`: Specifies number of digits after decimal point for decimal fields.
 * `"time_zone": <str | None>`: Specifies timezone for datetime fields.
 * `"time_unit": <TimeUnit>`: Specifies time precision for datetime fields (default: `"us"`).
 * `"unique": <bool>`: Specifies whether all values in the field must be unique.
@@ -361,6 +363,104 @@ Specifies the time precision for datetime fields. Valid values are
 * Applicable to: `datetime` types and Pydantic datetime types
 * Default: `"us"` (microseconds)
 * Resulting dtype: `nw.Datetime(time_unit = <time_unit value>)`
+
+### `precision`
+
+Specifies the total number of digits in a decimal number.
+
+* Applicable to: `Decimal` types and SQLAlchemy Numeric/DECIMAL types
+* Default: `None`
+* Values: Positive integer less than or equal to 38
+* Resulting dtype: `nw.Decimal(precision=<value>, scale=...)`
+
+**Automatic extraction from:**
+
+1. **SQLAlchemy**: The `precision` parameter of `Numeric()` or `DECIMAL()` is automatically extracted
+2. **Explicit metadata**: Set `{"anyschema": {"precision": ...}}` in field metadata
+
+**Example with SQLAlchemy (auto-extracted):**
+
+```python exec="true" source="above" result="python" session="precision-sqlalchemy"
+from sqlalchemy import Column, Integer, MetaData, Numeric, Table
+from anyschema import AnySchema
+
+metadata_obj = MetaData()
+product_table = Table(
+    "products",
+    metadata_obj,
+    Column("id", Integer, primary_key=True),
+    Column("price", Numeric(10, 2)),  # precision=10, scale=2 auto-extracted
+    Column("discount", Numeric(5, 2)),  # precision=5, scale=2 auto-extracted
+)
+
+schema = AnySchema(spec=product_table)
+print(f"price dtype: {schema.fields['price'].dtype}")
+print(f"discount dtype: {schema.fields['discount'].dtype}")
+```
+
+**Example with Pydantic (explicit metadata):**
+
+```python exec="true" source="above" result="python" session="precision-pydantic"
+from decimal import Decimal
+from pydantic import BaseModel, Field
+from anyschema import AnySchema
+
+
+class Product(BaseModel):
+    price: Decimal = Field(
+        json_schema_extra={"anyschema": {"precision": 10, "scale": 2}}
+    )
+    discount: Decimal = Field(
+        json_schema_extra={"anyschema": {"precision": 5, "scale": 2}}
+    )
+
+
+schema = AnySchema(spec=Product)
+print(f"price dtype: {schema.fields['price'].dtype}")
+print(f"discount dtype: {schema.fields['discount'].dtype}")
+```
+
+### `scale`
+
+Specifies the number of digits after the decimal point in a decimal number.
+
+* Applicable to: `Decimal` types and SQLAlchemy Numeric/DECIMAL types
+* Values: Non-negative integer, must be less than or equal to [precision](#precision)
+* Resulting dtype: `nw.Decimal(precision=..., scale=<value>)`
+
+**Automatic extraction from:**
+
+1. **SQLAlchemy**: The `scale` parameter of `Numeric()` or `DECIMAL()` is automatically extracted
+2. **Explicit metadata**: Set `{"anyschema": {"scale": ...}}` in field metadata
+
+!!! tip "Precision and Scale Together"
+    The `precision` and `scale` metadata keys work together to define the exact decimal format.
+    For example, `Decimal(precision=10, scale=2)` allows numbers with up to 10 total digits,
+    with exactly 2 digits after the decimal point (e.g., 12345678.90).
+
+**Metadata override example for SQLAlchemy:**
+
+```python exec="true" source="above" result="python" session="scale-override"
+from sqlalchemy import Column, Integer, MetaData, Numeric, Table
+from anyschema import AnySchema
+
+metadata_obj = MetaData()
+product_table = Table(
+    "products",
+    metadata_obj,
+    Column("id", Integer, primary_key=True),
+    Column("price", Numeric(10, 2)),  # SQLAlchemy: precision=10, scale=2
+    Column(
+        "discount",
+        Numeric(5, 2),  # SQLAlchemy: precision=5, scale=2
+        info={"anyschema": {"scale": 4}},  # Override scale to 4
+    ),
+)
+
+schema = AnySchema(spec=product_table)
+print(f"price dtype: {schema.fields['price'].dtype}")
+print(f"discount dtype (scale overridden): {schema.fields['discount'].dtype}")
+```
 
 ### `unique`
 

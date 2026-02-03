@@ -114,11 +114,19 @@ class SQLAlchemyTypeStep(ParserStep):
             return nw.Float64()
         if isinstance(input_type, (sqltypes.Float, sqltypes.REAL)):
             return nw.Float32()
-        if isinstance(input_type, sqltypes.DECIMAL):
-            return nw.Decimal()
         if isinstance(input_type, sqltypes.Numeric):
-            # Safest option?
-            return nw.Float64()
+            # DECIMAL is a subclass of Numeric, so this catches both
+            # Note: Float/Double also inherit from Numeric, so they must be checked first
+            # Extract precision/scale from SQLAlchemy type, with metadata override
+            # Metadata takes precedence, then SQLAlchemy type attributes, then defaults
+            md_precision = get_anyschema_value_by_key(metadata, key="precision")
+            md_scale = get_anyschema_value_by_key(metadata, key="scale")
+
+            # Use metadata if provided, else use SQLAlchemy value (which may be None)
+            # narwhals.Decimal() accepts precision=None (defaults to 38) but scale must be int (defaults to 0)
+            precision = md_precision if md_precision is not None else input_type.precision
+            scale = md_scale if md_scale is not None else input_type.scale if input_type.scale is not None else 0
+            return nw.Decimal(precision=precision, scale=scale)
         if isinstance(input_type, sqltypes.Date):
             return nw.Date()
         if isinstance(input_type, sqltypes.DateTime):

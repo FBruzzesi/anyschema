@@ -62,6 +62,12 @@ def get_anyschema_value_by_key(
 
 @overload
 def get_anyschema_value_by_key(
+    metadata: FieldMetadata, *, key: Literal["precision", "scale"], default: int | None = None
+) -> int | None: ...
+
+
+@overload
+def get_anyschema_value_by_key(
     metadata: FieldMetadata, *, key: Literal["dtype"], default: None = None
 ) -> DType | str | None: ...
 
@@ -70,8 +76,8 @@ def get_anyschema_value_by_key(
     metadata: FieldMetadata,
     *,
     key: AnySchemaMetadataKey,
-    default: bool | str | None = None,
-) -> bool | str | DType | TimeUnit | None:
+    default: bool | str | int | None = None,
+) -> bool | str | int | DType | TimeUnit | None:
     """Get a specific anyschema metadata value with fallback to default.
 
     Supports both "anyschema" and "x-anyschema" keys (OpenAPI convention).
@@ -108,11 +114,15 @@ def set_anyschema_meta(
 
 
 @overload
+def set_anyschema_meta(metadata: FieldMetadata, *, key: Literal["precision", "scale"], value: int | None) -> None: ...
+
+
+@overload
 def set_anyschema_meta(metadata: FieldMetadata, *, key: Literal["time_unit"], value: TimeUnit) -> None: ...
 
 
 def set_anyschema_meta(
-    metadata: FieldMetadata, *, key: AnySchemaMetadataKey, value: bool | str | TimeUnit | None
+    metadata: FieldMetadata, *, key: AnySchemaMetadataKey, value: bool | str | int | TimeUnit | None
 ) -> None:
     """Set a specific anyschema metadata value in the nested structure.
 

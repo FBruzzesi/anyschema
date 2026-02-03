@@ -78,7 +78,10 @@ class PyTypeStep(ParserStep):
             if issubclass(input_type, time):
                 return nw.Time()
             if issubclass(input_type, Decimal):
-                return nw.Decimal()
+                return nw.Decimal(
+                    precision=get_anyschema_value_by_key(metadata, key="precision"),
+                    scale=get_anyschema_value_by_key(metadata, key="scale") or 0,
+                )
             if issubclass(input_type, bytes):
                 return nw.Binary()
             if is_typed_dict(input_type):

@@ -61,6 +61,10 @@ def get_anyschema_value_by_key(
 
 
 @overload
+def get_anyschema_value_by_key(metadata: FieldMetadata, *, key: Literal["precision", "scale"], default: int) -> int: ...
+
+
+@overload
 def get_anyschema_value_by_key(
     metadata: FieldMetadata, *, key: Literal["precision", "scale"], default: int | None = None
 ) -> int | None: ...

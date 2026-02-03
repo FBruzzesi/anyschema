@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import date  # noqa: TC003
-from typing import TYPE_CHECKING, Annotated, Optional
+from typing import TYPE_CHECKING, Annotated
 
 import hypothesis.strategies as st
 import narwhals as nw
@@ -46,7 +46,7 @@ def test_parse_date_with_constraints(auto_pipeline: ParserPipeline, min_date: da
 
     class DateConstraintModel(BaseModel):
         x: Annotated[date, Interval(gt=min_date, lt=max_date)]
-        y: Optional[Annotated[date, Interval(ge=min_date, lt=max_date)]] | None
+        y: None | Annotated[date, Interval(ge=min_date, lt=max_date)]
         z: Annotated[date, Interval(gt=min_date, le=max_date)] | None
         w: None | Annotated[date, Interval(ge=min_date, le=max_date)]
 

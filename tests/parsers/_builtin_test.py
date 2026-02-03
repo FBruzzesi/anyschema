@@ -132,6 +132,24 @@ def test_parse_datetime_with_time_metadata(
     assert result == expected
 
 
+@pytest.mark.parametrize(
+    ("metadata", "expected"),
+    [
+        ({}, nw.Decimal()),
+        ({"anyschema": {"precision": 10}}, nw.Decimal(precision=10)),
+        ({"anyschema": {"scale": 2}}, nw.Decimal(scale=2)),
+        ({"anyschema": {"precision": 10, "scale": 2}}, nw.Decimal(precision=10, scale=2)),
+        ({"anyschema": {"precision": 38, "scale": 0}}, nw.Decimal(precision=38, scale=0)),
+    ],
+)
+def test_parse_decimal_with_precision_scale_metadata(
+    py_type_parser: PyTypeStep, metadata: dict[str, Any], expected: nw.dtypes.DType
+) -> None:
+    """Test that Decimal parses correctly with anyschema/precision and anyschema/scale metadata."""
+    result = py_type_parser.parse(Decimal, constraints=(), metadata=metadata)
+    assert result == expected
+
+
 @pytest.mark.parametrize("input_type", [CustomClass, NoneType, set[int], frozenset])
 def test_unsupported_type(py_type_parser: PyTypeStep, input_type: Any) -> None:
     result = py_type_parser.parse(input_type, (), {})

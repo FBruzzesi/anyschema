@@ -279,11 +279,13 @@ schema = AnySchema(spec=Student)
 Complete processing flow:
 
 1. Spec Adapter: (`pydantic_adapter`):
+
     * Extracts: `("name", str, (), {})`
     * Extracts: `("age", PositiveInt, (), {})`
     * Extracts: `("classes", list[str] | None, (), {})`
 
 2. Parser pipeline for `name: str`:
+
     * `ForwardRefStep`: Not a `ForwardRef` -> returns `None`
     * `UnionTypeStep`: Not a `Union` -> returns `None`
     * `AnnotatedStep`: Not `Annotated` -> returns `None`

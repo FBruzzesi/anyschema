@@ -91,6 +91,8 @@ class AnySchemaMetadata(TypedDict, total=False):
         description: Human-readable description of the field.
         dtype: Narwhals DType (or its serialized/string representation)
         nullable: Whether the field can contain null values.
+        precision: Total number of digits for decimal fields.
+        scale: Number of digits after decimal point for decimal fields.
         time_zone: Timezone for datetime fields (e.g., "UTC", "Europe/Berlin").
         time_unit: Time precision for datetime fields ("s", "ms", "us", "ns").
         unique: Whether all values in the field must be unique.
@@ -103,10 +105,14 @@ class AnySchemaMetadata(TypedDict, total=False):
     description: str | None
     dtype: str | DType
     nullable: bool
+    precision: int
+    scale: int
     time_zone: str
     time_unit: TimeUnit
     unique: bool
 
 
-AnySchemaMetadataKey: TypeAlias = Literal["description", "dtype", "nullable", "time_zone", "time_unit", "unique"]
+AnySchemaMetadataKey: TypeAlias = Literal[
+    "description", "dtype", "nullable", "precision", "scale", "time_zone", "time_unit", "unique"
+]
 AnySchemaNamespaceKey: TypeAlias = Literal["anyschema", "x-anyschema"]

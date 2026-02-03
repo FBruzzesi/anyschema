@@ -95,6 +95,17 @@ RGX_DATETIME = re.compile(
     re.VERBOSE,
 )
 
+RGX_DECIMAL = re.compile(
+    r"""^
+    Decimal\(                                     # Literal "Decimal("
+        precision=(?P<precision>\d+)              # Capture precision (digits)
+        ,\s                                       # Comma and whitespace
+        scale=(?P<scale>\d+)                      # Capture scale (digits)
+    \)                                            # Closing parenthesis
+    $""",
+    re.VERBOSE,
+)
+
 RGX_DURATION = re.compile(
     r"""^
     Duration\(                            # Literal "Duration("
@@ -204,6 +215,11 @@ def deserialize_dtype(into_dtype: str) -> DType:
         time_unit = cast("TimeUnit", datetime_match.group("time_unit"))
         time_zone = datetime_match.group("time_zone")
         return Datetime(time_unit=time_unit, time_zone=time_zone)
+
+    if decimal_match := RGX_DECIMAL.match(into_dtype):
+        precision = int(decimal_match.group("precision"))
+        scale = int(decimal_match.group("scale"))
+        return Decimal(precision=precision, scale=scale)
 
     if duration_match := RGX_DURATION.match(into_dtype):
         time_unit = cast("TimeUnit", duration_match.group("time_unit"))

@@ -43,8 +43,10 @@ class Color(Enum):
         (sqltypes.UnicodeText(), nw.String()),
         (sqltypes.Float(), nw.Float32()),
         (sqltypes.Double(), nw.Float64()),
-        (sqltypes.Numeric(10, 2), nw.Float64()),
-        (sqltypes.DECIMAL(10, 2), nw.Decimal()),
+        (sqltypes.Numeric(10, 2), nw.Decimal(precision=10, scale=2)),
+        (sqltypes.DECIMAL(10, 2), nw.Decimal(precision=10, scale=2)),
+        (sqltypes.Numeric(), nw.Decimal()),
+        (sqltypes.DECIMAL(5), nw.Decimal(precision=5)),
         (sqltypes.Date(), nw.Date()),
         (sqltypes.DateTime(), nw.Datetime()),
         (sqltypes.TIMESTAMP(), nw.Datetime()),
@@ -135,3 +137,22 @@ def test_sqlalchemy_non_sqlalchemy_types_return_none(sqlalchemy_step: SQLAlchemy
 def test_sqlalchemy_unhandled_types_return_none(sqlalchemy_step: SQLAlchemyTypeStep, input_type: Any) -> None:
     result = sqlalchemy_step.parse(input_type=input_type, constraints=(), metadata={})
     assert result is None
+
+
+@pytest.mark.parametrize(
+    ("input_type", "metadata", "expected"),
+    [
+        # Test metadata overrides for precision and scale
+        (sqltypes.Numeric(10, 2), {"anyschema": {"precision": 15}}, nw.Decimal(precision=15, scale=2)),
+        (sqltypes.Numeric(10, 2), {"anyschema": {"scale": 4}}, nw.Decimal(precision=10, scale=4)),
+        (sqltypes.Numeric(10, 2), {"anyschema": {"precision": 12, "scale": 3}}, nw.Decimal(precision=12, scale=3)),
+        (sqltypes.DECIMAL(5, 1), {"anyschema": {"precision": 8}}, nw.Decimal(precision=8, scale=1)),
+        # Test without SQLAlchemy precision/scale but with metadata
+        (sqltypes.Numeric(), {"anyschema": {"precision": 10, "scale": 2}}, nw.Decimal(precision=10, scale=2)),
+    ],
+)
+def test_sqlalchemy_numeric_metadata_override(
+    sqlalchemy_step: SQLAlchemyTypeStep, input_type: Any, metadata: dict[str, Any], expected: nw.dtypes.DType
+) -> None:
+    result = sqlalchemy_step.parse(input_type=input_type, constraints=(), metadata=metadata)
+    assert result == expected

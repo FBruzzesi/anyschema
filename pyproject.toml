@@ -73,8 +73,6 @@ docs = [
 ]
 
 local-dev = [
-  "pre-commit",
-  "ruff",
   {include-group = "testing"},
   {include-group = "typing"},
   {include-group = "docs"}

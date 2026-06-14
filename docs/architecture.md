@@ -161,7 +161,7 @@ steps = (
 With this architecture we aim to achieve multiple goals at once:
 
 * **Modularity**: Each parser has a single, well-defined responsibility.
-* **Composability**: Parsers can be re-ordered, re-used, mixed and matched.
+* **Composability**: Parsers can be re-ordered, reused, mixed and matched.
 * **Extensibility**: New parsers can be added without modifying existing code.
 * **Recursion Simplification**: Union/Optional extraction happens once, simplifying other parsers.
 * **Metadata Flow**: Metadata is preserved and passed through the pipeline.

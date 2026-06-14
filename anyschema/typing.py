@@ -36,10 +36,17 @@ IntoParserPipeline: TypeAlias = "Literal['auto'] | Sequence['ParserStep']"
 Either "auto" or a sequence of [`ParserStep`][anyschema.parsers.ParserStep].
 """
 
+JsonSchema: TypeAlias = "Mapping[str, Any] | str | bytes"
+"""A [JSON Schema](https://json-schema.org/) object: either a parsed mapping or a raw JSON document.
+
+Only the mapping form is auto-detected by [`AnySchema`][anyschema.AnySchema]; raw `str`/`bytes` documents
+must be passed via the `adapter` argument or parsed beforehand.
+"""
+
 UnknownSpec: TypeAlias = Any
 """An unknown specification."""
 
-Spec: TypeAlias = "Schema | IntoOrderedDict | type[BaseModel] | DataclassType | TypedDictType | AttrsClassType | SQLAlchemyTableType | UnknownSpec"  # noqa: E501
+Spec: TypeAlias = "Schema | IntoOrderedDict | JsonSchema | type[BaseModel] | DataclassType | TypedDictType | AttrsClassType | SQLAlchemyTableType | UnknownSpec"  # noqa: E501
 """Input specification supported directly by [`AnySchema`][anyschema.AnySchema]."""
 
 FieldName: TypeAlias = str

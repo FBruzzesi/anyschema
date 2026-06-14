@@ -5,7 +5,8 @@ This guide will help you get started with `anyschema` and explore its core funct
 ## Basic Usage
 
 `anyschema` accepts specifications in multiple formats including Pydantic models, SQLAlchemy tables, TypedDict,
-dataclasses, attrs classes, and plain Python dicts (and more to come, see [anyschema#11](https://github.com/FBruzzesi/anyschema/issues/11)).
+dataclasses, attrs classes, JSON Schema objects, and plain Python dicts (and more to come, see
+[anyschema#11](https://github.com/FBruzzesi/anyschema/issues/11)).
 
 Let's explore each approach and when to use it.
 
@@ -227,6 +228,52 @@ spec = [
 schema = AnySchema(spec=spec)
 print(schema.to_polars())
 ```
+
+### With JSON Schema
+
+You can build a schema directly from a [JSON Schema](https://json-schema.org/) object, such as the output of
+`pydantic.BaseModel.model_json_schema()`. This is handy when the original model classes are no longer available at
+runtime but their JSON Schema is:
+
+```python exec="true" source="above" result="python" session="basic-jsonschema"
+from anyschema import AnySchema
+
+spec = {
+    "type": "object",
+    "properties": {
+        "id": {"type": "integer"},
+        "username": {"type": "string"},
+        "email": {"anyOf": [{"type": "string"}, {"type": "null"}]},
+        "age": {"type": "integer", "exclusiveMinimum": 0},
+        "address": {"$ref": "#/$defs/Address"},
+    },
+    "$defs": {
+        "Address": {
+            "type": "object",
+            "properties": {"street": {"type": "string"}, "zipcode": {"type": "integer"}},
+        }
+    },
+}
+
+schema = AnySchema(spec=spec)
+print(schema.to_arrow())
+```
+
+`$ref`/`$defs`, nested objects, arrays, enums and integer bounds (e.g. `exclusiveMinimum`, which refines `age` to an
+unsigned integer) are all handled. A field is marked nullable only when its schema explicitly allows the `null` type.
+
+!!! note "Raw JSON strings"
+
+    Only the parsed-mapping form is auto-detected. A raw JSON `str`/`bytes` document must be passed through the
+    `adapter` argument:
+
+    ```python
+    import json
+    from anyschema import AnySchema
+    from anyschema.adapters import jsonschema_adapter
+
+    schema = AnySchema(spec=json.dumps(spec), adapter=jsonschema_adapter)
+    ```
 
 ## Understanding nullability
 

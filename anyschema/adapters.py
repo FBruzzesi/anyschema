@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Literal
 
 from typing_extensions import get_type_hints
 
+from anyschema._jsonschema import iter_field_specs, parse_schema
 from anyschema._metadata import get_anyschema_value_by_key, set_anyschema_meta
 
 if TYPE_CHECKING:
@@ -16,6 +17,7 @@ if TYPE_CHECKING:
         DataclassType,
         FieldSpecIterable,
         IntoOrderedDict,
+        JsonSchema,
         SQLAlchemyTableType,
         TypedDictType,
     )
@@ -24,10 +26,57 @@ __all__ = (
     "attrs_adapter",
     "dataclass_adapter",
     "into_ordered_dict_adapter",
+    "jsonschema_adapter",
     "pydantic_adapter",
     "sqlalchemy_adapter",
     "typed_dict_adapter",
 )
+
+
+def jsonschema_adapter(spec: JsonSchema) -> FieldSpecIterable:
+    """Adapter for JSON Schema objects.
+
+    Converts a [JSON Schema](https://json-schema.org/) object (the kind produced by, e.g.,
+    `pydantic.BaseModel.model_json_schema()`) into an iterator yielding field information as
+    `(field_name, field_type, constraints, metadata)` tuples.
+
+    Each property is translated into the equivalent Python type and handed to the parser pipeline:
+
+    - `"string"` maps to `str`, refined by `format` (`date`, `date-time`, `time`, `duration`, `binary`).
+    - `"integer"`/`"number"`/`"boolean"` map to `int`/`float`/`bool`. Integer bounds (`minimum`, `maximum`,
+        `exclusiveMinimum`, `exclusiveMaximum`) become `annotated_types` constraints, so e.g.
+        `{"type": "integer", "exclusiveMinimum": 0}` refines to an unsigned integer (matching `PositiveInt`).
+    - `"array"` maps to `list[...]` and `"object"` (with `properties`) to a nested struct.
+    - `enum`/`const` map to `Literal[...]`.
+    - `$ref`/`$defs` (and the legacy `definitions`) are resolved.
+
+    A field is marked nullable only when its schema explicitly allows the `null` type (an `anyOf`/`oneOf`
+    null branch, or a `type` array containing `"null"`); the `required` array does not affect nullability.
+
+    Arguments:
+        spec: A JSON Schema object, either already parsed (a mapping) or as a raw `str`/`bytes` JSON document.
+
+    Yields:
+        A tuple of `(field_name, field_type, constraints, metadata)` for each property.
+
+    Raises:
+        ValueError: If `spec` is not a JSON object with `"type": "object"` and a `"properties"` mapping,
+            or if a `$ref` cannot be resolved.
+        UnsupportedDTypeError: If the schema contains a cyclic (self-referential) reference.
+
+    Examples:
+        >>> schema = {
+        ...     "type": "object",
+        ...     "properties": {
+        ...         "id": {"type": "integer"},
+        ...         "name": {"type": "string"},
+        ...     },
+        ...     "required": ["id", "name"],
+        ... }
+        >>> list(jsonschema_adapter(schema))
+        [('id', <class 'int'>, (), {}), ('name', <class 'str'>, (), {})]
+    """
+    return iter_field_specs(parse_schema(spec))
 
 
 def into_ordered_dict_adapter(spec: IntoOrderedDict) -> FieldSpecIterable:

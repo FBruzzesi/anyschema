@@ -106,7 +106,7 @@ generation, type-safe data processing.
 ## Key Features
 
 - **Multiple Input Formats**: Support for Pydantic models, SQLAlchemy tables (ORM and Core), attrs classes, TypedDict,
-    dataclasses, Python mappings and sequence of field specifications.
+    dataclasses, JSON Schema objects, Python mappings and sequence of field specifications.
 - **Multiple Output Formats**: Convert to PyArrow, Polars, or Pandas schemas.
 - **Modular Architecture**: Extensible parser pipeline for custom type handling.
 - **Rich Type Support**: Handles complex types including Optional, Union, List, nested structures, Pydantic-specific
@@ -143,6 +143,7 @@ Adapters convert input specifications into a common format that the parser pipel
 - [`attrs_adapter`][api-attrs-adapter]: Extracts field information from attrs classes.
 - [`pydantic_adapter`][api-pydantic-adapter]: Extracts field information from Pydantic models.
 - [`sqlalchemy_adapter`][api-sqlalchemy-adapter]: Extracts field information from SQLAlchemy tables.
+- [`jsonschema_adapter`][api-jsonschema-adapter]: Extracts field information from JSON Schema objects.
 
 See the [API Reference](api-reference/adapters.md) for detailed documentation.
 
@@ -195,3 +196,4 @@ as an intermediate representation. `anyschema` makes this conversion seamless an
 [api-pydantic-adapter]: api-reference/adapters.md#anyschema.adapters.pydantic_adapter
 [api-attrs-adapter]: api-reference/adapters.md#anyschema.adapters.attrs_adapter
 [api-sqlalchemy-adapter]: api-reference/adapters.md#anyschema.adapters.sqlalchemy_adapter
+[api-jsonschema-adapter]: api-reference/adapters.md#anyschema.adapters.jsonschema_adapter

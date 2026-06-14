@@ -429,6 +429,13 @@ print(schema.to_arrow())
 
 ### Adapter for JSON Schema
 
+!!! tip "A built-in adapter already exists"
+
+    `anyschema` ships a fully-featured [`jsonschema_adapter`][api-jsonschema-adapter] that handles `$ref`/`$defs`,
+    nested objects, arrays, enums, optionals and integer constraints, and JSON Schema objects (mappings) are
+    auto-detected. See [Getting Started](getting-started.md#with-json-schema). The example below is kept as a minimal,
+    illustrative custom adapter.
+
 Here's a practical example of adapting from JSON Schema:
 
 ```python exec="true" source="above" result="python" session="custom-adapter"
@@ -496,3 +503,4 @@ print(schema.to_arrow())
 ```
 
 [api-parser-step]: ../api-reference/parsers.md#anyschema.parsers.ParserStep
+[api-jsonschema-adapter]: ../api-reference/adapters.md#anyschema.adapters.jsonschema_adapter

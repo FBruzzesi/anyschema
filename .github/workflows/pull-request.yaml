@@ -88,7 +88,7 @@ jobs:
           enable-cache: "true"
           cache-dependency-glob: "pyproject.toml"
       - name: Run ruff linter and formatter
-        run: make lint
+        run: make py-lint
 
   rumdl:
     runs-on: ubuntu-latest
@@ -102,10 +102,7 @@ jobs:
           enable-cache: "true"
           cache-dependency-glob: "pyproject.toml"
       - name: Run rumdl linter and formatter
-        run: |
-          uv tool run rumdl version
-          uv tool run rumdl config --no-defaults
-          uv tool run rumdl check --output-format=github .
+        run: make md-lint
 
   check-typos:
     runs-on: ubuntu-latest

@@ -47,16 +47,17 @@ testing = [
   "hypothesis>=6.0.0",
   "narwhals[pandas,polars,pyarrow,pyspark]",
   "pydantic-extra-types[pycountry,phonenumbers]",
-  "pytest>=8.0.0",
+  "pytest>=9.0.3",
   "pytest-cov>=6.0.0",
   "pytest-xdist>=3.8.0",
 ]
 
 typing = [
-  "mypy",
-  "pandas-stubs",
-  "pyarrow-stubs",
-  "pyright",
+  "mypy>=2.1.0",
+  "pandas-stubs>=2.3.3.260113",
+  "pyarrow-stubs>=20.0.0.20251215",
+  "pyrefly>=1.0.0",
+  "pyright>=1.1.410",
   {include-group = "testing"},
 ]
 
@@ -166,6 +167,9 @@ reportUnusedFunction = "none"
 enableExperimentalFeatures = true
 typeCheckingMode = "strict"
 include = ["src", "tests"]
+
+[tool.pyrefly]
+search_path = ["src", "."]
 
 [tool.coverage.run]
 plugins = ["covdefaults"]

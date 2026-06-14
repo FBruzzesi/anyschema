@@ -3,20 +3,27 @@ $(eval $(ARG):;@:)
 
 sources = src tests
 
-lint:
+py-lint:
 	uvx ruff version
 	uvx ruff format $(sources)
 	uvx ruff check $(sources) --fix
 	uvx ruff clean
-	uv tool run rumdl check .
+
+md-lint:
+	uvx rumdl version
+	uvx rumdl config --no-defaults
+	uvx rumdl check --output-format=github .
+
+lint: py-lint md-lint
 
 test:
-	uv run --group testing pytest tests --cov=src --cov=tests
-	uv run --group testing pytest src --doctest-modules
+	uv run --group testing --all-extras pytest tests --cov=src --cov=tests
+	uv run --group testing --all-extras pytest src --doctest-modules
 
 typing:
-	uv run --group typing pyright $(sources)
-	uv run --group typing mypy $(sources)
+	uv run --group typing --all-extras pyrefly check $(sources) --min-severity info --summary
+	uv run --group typing --all-extras pyright $(sources)
+	uv run --group typing --all-extras mypy $(sources)
 
 docs-serve:
 	uv run --group docs mkdocs serve --watch src --watch docs --dirty

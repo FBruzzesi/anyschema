@@ -56,7 +56,7 @@ def nested_adapter(spec: NestedSchema) -> Generator[FieldSpec, None, None]:
             nested_dict = {name: type_ for name, type_, *_ in nested_adapter(field_value)}
             # Create a dynamic TypedDict with the nested fields
             nested_typed_dict = TypedDict(  # type: ignore[misc]
-                f"{field_name.title()}TypedDict",  # Generate a unique name
+                f"{field_name.title()}TypedDict",  # pyrefly: ignore[name-mismatch]  # Generate a unique name
                 nested_dict,  # Field name -> type mapping
             )
             yield field_name, nested_typed_dict, (), {}
@@ -116,6 +116,7 @@ def test_nested_schema_adapter() -> None:
     assert "struct" in str(arrow_schema.types[1]).lower()
     # Check that the nested struct has the correct fields
     profile_type = arrow_schema.types[1]
+    # pyrefly: ignore[redundant-cast]  # pyrefly narrows the dict value by literal key; pyright/mypy need the cast
     assert profile_type.num_fields == len(cast("NestedSchema", fields["profile"]).fields)  # Should have 2 fields
     assert pa.types.is_struct(profile_type)
     assert profile_type.names == ["name", "age"]

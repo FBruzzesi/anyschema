@@ -74,7 +74,7 @@ jobs:
           enable-cache: "true"
           cache-dependency-glob: "pyproject.toml"
       - name: Build docs strict mode
-        run: docs-build
+        run: make docs-build
 
   ruff:
     runs-on: ubuntu-latest

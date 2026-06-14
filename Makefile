@@ -26,10 +26,10 @@ typing:
 	uv run --group typing --all-extras mypy $(sources)
 
 docs-serve:
-	uv run --group docs mkdocs serve --watch src --watch docs --dirty
+	uv run --group docs zensical serve
 
 docs-build:
-	uv run --group docs mkdocs build --strict
+	uv run --group docs zensical build --strict
 
 setup-release:
 	git checkout main

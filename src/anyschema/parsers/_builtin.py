@@ -116,7 +116,7 @@ class PyTypeStep(ParserStep):
         if origin is Literal:
             return nw.Enum(get_args(input_type))
 
-        if origin in (dict, Mapping):
+        if origin in {dict, Mapping}:
             # For now, we treat dict[K, V] as an empty Struct
             # TODO(FBruzzesi): What's a better way to map this? We should introspect the mapping values
             return nw.Struct([])
@@ -124,7 +124,7 @@ class PyTypeStep(ParserStep):
         args = get_args(input_type)
         inner_dtype = self.pipeline.parse(args[0], constraints=constraints, metadata=metadata, strict=True)
 
-        if origin in (list, Sequence, Iterable):
+        if origin in {list, Sequence, Iterable}:
             return nw.List(inner_dtype)
 
         if origin is tuple:

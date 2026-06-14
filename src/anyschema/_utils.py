@@ -22,9 +22,7 @@ def qualified_type_name(obj: object | type[Any], /) -> str:
 def _get_sys_info() -> dict[str, str]:
     """System information.
 
-    Returns system and Python version information
-
-    Adapted from sklearn.
+    Returns system and Python version information. Adapted from sklearn.
 
     Returns:
         Dictionary with system info.

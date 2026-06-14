@@ -23,7 +23,7 @@ Understanding these concepts will help you extend anyschema and troubleshoot iss
 
     * Return `None` if your parser can't handle a type (lets next parser try).
     * Use `self.pipeline.parse(..., constraints=constraints, metadata=metadata)` for recursion (handles nested types
-        like `list[YourType]`).
+      like `list[YourType]`).
     * Pass metadata through when recursing (`metadata=metadata`).
     * Order matters - specialized parsers before general ones.
 

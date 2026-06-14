@@ -22,10 +22,10 @@ jobs:
           enable-cache: "true"
           cache-dependency-glob: "pyproject.toml"
       - name: Run pytest
-        run: uv run --all-extras --group tests pytest tests --cov=src --cov=tests
+        run: uv run --all-extras --group testing pytest tests --cov=src --cov=tests
       - name: Run doctest
         if: matrix.python-version == '3.14'
-        run: uv run --all-extras --group tests pytest src --doctest-modules
+        run: uv run --all-extras --group testing pytest src --doctest-modules
 
   minimum_versions:
     strategy:
@@ -45,7 +45,7 @@ jobs:
         run: |
           uv run \
           --with narwhals==2.16.0,attrs==22.1.0,pydantic==2.0.0,sqlalchemy==2.0.0 \
-          --all-extras --group tests \
+          --all-extras --group testing \
           pytest tests --cov=anyschema --cov=tests --cov-fail-under=95
 
   typing:

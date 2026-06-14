@@ -22,10 +22,10 @@ jobs:
           enable-cache: "true"
           cache-dependency-glob: "pyproject.toml"
       - name: Run pytest
-        run: uv run --all-extras --group tests pytest tests --cov=anyschema --cov=tests --cov-fail-under=95
+        run: uv run --all-extras --group testing pytest tests --cov=src --cov=tests
       - name: Run doctest
         if: matrix.python-version == '3.14'
-        run: uv run --all-extras --group tests pytest anyschema --doctest-modules
+        run: uv run --all-extras --group testing pytest src --doctest-modules
 
   minimum_versions:
     strategy:
@@ -45,7 +45,7 @@ jobs:
         run: |
           uv run \
           --with narwhals==2.16.0,attrs==22.1.0,pydantic==2.0.0,sqlalchemy==2.0.0 \
-          --all-extras --group tests \
+          --all-extras --group testing \
           pytest tests --cov=anyschema --cov=tests --cov-fail-under=95
 
   typing:
@@ -60,12 +60,9 @@ jobs:
           enable-cache: "true"
           cache-dependency-glob: "pyproject.toml"
       - name: Run type checking
-        run: |
-          # uv run --all-extras --group typing ty check anyschema tests --output-format github
-          uv run --all-extras --group typing pyright anyschema tests
-          uv run --all-extras --group typing mypy anyschema tests
+        run: make typing
 
-  mkdocs-build:
+  zensical-build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout source code
@@ -77,49 +74,10 @@ jobs:
           enable-cache: "true"
           cache-dependency-glob: "pyproject.toml"
       - name: Build docs strict mode
-        run: uv run --all-extras --group docs mkdocs build --strict
+        run: make docs-build
 
-  ruff:
+  prek:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout source code
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
-      - name: Install uv
-        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
-        with:
-          python-version: ${{ env.DEFAULT_PYTHON }}
-          enable-cache: "true"
-          cache-dependency-glob: "pyproject.toml"
-      - name: Run ruff linter and formatter
-        run: |
-          uvx ruff version
-          uvx ruff format anyschema tests --diff
-          uvx ruff check anyschema tests --output-format=github
-          uvx ruff clean
-
-  rumdl:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout source code
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
-      - name: Install uv
-        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
-        with:
-          python-version: ${{ env.DEFAULT_PYTHON }}
-          enable-cache: "true"
-          cache-dependency-glob: "pyproject.toml"
-      - name: Run rumdl linter and formatter
-        run: |
-          uv tool run rumdl version
-          uv tool run rumdl config --no-defaults
-          uv tool run rumdl check --output-format=github .
-
-  check-typos:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout source code
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
-      - name: Check for typos
-        uses: crate-ci/typos@master
-        with:
-          files: .
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: j178/prek-action@bdca6f102f98e2b4c7029491a53dfd366469e33d # v2.0.4

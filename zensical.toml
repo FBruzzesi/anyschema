@@ -1,0 +1,104 @@
+[project]
+site_name = "AnySchema"
+site_description = "AnySchema documentation"
+site_url = "https://fbruzzesi.github.io/anyschema/"
+site_author = "FBruzzesi"
+repo_url = "https://github.com/FBruzzesi/anyschema"
+repo_name = "FBruzzesi/anyschema"
+
+nav = [
+    { "Home" = "index.md" },
+    { "User Guide" = [
+        {"Getting Started" = "user-guide/getting-started.md"},
+        {"Metadata" = "user-guide/metadata.md"},
+        {"Advanced Usage" = "user-guide/advanced.md"},
+        {"Serialization & Deserialization" = "user-guide/serde.md"},
+        {"Best Practices" = "user-guide/best-practices.md"},
+        {"End to End Example with Custom Components" = "user-guide/custom-end-to-end-example.md"},
+        {"Troubleshooting" = "user-guide/troubleshooting.md"},
+        {"OpenAPI Compatibility" = "user-guide/openapi-compatibility.md"},
+    ]},
+    {"Architecture" = "architecture.md"},
+    {"API Reference" = [
+        {"Home "= "api-reference/index.md"},
+        {"AnySchema "= "api-reference/anyschema.md"},
+        {"Parsers "= "api-reference/parsers.md"},
+        {"Spec Adapters "= "api-reference/adapters.md"},
+        {"Serialization & Deserialization "= "api-reference/serde.md"},
+        {"Exceptions "= "api-reference/exceptions.md"},
+        {"Typing "= "api-reference/typing.md"},
+    ]}
+]
+
+extra_css = [
+    "css/extra.css",
+    "https://unpkg.com/katex@0/dist/katex.min.css",
+]
+extra_javascript = [
+    "javascripts/katex.js",
+    "javascripts/extra.js",
+    "javascripts/table.js",
+    "https://unpkg.com/katex@0/dist/katex.min.js",
+    "https://unpkg.com/katex@0/dist/contrib/auto-render.min.js",
+    "https://unpkg.com/tablesort@5.3.0/dist/tablesort.min.js",
+]
+
+[project.theme]
+variant = "modern"  # "classic"
+# favicon = "assets/logo.svg"
+# logo = "assets/logo.svg"
+language = "en"
+features = [
+    "content.code.annotate",
+    "content.code.copy",
+    "navigation.footer",
+    "navigation.indexes",
+    "navigation.top",
+    "search.highlight",
+    "toc.follow",
+]
+
+[project.theme.font]
+text = "Inter"
+code = "Jetbrains Mono"
+
+[[project.theme.palette]]
+scheme = "default"
+toggle.icon = "lucide/sun"
+toggle.name = "Switch to dark mode"
+
+[[project.theme.palette]]
+scheme = "slate"
+toggle.icon = "lucide/moon"
+toggle.name = "Switch to light mode"
+
+[[project.extra.social]]
+icon = "fontawesome/brands/github"
+link = "https://github.com/FBruzzesi/anyschema"
+
+[project.plugins.mkdocstrings.handlers.python]
+inventories = ["https://docs.python.org/3/objects.inv"]
+paths = ["src"]
+
+[project.plugins.mkdocstrings.handlers.python.options]
+docstring_style = "google"
+members_order = "alphabetical"
+separate_signature = true
+show_signature_annotations = true
+
+[project.markdown_extensions.admonition]
+[project.markdown_extensions.md_in_html]
+[project.markdown_extensions.pymdownx.details]
+[project.markdown_extensions.pymdownx.tabbed]
+alternate_style = true
+[project.markdown_extensions.pymdownx.superfences]
+custom_fences = [
+  { name = "python", class = "python", format = "markdown_exec.formatter", validator = "markdown_exec.validator"}
+]
+
+[project.markdown_extensions.pymdownx.emoji]
+emoji_index = "zensical.extensions.emoji.twemoji"
+emoji_generator = "zensical.extensions.emoji.to_svg"
+
+[project.markdown_extensions.pymdownx.arithmatex]
+generic = true

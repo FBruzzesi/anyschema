@@ -30,7 +30,7 @@ We check for the object to be either a mapping or a sequence of sized 2 tuples.
 [ordered-dict]: https://docs.python.org/3/library/collections.html#collections.OrderedDict
 """
 
-IntoParserPipeline: TypeAlias = "Literal['auto'] | Sequence['ParserStep']"
+IntoParserPipeline: TypeAlias = "Literal['auto'] | Sequence[ParserStep]"
 """An object that can be converted into a [`ParserPipeline`][anyschema.parsers.ParserPipeline].
 
 Either "auto" or a sequence of [`ParserStep`][anyschema.parsers.ParserStep].

@@ -14,7 +14,7 @@ or plain Python dicts) to dataframe schemas (PyArrow, Polars, Pandas) using Narw
 2. **Dependency isolation:** Core codebase in `anyschema/` must be dependency-free except for:
     - Core dependencies: `narwhals` and `typing_extensions` (can always imported directly)
     - Library-specific files: `anyschema/parsers/{pydantic,attrs,sqlalchemy}.py` (never imported directly;
-        loaded conditionally via `_dependencies.py`)
+      loaded conditionally via `_dependencies.py`)
 3. **Lazy imports:** Optional dependencies (Pydantic, attrs, SQLAlchemy) are checked via
     `anyschema/_dependencies.py` and only imported when available
 4. **Parser order matters**: `ForwardRefStep` → `UnionTypeStep` → `AnnotatedStep` → `AnnotatedTypesStep` →

@@ -1,0 +1,3 @@
+[default.extend-words]
+ser = "ser"  # Used in Series classes
+ure = "ure"  # Used in "feat(ure)", in .github/release-drafter.yaml:99

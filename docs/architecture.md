@@ -23,7 +23,7 @@ Understanding these concepts will help you extend anyschema and troubleshoot iss
 
     * Return `None` if your parser can't handle a type (lets next parser try).
     * Use `self.pipeline.parse(..., constraints=constraints, metadata=metadata)` for recursion (handles nested types
-        like `list[YourType]`).
+      like `list[YourType]`).
     * Pass metadata through when recursing (`metadata=metadata`).
     * Order matters - specialized parsers before general ones.
 
@@ -161,7 +161,7 @@ steps = (
 With this architecture we aim to achieve multiple goals at once:
 
 * **Modularity**: Each parser has a single, well-defined responsibility.
-* **Composability**: Parsers can be re-ordered, re-used, mixed and matched.
+* **Composability**: Parsers can be re-ordered, reused, mixed and matched.
 * **Extensibility**: New parsers can be added without modifying existing code.
 * **Recursion Simplification**: Union/Optional extraction happens once, simplifying other parsers.
 * **Metadata Flow**: Metadata is preserved and passed through the pipeline.

@@ -104,7 +104,7 @@ def get_anyschema_value_by_key(
         >>> get_anyschema_value_by_key(metadata_openapi, key="nullable")
         True
     """
-    return _get_anyschema_metadata(metadata).get(key, default)
+    return _get_anyschema_metadata(metadata).get(key, default)  # pyrefly: ignore[bad-return]
 
 
 @overload

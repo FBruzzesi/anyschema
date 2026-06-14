@@ -107,29 +107,31 @@ def test_non_nested_parsing(auto_pipeline: ParserPipeline, input_type: type, exp
     assert result == expected
 
 
-@pytest.mark.parametrize(
-    ("input_type", "expected"),
-    [
-        (Address, nw.Struct([nw.Field(name="street", dtype=nw.String()), nw.Field(name="city", dtype=nw.String())])),
-        (
-            Person,
-            nw.Struct(
-                [
-                    nw.Field(name="name", dtype=nw.String()),
-                    nw.Field(
-                        name="address",
-                        dtype=nw.Struct(
-                            [
-                                nw.Field(name="street", dtype=nw.String()),
-                                nw.Field(name="city", dtype=nw.String()),
-                            ]
-                        ),
+# Typed explicitly so mypy uses this element type instead of joining the model constructors
+# (which would otherwise produce a spurious `list-item` error on the second case).
+NESTED_PARSING_CASES: list[tuple[type[BaseModel], nw.dtypes.DType]] = [
+    (Address, nw.Struct([nw.Field(name="street", dtype=nw.String()), nw.Field(name="city", dtype=nw.String())])),
+    (
+        Person,
+        nw.Struct(
+            [
+                nw.Field(name="name", dtype=nw.String()),
+                nw.Field(
+                    name="address",
+                    dtype=nw.Struct(
+                        [
+                            nw.Field(name="street", dtype=nw.String()),
+                            nw.Field(name="city", dtype=nw.String()),
+                        ]
                     ),
-                ]
-            ),
+                ),
+            ]
         ),
-    ],
-)
+    ),
+]
+
+
+@pytest.mark.parametrize(("input_type", "expected"), NESTED_PARSING_CASES)
 def test_nested_parsing(auto_pipeline: ParserPipeline, input_type: type, expected: nw.dtypes.DType) -> None:
     result = auto_pipeline.parse(input_type, (), {})
     assert result == expected

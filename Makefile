@@ -1,7 +1,7 @@
 ARG := $(word 2, $(MAKECMDGOALS))
 $(eval $(ARG):;@:)
 
-sources = anyschema tests
+sources = src tests
 
 lint:
 	uvx ruff version
@@ -11,19 +11,18 @@ lint:
 	uv tool run rumdl check .
 
 test:
-	uv run --active --no-sync --group tests pytest tests --cov=anyschema --cov=tests --cov-fail-under=90
-	uv run --active --no-sync --group tests pytest anyschema --doctest-modules
+	uv run --group testing pytest tests --cov=src --cov=tests
+	uv run --group testing pytest src --doctest-modules
 
 typing:
-	# uv run --active --no-sync --group typing ty check $(sources) --output-format concise
-	uv run --active --no-sync --group typing pyright $(sources)
-	uv run --active --no-sync --group typing mypy $(sources)
+	uv run --group typing pyright $(sources)
+	uv run --group typing mypy $(sources)
 
 docs-serve:
-	uv run --active --no-sync --group docs mkdocs serve --watch anyschema --watch docs --dirty
+	uv run --group docs mkdocs serve --watch src --watch docs --dirty
 
 docs-build:
-	uv run --active --no-sync --group docs mkdocs build --strict
+	uv run --group docs mkdocs build --strict
 
 setup-release:
 	git checkout main

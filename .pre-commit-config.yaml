@@ -28,6 +28,9 @@ repos:
   hooks:
   -   id: trailing-whitespace
   -   id: name-tests-test
+      exclude: |
+        (?x)
+          ^(tests/pydantic/utils\.py)
   -   id: end-of-file-fixer
   -   id: requirements-txt-fixer
   -   id: no-commit-to-branch

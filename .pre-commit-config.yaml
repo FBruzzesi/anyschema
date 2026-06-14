@@ -1,30 +1,30 @@
-ci:
-  autoupdate_schedule: monthly
 repos:
 - repo: https://github.com/astral-sh/ruff-pre-commit
   # Ruff version.
-  rev: 'v0.14.6'
+  rev: 'v0.15.17'
   hooks:
-    # Run the formatter.
     - id: ruff-format
-    # Run the linter.
-    - id: ruff
-      args: [--fix]
+    - id: ruff-check
 - repo: https://github.com/codespell-project/codespell
-  rev: 'v2.3.0'
+  rev: 'v2.4.2'
   hooks:
     - id: codespell
       files: \.(py|rst|md)$
       args: [--ignore-words-list=ser]
 - repo: https://github.com/adamchainz/blacken-docs
-  rev: "1.19.1"  # replace with latest tag on GitHub
+  rev: "1.20.0"  # replace with latest tag on GitHub
   hooks:
   -   id: blacken-docs
       args: [--skip-errors]
       additional_dependencies:
       - black==22.12.0
+- repo: https://github.com/adhtruong/mirrors-typos
+  # Use mirror to avoid autoupdate issue: https://github.com/crate-ci/typos/issues/390
+  rev: 'v1.47.2'
+  hooks:
+    - id: typos
 - repo: https://github.com/pre-commit/pre-commit-hooks
-  rev: v5.0.0
+  rev: v6.0.0
   hooks:
   -   id: trailing-whitespace
   -   id: name-tests-test

@@ -30,8 +30,10 @@ Currently supported special metadata keys under the `"anyschema"` (or `"x-anysch
 
 ## The `AnyField` Class
 
-Starting from version 0.3.0, `anyschema` provides a [`AnyField`][anyschema.AnyField] class that encapsulates detailed
+<!-- rumdl-disable MD051 -->
+Starting from version 0.3.0, `anyschema` provides a [`AnyField`](../api-reference/anyschema#anyschema.AnyField) class that encapsulates detailed
 information about each field in a schema.
+<!-- rumdl-enable MD051 -->
 
 When you create an `AnySchema`, it parses each field into a `AnyField` object that contains:
 

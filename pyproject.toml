@@ -64,14 +64,12 @@ typing = [
 docs = [
   "anyschema[attrs,pydantic,sqlalchemy]",
   "black",  # required by mkdocstrings_handlers
-  "markdown-exec[ansi]",
-  "mkdocs",
-  "mkdocs-material",
-  "mkdocstrings[python]",
-  "mkdocstrings-python",
-  "mkdocs-autorefs",
+  "markdown-exec[ansi]>=1.12.1",
+  "mkdocs-autorefs>=1.4.4",
+  "mkdocstrings-python>=2.0.3",
   "narwhals[pandas,polars,pyarrow]",
-  "pytest",
+  "pytest>=9.0.3",
+  "zensical>=0.0.45",
 ]
 
 local-dev = [

@@ -62,7 +62,7 @@ jobs:
       - name: Run type checking
         run: make typing
 
-  mkdocs-build:
+  zensical-build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout source code
@@ -74,7 +74,7 @@ jobs:
           enable-cache: "true"
           cache-dependency-glob: "pyproject.toml"
       - name: Build docs strict mode
-        run: uv run --all-extras --group docs mkdocs build --strict
+        run: make docs-build
 
   ruff:
     runs-on: ubuntu-latest

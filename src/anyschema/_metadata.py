@@ -176,4 +176,4 @@ def filter_anyschema_metadata(metadata: FieldMetadata) -> FieldMetadata:
         >>> filter_anyschema_metadata(metadata)
         {'custom': 'value'}
     """
-    return {key: value for key, value in metadata.items() if key not in ("anyschema", "x-anyschema")}
+    return {key: value for key, value in metadata.items() if key not in {"anyschema", "x-anyschema"}}

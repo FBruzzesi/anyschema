@@ -94,6 +94,24 @@ target-version = "py310"
 fix = true
 
 [tool.ruff.lint]
+preview = true
+explicit-preview-rules = true
+
+extend-safe-fixes = [
+  "C",
+  "EM",
+  "FURB",
+  "PLR",
+  "PLW",
+  "TC",      # flake8-type-checking
+  "UP",      # pyupgrade
+]
+extend-select = [
+  "FURB",
+  "PLR",
+  "PLW",
+]
+
 select = ["ALL"]
 ignore = [
   "ANN401",

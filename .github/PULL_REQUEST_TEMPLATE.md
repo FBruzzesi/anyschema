@@ -3,9 +3,11 @@ Thank you for contributing to anyschema! 🎉
 Please ensure all CI checks pass locally before requesting review.
 -->
 
-## Description
+# Description
 
-<!-- Provide a clear and concise description of your changes -->
+##  Summary
+
+<!-- Provide a clear and concise summary of your changes -->
 
 ## Type of Change
 

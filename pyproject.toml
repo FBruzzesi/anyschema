@@ -63,7 +63,6 @@ typing = [
 
 docs = [
   "anyschema[attrs,pydantic,sqlalchemy]",
-  "black",  # required by mkdocstrings_handlers
   "markdown-exec[ansi]>=1.12.1",
   "mkdocs-autorefs>=1.4.4",
   "mkdocstrings-python>=2.0.3",

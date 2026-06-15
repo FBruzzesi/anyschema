@@ -63,7 +63,6 @@ typing = [
 
 docs = [
   "anyschema[attrs,pydantic,sqlalchemy]",
-  "black",  # required by mkdocstrings_handlers
   "markdown-exec[ansi]>=1.12.1",
   "mkdocs-autorefs>=1.4.4",
   "mkdocstrings-python>=2.0.3",
@@ -94,6 +93,24 @@ target-version = "py310"
 fix = true
 
 [tool.ruff.lint]
+preview = true
+explicit-preview-rules = true
+
+extend-safe-fixes = [
+  "C",
+  "EM",
+  "FURB",
+  "PLR",
+  "PLW",
+  "TC",      # flake8-type-checking
+  "UP",      # pyupgrade
+]
+extend-select = [
+  "FURB",
+  "PLR",
+  "PLW",
+]
+
 select = ["ALL"]
 ignore = [
   "ANN401",

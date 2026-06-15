@@ -157,7 +157,9 @@ class PyTypeStep(ParserStep):
             A Narwhals Struct dtype.
         """
         try:
-            type_hints = get_type_hints(typed_dict)
+            # `include_extras=True` keeps `Annotated[...]` metadata so nested fields such as
+            # `Annotated[int, Gt(0)]` are refined (e.g. to `UInt64`) instead of collapsing to `Int64`.
+            type_hints = get_type_hints(typed_dict, include_extras=True)
         except Exception:  # pragma: no cover  # noqa: BLE001
             # If we can't get type hints, use __annotations__
             type_hints = getattr(typed_dict, "__annotations__", {})

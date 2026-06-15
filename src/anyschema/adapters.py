@@ -46,15 +46,22 @@ def jsonschema_adapter(spec: JsonSchema) -> FieldSpecIterable:
     - `"integer"`/`"number"`/`"boolean"` map to `int`/`float`/`bool`. Integer bounds (`minimum`, `maximum`,
         `exclusiveMinimum`, `exclusiveMaximum`) become `annotated_types` constraints, so e.g.
         `{"type": "integer", "exclusiveMinimum": 0}` refines to an unsigned integer (matching `PositiveInt`).
+        These refinements are preserved inside nested structs and lists. The integer `format` keyword
+        (e.g. `int32`) is not consulted; use the bound keywords to control integer width.
     - `"array"` maps to `list[...]` and `"object"` (with `properties`) to a nested struct.
-    - `enum`/`const` map to `Literal[...]`.
-    - `$ref`/`$defs` (and the legacy `definitions`) are resolved.
+    - `enum`/`const` of strings map to `Literal[...]` (a Narwhals `Enum`); non-string choices map to the
+        underlying scalar Python type (e.g. an integer `enum` becomes `int`), since `Enum` categories must be
+        strings.
+    - `$ref`/`$defs` (and the legacy `definitions`) are resolved, including references that resolve to a
+        union/nullable schema.
 
     A field is marked nullable only when its schema explicitly allows the `null` type (an `anyOf`/`oneOf`
-    null branch, or a `type` array containing `"null"`); the `required` array does not affect nullability.
+    null branch, a `type` array containing `"null"`, or a `null` member of an `enum`); the `required` array
+    does not affect nullability.
 
     Arguments:
-        spec: A JSON Schema object, either already parsed (a mapping) or as a raw `str`/`bytes` JSON document.
+        spec: A JSON Schema object, either already parsed (a mapping) or as a raw JSON document
+            (`str` or bytes-like).
 
     Yields:
         A tuple of `(field_name, field_type, constraints, metadata)` for each property.
@@ -126,7 +133,9 @@ def typed_dict_adapter(spec: TypedDictType) -> FieldSpecIterable:
         >>> list(typed_dict_adapter(Student))
         [('name', <class 'str'>, (), {}), ('age', <class 'int'>, (), {})]
     """
-    type_hints = get_type_hints(spec)
+    # `include_extras=True` keeps `Annotated[...]` metadata (e.g. `Annotated[int, Gt(0)]`) so the pipeline can
+    # refine it, matching how nested `TypedDict` fields are parsed (see `PyTypeStep._parse_typed_dict`).
+    type_hints = get_type_hints(spec, include_extras=True)
     for field_name, field_type in type_hints.items():
         yield field_name, field_type, (), {}
 

@@ -8,6 +8,10 @@ we translate each property into the equivalent Python type (e.g. `"integer"` to 
 dynamically created `TypedDict`, an array to `list[...]`) and let the regular
 [`ParserPipeline`][anyschema.parsers.ParserPipeline] do the heavy lifting. This reuses all existing parsing
 logic (nested structs, lists, optionals, integer-constraint refinement) for free.
+
+Constraints that the pipeline can refine (currently integer bounds) are folded into the type via
+`Annotated[...]` whenever the type is nested inside a struct or a list, so that nested refinements survive
+(e.g. a struct field with `{"minimum": 0, "maximum": 255}` becomes `UInt8`, not `Int64`).
 """
 
 from __future__ import annotations
@@ -15,7 +19,7 @@ from __future__ import annotations
 import json
 from collections.abc import Mapping
 from datetime import date, datetime, time, timedelta
-from typing import TYPE_CHECKING, Any, Literal, Optional, Union, cast
+from typing import TYPE_CHECKING, Annotated, Any, Literal, Optional, Union, cast
 
 from typing_extensions import TypedDict, TypeIs
 
@@ -36,6 +40,7 @@ _Union: Any = Union
 _Optional: Any = Optional
 _List: Any = list
 _TypedDict: Any = TypedDict
+_Annotated: Any = Annotated
 
 _FORMAT_TO_TYPE: dict[str, type] = {
     "date-time": datetime,
@@ -51,7 +56,7 @@ def parse_schema(spec: JsonSchema) -> Mapping[str, Any]:
     """Coerce and validate the input into a JSON Schema object mapping.
 
     Arguments:
-        spec: A JSON Schema, either as a parsed mapping or as a raw `str`/`bytes` JSON document.
+        spec: A JSON Schema, either as a parsed mapping or as a raw JSON document (`str` or bytes-like).
 
     Returns:
         The schema as a mapping.
@@ -134,10 +139,13 @@ def _build_field_type(
 def _base_type(  # noqa: C901
     schema: Mapping[str, Any], defs: Mapping[str, Any], name_hint: str, seen: frozenset[str]
 ) -> tuple[Any, FieldConstraints]:
-    """Convert a single, non-nullable subschema into a Python type.
+    """Convert a single subschema (already split from any union) into a Python type.
+
+    Callers pass a non-union branch; the only way a union is seen here is via a `$ref` that resolves to one,
+    in which case it is re-dispatched to [`_build_field_type`][anyschema._jsonschema._build_field_type].
 
     Arguments:
-        schema: The subschema to convert (must not be an `anyOf`/`oneOf`/null union).
+        schema: The subschema to convert.
         defs: Mapping of definition name to subschema, used to resolve `$ref`.
         name_hint: Hint used to name dynamically created `TypedDict`s.
         seen: Set of `$ref` names already being expanded, used to detect cyclic references.
@@ -147,10 +155,15 @@ def _base_type(  # noqa: C901
     """
     schema, seen = _resolve_ref(schema, defs, seen)
 
+    # A `$ref` may resolve to a union/nullable schema; re-dispatch through `_build_field_type` so it is
+    # handled like an inline union instead of silently degrading to `object`.
+    if _is_union_schema(schema):
+        return _build_field_type(schema, defs, name_hint, seen)
+
     if "const" in schema:
-        return _Literal[schema["const"]], ()
+        return _const_or_enum_type([schema["const"]]), ()
     if "enum" in schema:
-        return _Literal[tuple(schema["enum"])], ()
+        return _const_or_enum_type(list(schema["enum"])), ()
 
     json_type = schema.get("type")
 
@@ -166,8 +179,8 @@ def _base_type(  # noqa: C901
     if json_type == "array":
         items = schema.get("items")
         if isinstance(items, Mapping):
-            inner, _ = _build_field_type(items, defs, f"{name_hint}_item", seen)
-            return _List[inner], ()
+            # Fold the item constraints into the element type so they survive inside the `list`.
+            return _List[_annotate(*_build_field_type(items, defs, f"{name_hint}_item", seen))], ()
         return list, ()
     if json_type == "object":
         if isinstance(schema.get("properties"), Mapping):
@@ -192,8 +205,10 @@ def _object_to_typed_dict(
     Returns:
         A dynamically created `TypedDict` class.
     """
+    # Fold each field's constraints into its type so integer refinement survives inside the struct.
     fields = {
-        key: _build_field_type(sub, defs, f"{name_hint}_{key}", seen)[0] for key, sub in schema["properties"].items()
+        key: _annotate(*_build_field_type(sub, defs, f"{name_hint}_{key}", seen))
+        for key, sub in schema["properties"].items()
     }
     name = schema.get("title") or name_hint
     return _TypedDict(name, fields)
@@ -215,6 +230,11 @@ def _resolve_ref(
     Raises:
         UnsupportedDTypeError: If a cyclic (self-referential) reference is detected.
         ValueError: If a reference cannot be resolved against `defs`.
+
+    Notes:
+        Only local references into `$defs`/`definitions` are supported, keyed by the last path segment
+        (e.g. `Address` in `#/$defs/Address`). External references and other JSON Pointer locations are not
+        resolved and raise `ValueError`.
     """
     while "$ref" in schema:
         ref = schema["$ref"]
@@ -259,6 +279,80 @@ def _split_branches(schema: Mapping[str, Any]) -> tuple[list[Mapping[str, Any]],
 def _is_null(schema: object) -> bool:
     """Return whether a subschema denotes the JSON `null` type."""
     return isinstance(schema, Mapping) and schema.get("type") == "null"
+
+
+def _is_union_schema(schema: Mapping[str, Any]) -> bool:
+    """Return whether a subschema is a union: an `anyOf`/`oneOf`, or a `type` given as a list."""
+    return "anyOf" in schema or "oneOf" in schema or isinstance(schema.get("type"), list)
+
+
+def _annotate(type_: Any, constraints: FieldConstraints) -> Any:
+    """Fold constraints into the type via `Annotated`, so they survive nesting inside lists/structs.
+
+    Arguments:
+        type_: The base Python type.
+        constraints: Constraints to attach (empty for everything but integers today).
+
+    Returns:
+        `Annotated[type_, *constraints]` when there are constraints, otherwise `type_` unchanged.
+    """
+    return _Annotated[(type_, *constraints)] if constraints else type_
+
+
+def _const_or_enum_type(values: list[Any]) -> Any:
+    """Convert a JSON Schema `const`/`enum` value list into a Python type.
+
+    String-only choices become a `Literal[...]` (which the pipeline parses into a Narwhals `Enum`). Any other
+    value cannot be a Narwhals `Enum` (whose categories must be strings), so a homogeneous scalar list degrades
+    to the underlying Python scalar type (e.g. an integer `enum` becomes `int` -> `Int64`) and anything
+    heterogeneous to an opaque `object`. A `null` member makes the result `Optional[...]`.
+
+    Arguments:
+        values: The `enum` list, or a single-element list holding the `const` value.
+
+    Returns:
+        The corresponding Python type.
+    """
+    has_null = any(value is None for value in values)
+    non_null = [value for value in values if value is not None]
+
+    if not non_null:
+        base: Any = object
+    elif all(isinstance(value, str) for value in non_null):
+        base = _Literal[tuple(non_null)]
+    else:
+        base = _scalar_type_of(non_null)
+
+    return _Optional[base] if has_null else base
+
+
+def _scalar_type_of(values: list[Any]) -> type:
+    """Return the common Python scalar type of non-string `values`, or `object` if heterogeneous.
+
+    Arguments:
+        values: A non-empty list of JSON scalar values (with at least one non-string entry).
+
+    Returns:
+        `bool`/`int`/`float` when the values share a single scalar type, `float` for a mix of JSON numbers,
+        and `object` otherwise.
+    """
+    types = {_json_scalar_type(value) for value in values}
+    if len(types) == 1:
+        return types.pop()
+    if types <= {int, float}:  # JSON numbers may legitimately mix integers and floats
+        return float
+    return object
+
+
+def _json_scalar_type(value: Any) -> type:
+    """Map a JSON scalar value to its Python type (`bool` before `int`, as `bool` subclasses `int`)."""
+    if isinstance(value, bool):
+        return bool
+    if isinstance(value, int):
+        return int
+    if isinstance(value, float):
+        return float
+    return object
 
 
 def _int_constraints(schema: Mapping[str, Any]) -> FieldConstraints:

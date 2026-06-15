@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from datetime import date, datetime, time, timedelta
-from typing import TYPE_CHECKING, Literal, Optional, Union
+from typing import TYPE_CHECKING, Literal, Optional, Union, get_args, get_origin
 
 import pytest
 from annotated_types import Ge, Gt, Le, Lt
@@ -36,8 +36,17 @@ def _object(properties: dict[str, object], **extra: object) -> dict[str, object]
         ({"type": "string", "format": 123}, str),  # non-string format -> str
         ({"type": "array", "items": {"type": "string"}}, list[str]),
         ({"type": "array"}, list),
+        # String `enum`/`const` -> `Literal` (a Narwhals `Enum`).
         ({"enum": ["a", "b"]}, Literal["a", "b"]),
-        ({"const": 5}, Literal[5]),
+        ({"const": "x"}, Literal["x"]),
+        # Non-string `enum`/`const` cannot be an `Enum`, so they degrade to the underlying scalar type.
+        ({"const": 5}, int),
+        ({"enum": [1, 2, 3]}, int),
+        ({"enum": [1.5, 2.5]}, float),
+        ({"enum": [1, 2.5]}, float),  # mixed JSON numbers -> float
+        ({"enum": [True, False]}, bool),
+        ({"enum": [1, "a"]}, object),  # heterogeneous -> opaque object
+        ({"const": [1, 2]}, object),  # non-scalar const -> opaque object
     ],
 )
 def test_scalar_and_generic_types(json_type: dict[str, object], expected_type: FieldType) -> None:
@@ -100,6 +109,31 @@ def test_mixed_union_yields_union_type() -> None:
     assert field_type == Union[int, str]
 
 
+def test_enum_with_null_member_is_optional() -> None:
+    # A `null` member of an `enum` makes the field nullable while keeping the (string) categories.
+    spec = _object({"x": {"enum": ["a", "b", None]}})
+    _, field_type, _, _ = next(iter(jsonschema_adapter(spec)))
+    assert field_type == Optional[Literal["a", "b"]]
+
+
+def test_ref_to_nullable_union_is_resolved() -> None:
+    # A `$ref` that resolves to an `anyOf`/null union must be handled, not degraded to `object`.
+    spec = _object(
+        {"addr": {"$ref": "#/$defs/MaybeAddress"}},
+        **{
+            "$defs": {
+                "MaybeAddress": {"anyOf": [{"$ref": "#/$defs/Address"}, {"type": "null"}]},
+                "Address": _object({"street": {"type": "string"}}),
+            }
+        },
+    )
+    _, field_type, _, _ = next(iter(jsonschema_adapter(spec)))
+    assert get_origin(field_type) is Union  # Optional[<TypedDict>]
+    inner, none_type = get_args(field_type)
+    assert is_typeddict(inner)
+    assert none_type is type(None)
+
+
 @pytest.mark.parametrize(
     ("json_schema", "expected_type"),
     [
@@ -146,6 +180,11 @@ def test_legacy_definitions_keyword_is_resolved() -> None:
 
 def test_string_input_is_parsed() -> None:
     spec = json.dumps(_object({"id": {"type": "integer"}}))
+    assert tuple(jsonschema_adapter(spec)) == (("id", int, (), {}),)
+
+
+def test_bytes_input_is_parsed() -> None:
+    spec = json.dumps(_object({"id": {"type": "integer"}})).encode()
     assert tuple(jsonschema_adapter(spec)) == (("id", int, (), {}),)
 
 

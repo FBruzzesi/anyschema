@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING, Mapping
+from typing import Literal, Mapping
 
 import narwhals as nw
 import pytest
+from pydantic import BaseModel, PositiveInt
 
 from anyschema import AnySchema
 from anyschema.adapters import jsonschema_adapter
@@ -14,9 +15,6 @@ from tests.conftest import (
     PydanticEventWithXAnyschema,
     PydanticStudent,
 )
-
-if TYPE_CHECKING:
-    from pydantic import BaseModel
 
 
 def _object(properties: dict[str, object], **extra: object) -> dict[str, object]:
@@ -63,6 +61,16 @@ def _object(properties: dict[str, object], **extra: object) -> dict[str, object]
             _object({"byte": {"type": "integer", "minimum": 0, "maximum": 255}}),
             {"byte": nw.UInt8()},
         ),
+        # Integer constraints must survive inside a nested struct (regression: they were dropped).
+        (
+            _object({"addr": _object({"zipcode": {"type": "integer", "minimum": 0, "maximum": 255}})}),
+            {"addr": nw.Struct([nw.Field("zipcode", nw.UInt8())])},
+        ),
+        # ... and inside a list's element type.
+        (
+            _object({"bytes": {"type": "array", "items": {"type": "integer", "minimum": 0, "maximum": 255}}}),
+            {"bytes": nw.List(nw.UInt8())},
+        ),
     ],
 )
 def test_jsonschema_to_schema(spec: dict[str, object], expected_schema: Mapping[str, nw.dtypes.DType]) -> None:
@@ -74,6 +82,46 @@ def test_mixed_union_is_rejected() -> None:
     spec = _object({"x": {"anyOf": [{"type": "integer"}, {"type": "string"}]}})
     with pytest.raises(UnsupportedDTypeError, match="mixed types"):
         AnySchema(spec=spec)
+
+
+@pytest.mark.parametrize(
+    ("json_schema", "expected_dtype"),
+    [
+        ({"enum": [1, 2, 3]}, nw.Int64()),
+        ({"const": 5}, nw.Int64()),
+        ({"enum": [1.5, 2.5]}, nw.Float64()),
+        ({"enum": [True, False]}, nw.Boolean()),
+    ],
+)
+def test_non_string_enum_const_convert_to_backends(
+    json_schema: dict[str, object], expected_dtype: nw.dtypes.DType
+) -> None:
+    # Non-string `enum`/`const` must degrade to a scalar dtype: a non-string `Enum` cannot be lowered to any
+    # backend. These conversions would raise if the field were mapped to `Enum([...])`.
+    schema = AnySchema(spec=_object({"x": json_schema}))
+    assert schema._nw_schema == nw.Schema({"x": expected_dtype})
+    schema.to_arrow()
+    schema.to_polars()
+
+
+def test_string_enum_is_polars_enum() -> None:
+    # String choices stay categorical (a Narwhals `Enum`), which Polars can lower.
+    import polars as pl
+
+    schema = AnySchema(spec=_object({"role": {"enum": ["admin", "user"]}}))
+    assert schema._nw_schema == nw.Schema({"role": nw.Enum(["admin", "user"])})
+    assert schema.to_polars()["role"] == pl.Enum(["admin", "user"])
+
+
+def test_optional_nested_model_via_anyof_ref() -> None:
+    # The common Pydantic v2 emission for an optional nested model: `anyOf: [{$ref}, {"type": "null"}]`.
+    spec = _object(
+        {"address": {"anyOf": [{"$ref": "#/$defs/Address"}, {"type": "null"}]}},
+        **{"$defs": {"Address": _object({"street": {"type": "string"}})}},
+    )
+    schema = AnySchema(spec=spec)
+    assert schema._nw_schema == nw.Schema({"address": nw.Struct([nw.Field("street", nw.String())])})
+    assert schema.nullables(named=True) == {"address": True}
 
 
 def test_jsonschema_dict_is_not_treated_as_field_mapping() -> None:
@@ -102,10 +150,27 @@ def test_string_spec_via_explicit_adapter() -> None:
     assert schema._nw_schema == nw.Schema({"id": nw.Int64(), "name": nw.String()})
 
 
+class _RoundTripAddress(BaseModel):
+    zipcode: PositiveInt  # nested constrained int -> must round-trip to UInt64, not Int64
+    street: str
+
+
+class _RoundTripModel(BaseModel):
+    """Exercises the nested-constraint, list-of-constrained, enum and optional paths together."""
+
+    id: PositiveInt
+    tags: list[str]
+    role: Literal["admin", "user"]
+    address: _RoundTripAddress
+    nickname: str | None
+    scores: list[PositiveInt]
+
+
 _ROUND_TRIP_MODELS: list[type[BaseModel]] = [
     PydanticStudent,
     PydanticEventWithTimeMetadata,
     PydanticEventWithXAnyschema,
+    _RoundTripModel,
 ]
 
 

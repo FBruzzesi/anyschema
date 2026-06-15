@@ -36,11 +36,11 @@ IntoParserPipeline: TypeAlias = "Literal['auto'] | Sequence[ParserStep]"
 Either "auto" or a sequence of [`ParserStep`][anyschema.parsers.ParserStep].
 """
 
-JsonSchema: TypeAlias = "Mapping[str, Any] | str | bytes"
+JsonSchema: TypeAlias = "Mapping[str, Any] | str | bytes | bytearray"
 """A [JSON Schema](https://json-schema.org/) object: either a parsed mapping or a raw JSON document.
 
-Only the mapping form is auto-detected by [`AnySchema`][anyschema.AnySchema]; raw `str`/`bytes` documents
-must be passed via the `adapter` argument or parsed beforehand.
+Only the mapping form is auto-detected by [`AnySchema`][anyschema.AnySchema]; a raw JSON document (`str` or
+bytes-like) must be passed via the `adapter` argument or parsed beforehand.
 """
 
 UnknownSpec: TypeAlias = Any

@@ -12,6 +12,7 @@ from anyschema._utils import qualified_type_name
 from anyschema.parsers._annotated import AnnotatedStep
 from anyschema.parsers._base import ParserStep
 from anyschema.parsers._builtin import PyTypeStep
+from anyschema.parsers.dataclasses import DataclassTypeStep
 from anyschema.parsers._forward_ref import ForwardRefStep
 from anyschema.parsers._union import UnionTypeStep
 from anyschema.serde import deserialize_dtype
@@ -387,7 +388,10 @@ def _auto_pipeline() -> tuple[ParserStep, ...]:
 
             yield SQLAlchemyTypeStep()
 
-        # 8. PyTypeStep - handles basic Python types (fallback)
+        # 8. DataclassStep - handles dataclasses
+        yield DataclassTypeStep()
+
+        # 9. PyTypeStep - handles basic Python types (fallback)
         yield PyTypeStep()
 
     return tuple(_generate_steps())

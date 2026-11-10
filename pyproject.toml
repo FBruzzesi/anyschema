@@ -113,6 +113,7 @@ extend-select = [
 
 select = ["ALL"]
 ignore = [
+  "CPY",
   "ANN401",
   "PLC0415",
   "UP045",

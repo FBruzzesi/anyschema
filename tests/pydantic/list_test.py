@@ -18,13 +18,13 @@ def test_parse_list_optional_outer(auto_pipeline: ParserPipeline) -> None:
         py_list: list[int]
         py_list_optional: list[str] | None
         py_list_or_none: list[float] | None
-        none_or_py_list: None | list[bool]
+        none_or_py_list: list[bool] | None
 
         # pydantic conlist type
         con_list: Annotated[list[int], Len(min_length=2)]
         con_list_optional: Optional[Annotated[list[str], Len(max_length=6)]]
         con_list_or_none: Annotated[list[float], Len(0)] | None
-        none_or_con_list: None | Annotated[list[bool], Len(0)]
+        none_or_con_list: Annotated[list[bool], Len(0)] | None
 
     schema = model_to_nw_schema(ListModel, pipeline=auto_pipeline)
     expected = {
@@ -45,12 +45,12 @@ def test_parse_list_optional_inner(auto_pipeline: ParserPipeline) -> None:
         # python list[...] type
         py_list_optional: list[str | None]
         py_list_or_none: list[float | None] | None
-        none_or_py_list: list[None | bool]
+        none_or_py_list: list[bool | None]
 
         # pydantic conlist type
         con_list_optional: Annotated[list[Optional[int]], Len(min_length=2)]
         con_list_or_none: Annotated[list[str | None], Len(max_length=6)]
-        none_or_con_list: Annotated[list[None | float], Len(0)]
+        none_or_con_list: Annotated[list[float | None], Len(0)]
 
     schema = model_to_nw_schema(ListModel, pipeline=auto_pipeline)
     expected = {
@@ -70,13 +70,13 @@ def test_parse_list_optional_outer_and_inner(auto_pipeline: ParserPipeline) -> N
         py_list_optional_optional: list[int | None] | None
         py_list_optional_none: list[str | None] | None
         py_list_none_optional: list[float | None] | None
-        py_list_none_none: list[None | bool] | None
+        py_list_none_none: list[bool | None] | None
 
         # pydantic conlist type
         con_list_optional_optional: Optional[Annotated[list[Optional[int]], Len(min_length=2)]]
         con_list_optional_none: Annotated[list[Optional[str]], Len(max_length=6)] | None
         con_list_none_optional: Optional[Annotated[list[float | None], Len(0)]]
-        con_list_none_none: Annotated[list[None | bool], Len(0)] | None
+        con_list_none_none: Annotated[list[bool | None], Len(0)] | None
 
     schema = model_to_nw_schema(ListModel, pipeline=auto_pipeline)
     expected = {
@@ -99,7 +99,7 @@ def test_parse_conlist_conint(auto_pipeline: ParserPipeline) -> None:
         py_list_uint8: list[Annotated[int, Interval(gt=0, lt=64)] | None]
 
         # pydantic conlist type
-        con_list_int8: Annotated[list[None | Annotated[int, Interval(gt=-64, lt=64)]], Len(0)]
+        con_list_int8: Annotated[list[Annotated[int, Interval(gt=-64, lt=64)] | None], Len(0)]
         con_list_uint8: Annotated[list[Optional[Annotated[int, Interval(gt=0, lt=64)]]], Len(0)]
 
     schema = model_to_nw_schema(ListModel, pipeline=auto_pipeline)

@@ -99,9 +99,7 @@ class CustomStep(ParserStep):
     ) -> nw.dtypes.DType | None:
         inner_type = get_args(input_type)[0]
         # ✅ Pass constraints and metadata through
-        return self.pipeline.parse(
-            inner_type, constraints=constraints, metadata=metadata
-        )
+        return self.pipeline.parse(inner_type, constraints=constraints, metadata=metadata)
 ```
 
 ### Adapter Not Processing Nested Structures

@@ -20,31 +20,31 @@ def test_parse_integer(auto_pipeline: ParserPipeline) -> None:
         py_int: int
         py_int_optional: int | None
         py_int_or_none: int | None
-        none_or_py_int: None | int
+        none_or_py_int: int | None
 
         # pydantic NonNegativeInt type
         non_negative: NonNegativeInt
         non_negative_optional: NonNegativeInt | None
         non_negative_or_none: NonNegativeInt | None
-        none_or_non_negative: None | NonNegativeInt
+        none_or_non_negative: NonNegativeInt | None
 
         # pydantic NonPositiveInt type
         non_positive: NonPositiveInt
         non_positive_optional: NonPositiveInt | None
         non_positive_or_none: NonPositiveInt | None
-        none_or_non_positive: None | NonPositiveInt
+        none_or_non_positive: NonPositiveInt | None
 
         # pydantic PositiveInt type
         positive: PositiveInt
         positive_optional: PositiveInt | None
         positive_or_none: PositiveInt | None
-        none_or_positive: None | PositiveInt
+        none_or_positive: PositiveInt | None
 
         # pydantic NegativeInt type
         negative: NegativeInt
         negative_optional: NegativeInt | None
         negative_or_none: NegativeInt | None
-        none_or_negative: None | NegativeInt
+        none_or_negative: NegativeInt | None
 
     schema = model_to_nw_schema(IntegerModel, pipeline=auto_pipeline)
 
@@ -79,7 +79,7 @@ def test_parse_to_int8(auto_pipeline: ParserPipeline, lb: int, ub: int) -> None:
         x: Annotated[int, Interval(gt=lb, lt=ub)]
         y: Optional[Annotated[int, Interval(ge=lb, lt=ub)]]
         z: Annotated[int, Interval(gt=lb, le=ub)] | None
-        w: None | Annotated[int, Interval(ge=lb, le=ub)]
+        w: Annotated[int, Interval(ge=lb, le=ub)] | None
 
     schema = model_to_nw_schema(Int8Model, pipeline=auto_pipeline)
 
@@ -92,7 +92,7 @@ def test_parse_to_int16(auto_pipeline: ParserPipeline, lb: int, ub: int) -> None
         x: Annotated[int, Interval(gt=lb, lt=ub)]
         y: Optional[Annotated[int, Interval(ge=lb, lt=ub)]]
         z: Annotated[int, Interval(gt=lb, le=ub)] | None
-        w: None | Annotated[int, Interval(ge=lb, le=ub)]
+        w: Annotated[int, Interval(ge=lb, le=ub)] | None
 
     schema = model_to_nw_schema(Int16Model, pipeline=auto_pipeline)
 
@@ -105,7 +105,7 @@ def test_parse_to_int32(auto_pipeline: ParserPipeline, lb: int, ub: int) -> None
         x: Annotated[int, Interval(gt=lb, lt=ub)]
         y: Optional[Annotated[int, Interval(ge=lb, lt=ub)]]
         z: Annotated[int, Interval(gt=lb, le=ub)] | None
-        w: None | Annotated[int, Interval(ge=lb, le=ub)]
+        w: Annotated[int, Interval(ge=lb, le=ub)] | None
 
     schema = model_to_nw_schema(Int32Model, pipeline=auto_pipeline)
 
@@ -118,7 +118,7 @@ def test_parse_to_int64(auto_pipeline: ParserPipeline, lb: int, ub: int) -> None
         x: Annotated[int, Interval(gt=lb, lt=ub)]
         y: Optional[Annotated[int, Interval(ge=lb, lt=ub)]]
         z: Annotated[int, Interval(gt=lb, le=ub)] | None
-        w: None | Annotated[int, Interval(ge=lb, le=ub)]
+        w: Annotated[int, Interval(ge=lb, le=ub)] | None
 
     schema = model_to_nw_schema(Int64Model, pipeline=auto_pipeline)
 
@@ -131,7 +131,7 @@ def test_parse_to_uint8(auto_pipeline: ParserPipeline, ub: int) -> None:
         x: Annotated[int, Interval(gt=0, lt=ub)]
         y: Optional[Annotated[int, Interval(ge=0, lt=ub)]]
         z: Annotated[int, Interval(gt=0, le=ub)] | None
-        w: None | Annotated[int, Interval(ge=0, le=ub)]
+        w: Annotated[int, Interval(ge=0, le=ub)] | None
 
     schema = model_to_nw_schema(UInt8Model, pipeline=auto_pipeline)
 
@@ -144,7 +144,7 @@ def test_parse_to_uint16(auto_pipeline: ParserPipeline, ub: int) -> None:
         x: Annotated[int, Interval(gt=0, lt=ub)]
         y: Optional[Annotated[int, Interval(ge=0, lt=ub)]]
         z: Annotated[int, Interval(gt=0, le=ub)] | None
-        w: None | Annotated[int, Interval(ge=0, le=ub)]
+        w: Annotated[int, Interval(ge=0, le=ub)] | None
 
     schema = model_to_nw_schema(UInt16Model, pipeline=auto_pipeline)
 
@@ -157,7 +157,7 @@ def test_parse_to_uint32(auto_pipeline: ParserPipeline, ub: int) -> None:
         x: Annotated[int, Interval(gt=0, lt=ub)]
         y: Optional[Annotated[int, Interval(ge=0, lt=ub)]]
         z: Annotated[int, Interval(gt=0, le=ub)] | None
-        w: None | Annotated[int, Interval(ge=0, le=ub)]
+        w: Annotated[int, Interval(ge=0, le=ub)] | None
 
     schema = model_to_nw_schema(UInt32Model, pipeline=auto_pipeline)
 
@@ -170,7 +170,7 @@ def test_parse_to_uint64(auto_pipeline: ParserPipeline, ub: int) -> None:
         x: Annotated[int, Interval(gt=0, lt=ub)]
         y: Optional[Annotated[int, Interval(ge=0, lt=ub)]]
         z: Annotated[int, Interval(gt=0, le=ub)] | None
-        w: None | Annotated[int, Interval(ge=0, le=ub)]
+        w: Annotated[int, Interval(ge=0, le=ub)] | None
 
     schema = model_to_nw_schema(UInt64Model, pipeline=auto_pipeline)
 

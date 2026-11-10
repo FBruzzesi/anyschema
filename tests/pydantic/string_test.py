@@ -20,13 +20,13 @@ def test_parse_string(auto_pipeline: ParserPipeline) -> None:
         py_str: str
         py_str_optional: str | None
         py_str_or_none: str | None
-        none_or_py_str: None | str
+        none_or_py_str: str | None
 
         # pydantic StrictStr type
         strict_str: StrictStr
         strict_str_optional: StrictStr | None
         strict_str_or_none: StrictStr | None
-        none_or_strict_str: None | StrictStr
+        none_or_strict_str: StrictStr | None
 
     schema = model_to_nw_schema(StringModel, pipeline=auto_pipeline)
 
@@ -43,7 +43,7 @@ def test_parse_string_with_constraints(auto_pipeline: ParserPipeline) -> None:
         str_con: Annotated[str, str_constraint]
         str_con_optional: Optional[Annotated[str, str_constraint]]
         str_con_or_none: Annotated[str, str_constraint] | None
-        none_or_str_con: None | Annotated[str, str_constraint]
+        none_or_str_con: Annotated[str, str_constraint] | None
 
     schema = model_to_nw_schema(StringConstraintsModel, pipeline=auto_pipeline)
 

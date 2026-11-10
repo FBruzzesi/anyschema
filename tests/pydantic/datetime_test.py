@@ -18,25 +18,25 @@ def test_parse_datetime(auto_pipeline: ParserPipeline) -> None:
         py_dt: datetime
         py_dt_optional: datetime | None
         py_dt_or_none: datetime | None
-        none_or_py_dt: None | datetime
+        none_or_py_dt: datetime | None
 
         # pydantic NaiveDatetime type
         naive_dt: NaiveDatetime
         naive_dt_optional: NaiveDatetime | None
         naive_dt_or_none: NaiveDatetime | None
-        none_or_naive_dt: None | NaiveDatetime
+        none_or_naive_dt: NaiveDatetime | None
 
         # pydantic PastDatetime type
         past_dt: PastDatetime
         past_dt_optional: PastDatetime | None
         past_dt_or_none: PastDatetime | None
-        none_or_past_dt: None | PastDatetime
+        none_or_past_dt: PastDatetime | None
 
         # pydantic FutureDatetime type
         future_dt: FutureDatetime
         future_dt_optional: FutureDatetime | None
         future_dt_or_none: FutureDatetime | None
-        none_or_future_dt: None | FutureDatetime
+        none_or_future_dt: FutureDatetime | None
 
     schema = model_to_nw_schema(DatetimeModel, pipeline=auto_pipeline)
 

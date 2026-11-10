@@ -23,43 +23,43 @@ def test_parse_float(auto_pipeline: ParserPipeline, lb: float, ub: float) -> Non
         py_int: float
         py_float_optional: float | None
         py_float_or_none: float | None
-        none_or_py_float: None | float
+        none_or_py_float: float | None
 
         # pydantic NonNegativeFloat type
         non_negative: NonNegativeFloat
         non_negative_optional: NonNegativeFloat | None
         non_negative_or_none: NonNegativeFloat | None
-        none_or_non_negative: None | NonNegativeFloat
+        none_or_non_negative: NonNegativeFloat | None
 
         # pydantic NonPositiveFloat type
         non_positive: NonPositiveFloat
         non_positive_optional: NonPositiveFloat | None
         non_positive_or_none: NonPositiveFloat | None
-        none_or_non_positive: None | NonPositiveFloat
+        none_or_non_positive: NonPositiveFloat | None
 
         # pydantic PositiveFloat type
         positive: PositiveFloat
         positive_optional: PositiveFloat | None
         positive_or_none: PositiveFloat | None
-        none_or_positive: None | PositiveFloat
+        none_or_positive: PositiveFloat | None
 
         # pydantic NegativeFloat type
         negative: NegativeFloat
         negative_optional: NegativeFloat | None
         negative_or_none: NegativeFloat | None
-        none_or_negative: None | NegativeFloat
+        none_or_negative: NegativeFloat | None
 
         # pydantic NegativeFloat type
         finite: FiniteFloat
         finite_optional: FiniteFloat | None
         finite_or_none: FiniteFloat | None
-        none_or_finite: None | NegativeFloat
+        none_or_finite: NegativeFloat | None
 
         # pydantic annotated float with constraints
         con_float: Annotated[float, Interval(gt=lb, lt=ub)]
         con_float_optional: Optional[Annotated[float, Interval(ge=lb, lt=ub)]]
         con_float_or_none: Annotated[float, Interval(gt=lb, le=ub)] | None
-        non_or_con_float: None | Annotated[float, Interval(ge=lb, le=ub)]
+        non_or_con_float: Annotated[float, Interval(ge=lb, le=ub)] | None
 
     schema = model_to_nw_schema(FloatModel, pipeline=auto_pipeline)
 

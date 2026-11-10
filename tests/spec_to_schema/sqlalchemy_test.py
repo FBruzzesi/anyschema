@@ -7,6 +7,7 @@ import pytest
 
 from anyschema import AnySchema
 from tests.conftest import (
+    SQLALCHEMY_GE_2_1,
     ComplexORM,
     EventORMWithTimeMetadata,
     ProductORM,
@@ -40,7 +41,7 @@ if TYPE_CHECKING:
             {
                 "id": nw.Int32(),
                 "name": nw.String(),
-                "price": nw.Float32(),
+                "price": nw.Float64() if SQLALCHEMY_GE_2_1 else nw.Float32(),
                 "in_stock": nw.Boolean(),
             },
         ),

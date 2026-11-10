@@ -2,17 +2,22 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import date, datetime
+from importlib.metadata import version
 from typing import Literal, Sequence
 
 import attrs
 import narwhals as nw
 import pytest
+from narwhals.utils import parse_version
 from pydantic import AwareDatetime, BaseModel, Field, FutureDatetime, NaiveDatetime, PastDate, PastDatetime, PositiveInt
 from pyspark.sql import SparkSession
 from sqlalchemy import ARRAY, BigInteger, Boolean, Column, Date, DateTime, Float, Integer, MetaData, String, Table
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 from anyschema.parsers import ParserPipeline
+
+# SQLAlchemy 2.1 maps `Mapped[float]` to `Double` (was `Float` in 2.0)
+SQLALCHEMY_GE_2_1 = parse_version(version("sqlalchemy")) >= (2, 1)
 
 
 @pytest.fixture(scope="session")
@@ -280,7 +285,7 @@ numeric_table = Table(
     Column[int]("int_col", Integer),
     Column[int]("bigint_col", BigInteger),
     Column[str]("string_col", String(100)),
-    Column[float]("float_col", Float),
+    Column[float]("float_col", Float()),
 )
 
 complex_table = Table(
@@ -290,7 +295,7 @@ complex_table = Table(
     Column[str]("name", String(50)),
     Column[str]("description", String),
     Column[int]("age", Integer),
-    Column[float]("score", Float),
+    Column[float]("score", Float()),
     Column[bool]("is_active", Boolean),
     Column[datetime]("created_at", DateTime),
     Column[date]("birth_date", Date),

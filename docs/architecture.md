@@ -55,7 +55,7 @@ flowchart TD
 
     NA["Pydantic Models<br/>Python mappings or sequences"]
     NB["pydantic_adapter<br/>into_ordered_dict_adapter"]
-    NE["pyarrow, polars or pandas schema"]
+    NE["pyarrow, polars, pandas, duckdb or pyspark schema"]
 
     A -.-> NA
     B -.-> NB

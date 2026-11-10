@@ -48,6 +48,12 @@ Convert to different schema formats:
     print(schema.to_pandas())
     ```
 
+=== "duckdb"
+
+    ```python exec="true" source="above" result="python" session="basic-pydantic"
+    print(schema.to_duckdb())
+    ```
+
 The `AnySchema` object also provides access to detailed field information through the `fields` attribute:
 
 ```python exec="true" source="above" result="python" session="basic-pydantic"
@@ -496,6 +502,43 @@ pd_schema = schema.to_pandas(
     )
 )
 print(pd_schema)
+```
+
+## DuckDB output format
+
+!!! abstract "duckdb schema"
+    DuckDB has no schema object either, so `to_duckdb()` returns a dictionary mapping column names to `DuckDBPyType`
+    objects. DuckDB types carry no nullability or metadata, so only data types are converted.
+
+!!! warning "Timezone-aware datetimes"
+    DuckDB stores the time zone on the connection, not on the type. Every timezone-aware datetime becomes
+    `TIMESTAMPTZ`, whatever its time zone, and only microsecond precision is supported.
+
+Categorical, Object and Unknown dtypes have no DuckDB equivalent and raise `UnsupportedDTypeError`.
+
+```python exec="true" source="above" result="python" session="duckdb-format"
+from datetime import datetime
+
+import duckdb
+from anyschema import AnySchema
+from pydantic import BaseModel, Field
+
+
+class Event(BaseModel):
+    id: int
+    tags: list[str]
+    created_at: datetime
+    updated_at: datetime = Field(json_schema_extra={"anyschema": {"time_zone": "Europe/Rome"}})
+
+
+schema = AnySchema(spec=Event)
+duckdb_schema = schema.to_duckdb()
+print(duckdb_schema)
+
+columns = ", ".join(f"{name} {dtype}" for name, dtype in duckdb_schema.items())
+con = duckdb.connect()
+con.sql(f"CREATE TABLE events ({columns})")
+print(con.sql("DESCRIBE events"))
 ```
 
 ## Error Handling

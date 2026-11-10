@@ -164,7 +164,6 @@ pretty = true
 strict = true
 files = ["src", "tests"]
 plugins = [
-  "sqlalchemy.ext.mypy.plugin",
   "pydantic.mypy",
 ]
 

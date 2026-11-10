@@ -4,7 +4,7 @@ build-backend = "uv_build"
 
 [project]
 name = "anyschema"
-version = "0.3.0"
+version = "0.4.0"
 description = "From type specifications to dataframe schemas"
 readme = "README.md"
 license = "Apache-2.0"

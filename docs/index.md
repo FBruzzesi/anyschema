@@ -129,7 +129,7 @@ patterns:
 - [`PydanticTypeStep`][api-pydantic-type-step]: Handles Pydantic-specific types.
 - [`AttrsTypeStep`][api-attrs-type-step]: Handles attrs classes.
 - [`SQLAlchemyTypeStep`][api-sqlalchemy-type-step]: Handles SQLAlchemy column types.
-- [`PyTypeStep`][api-py-type-step]: Handles basic Python types (fallback).
+- [`PyTypeStep`][api-py-type-step]: Handles standard Python types, including `TypedDict` and dataclasses (fallback).
 
 Learn more about how these work together in the [Architecture](architecture.md) section.
 

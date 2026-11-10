@@ -191,9 +191,7 @@ class TestPydanticAdapter(unittest.TestCase):
 - **Doctests**: Consider adding doctests for simple examples
 
 ```python
-def parse_type(
-    tp: type, constraints: tuple = (), metadata: dict | None = None
-) -> nw.DType:
+def parse_type(tp: type, constraints: tuple = (), metadata: dict | None = None) -> nw.DType:
     """Parse a Python type into a Narwhals dtype.
 
     Args:

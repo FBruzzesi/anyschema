@@ -401,9 +401,7 @@ from pydantic import BaseModel, Field
 class Product(BaseModel):
     name: str
     price: Annotated[float, Field(gt=0)]  # Price must be positive
-    quantity: Annotated[
-        int, Field(ge=0, lt=100)
-    ]  # Quantity must be non-negative, and say we limit it to <100
+    quantity: Annotated[int, Field(ge=0, lt=100)]  # Quantity must be non-negative, and say we limit it to <100
 
 
 schema = AnySchema(spec=Product)

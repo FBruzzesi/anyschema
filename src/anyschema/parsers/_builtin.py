@@ -9,15 +9,16 @@ from typing import TYPE_CHECKING, Any, Literal
 import narwhals as nw
 from typing_extensions import get_args, get_origin, get_type_hints  # noqa: UP035
 
-from anyschema._dependencies import is_typed_dict
+from anyschema._dependencies import is_dataclass, is_typed_dict
 from anyschema._metadata import get_anyschema_value_by_key
+from anyschema.adapters import dataclass_adapter
 from anyschema.exceptions import UnsupportedDTypeError
 from anyschema.parsers._base import ParserStep
 
 if TYPE_CHECKING:
     from narwhals.dtypes import DType
 
-    from anyschema.typing import FieldConstraints, FieldMetadata, FieldType, TypedDictType
+    from anyschema.typing import DataclassType, FieldConstraints, FieldMetadata, FieldType, TypedDictType
 
 
 class PyTypeStep(ParserStep):
@@ -28,7 +29,7 @@ class PyTypeStep(ParserStep):
     - `int`, `float`, `decimal`, `str`, `bytes`, `bool`, `date`, `datetime`, `timedelta`, `time`, `object`, `Enum`,
         `Literal`
     - generics: `list[T]`, `Sequence[T]`, `Iterable[T]`, `tuple[T, ...]`
-    - `dict`,` Mapping[K, V]`, and typed dictionaries (`TypedDict`)
+    - `dict`, `Mapping[K, V]`, typed dictionaries (`TypedDict`) and dataclasses
     """
 
     def parse(self, input_type: FieldType, constraints: FieldConstraints, metadata: FieldMetadata) -> DType | None:  # noqa: C901, PLR0912
@@ -86,6 +87,8 @@ class PyTypeStep(ParserStep):
                 return nw.Binary()
             if is_typed_dict(input_type):
                 return self._parse_typed_dict(input_type, constraints, metadata)
+            if is_dataclass(input_type):
+                return self._parse_dataclass(input_type)
             if issubclass(input_type, dict):  # Plain dict without type parameters -> Struct with Object fields
                 return nw.Struct([])
             # TODO(FBruzzesi): https://github.com/FBruzzesi/anyschema/issues/56
@@ -167,3 +170,12 @@ class PyTypeStep(ParserStep):
             for field_name, field_type in type_hints.items()
         ]
         return nw.Struct(fields)
+
+    def _parse_dataclass(self, dataclass: DataclassType) -> DType:
+        """Parse a dataclass into a Struct, forwarding each field's metadata to the pipeline."""
+        return nw.Struct(
+            [
+                nw.Field(name=field_name, dtype=self.pipeline.parse(field_type, field_constraints, field_metadata))
+                for field_name, field_type, field_constraints, field_metadata in dataclass_adapter(dataclass)
+            ]
+        )

@@ -45,7 +45,7 @@ testing = [
   "anyschema[attrs,pydantic,sqlalchemy]",
   "covdefaults>=2.3.0",
   "hypothesis>=6.0.0",
-  "narwhals[pandas,polars,pyarrow,pyspark]",
+  "narwhals[duckdb,pandas,polars,pyarrow,pyspark]",
   "pydantic-extra-types[pycountry,phonenumbers]",
   "pytest>=9.0.3",
   "pytest-cov>=6.0.0",
@@ -66,7 +66,7 @@ docs = [
   "markdown-exec[ansi]>=1.12.1",
   "mkdocs-autorefs>=1.4.4",
   "mkdocstrings-python>=2.0.3",
-  "narwhals[pandas,polars,pyarrow]",
+  "narwhals[duckdb,pandas,polars,pyarrow]",
   "pytest>=9.0.3",
   "zensical>=0.0.45",
 ]

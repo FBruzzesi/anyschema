@@ -284,7 +284,7 @@ type-based inference.
 
 ## Nested Types
 
-You can use nested structures with Pydantic models, dataclasses, or TypedDict:
+You can use nested structures with Pydantic models, TypedDict, dataclasses, or attrs classes:
 
 === "Pydantic"
 
@@ -324,6 +324,33 @@ You can use nested structures with Pydantic models, dataclasses, or TypedDict:
 
 
     class Person(TypedDict):
+        name: str
+        age: int
+        addresses: list[Address]
+
+
+    schema = AnySchema(spec=Person)
+    pa_schema = schema.to_arrow()
+    print(pa_schema)
+    ```
+
+=== "dataclasses"
+
+    ```python exec="true" source="above" result="python" session="nested-dataclass"
+    from dataclasses import dataclass
+
+    from anyschema import AnySchema
+
+
+    @dataclass
+    class Address:
+        street: str
+        city: str
+        country: str
+
+
+    @dataclass
+    class Person:
         name: str
         age: int
         addresses: list[Address]

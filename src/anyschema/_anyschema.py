@@ -37,7 +37,7 @@ if TYPE_CHECKING:
 
     from anyschema.typing import Adapter, IntoParserPipeline, Spec
 
-    T = TypeVar("T", bool, str | None, DType)
+    T = TypeVar("T")
     AnyFieldAttrAccessor: TypeAlias = Callable[["AnyField"], T]
 
 __all__ = ("AnyField", "AnySchema")

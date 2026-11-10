@@ -29,6 +29,7 @@ SupportedSQLAlchemyType: TypeAlias = (
     | sqltypes.Boolean
     | sqltypes.ARRAY[Any]
     | sqltypes.Integer
+    | sqltypes.Float[Any]
     | sqltypes.Numeric[Any]
     | sqltypes.Date
     | sqltypes.DateTime
@@ -43,6 +44,7 @@ _SUPPORTED_SQLALCHEMY_TYPES = (
     sqltypes.Boolean,
     sqltypes.ARRAY,
     sqltypes.Integer,
+    sqltypes.Float,  # Not a Numeric subclass since SQLAlchemy 2.1
     sqltypes.Numeric,
     sqltypes.Date,
     sqltypes.DateTime,

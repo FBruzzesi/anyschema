@@ -159,9 +159,7 @@ class UserModel(BaseModel):
         description="Account creation timestamp",
         json_schema_extra={
             "anyschema": {
-                "dtype": NarwhalsTypeSerializer.serialize(
-                    nw.Datetime(time_unit="ms", time_zone="UTC")
-                ),
+                "dtype": NarwhalsTypeSerializer.serialize(nw.Datetime(time_unit="ms", time_zone="UTC")),
             }
         },
     )
@@ -190,31 +188,21 @@ class DataModel(BaseModel):
 
     tags: list[str] = Field(
         description="List of tags",
-        json_schema_extra={
-            "anyschema": {"dtype": serialize_dtype(nw.List(nw.String()))}
-        },
+        json_schema_extra={"anyschema": {"dtype": serialize_dtype(nw.List(nw.String()))}},
     )
 
     metadata: dict = Field(
         description="Structured metadata",
         json_schema_extra={
             "anyschema": {
-                "dtype": serialize_dtype(
-                    nw.Struct(
-                        {"id": nw.Int64(), "name": nw.String(), "active": nw.Boolean()}
-                    )
-                )
+                "dtype": serialize_dtype(nw.Struct({"id": nw.Int64(), "name": nw.String(), "active": nw.Boolean()}))
             }
         },
     )
 
     matrix: list[list[float]] = Field(
         description="2D array",
-        json_schema_extra={
-            "anyschema": {
-                "dtype": serialize_dtype(nw.Array(nw.Float32(), shape=(3, 2)))
-            }
-        },
+        json_schema_extra={"anyschema": {"dtype": serialize_dtype(nw.Array(nw.Float32(), shape=(3, 2)))}},
     )
 
 

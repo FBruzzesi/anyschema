@@ -17,13 +17,13 @@ def test_parse_boolean(auto_pipeline: ParserPipeline) -> None:
         py_bool: bool
         py_bool_optional: bool | None
         py_bool_or_none: bool | None
-        none_or_py_bool: None | bool
+        none_or_py_bool: bool | None
 
         # pydantic StrictBool type
         strict_bool: StrictBool
         strict_bool_optional: StrictBool | None
         strict_bool_or_none: StrictBool | None
-        none_or_strict_bool: None | StrictBool
+        none_or_strict_bool: StrictBool | None
 
     schema = model_to_nw_schema(BooleanModel, pipeline=auto_pipeline)
 

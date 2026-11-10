@@ -113,6 +113,7 @@ extend-select = [
 
 select = ["ALL"]
 ignore = [
+  "CPY",
   "ANN401",
   "PLC0415",
   "UP045",
@@ -163,7 +164,6 @@ pretty = true
 strict = true
 files = ["src", "tests"]
 plugins = [
-  "sqlalchemy.ext.mypy.plugin",
   "pydantic.mypy",
 ]
 

@@ -1,47 +1,26 @@
 from __future__ import annotations
 
 from datetime import date, datetime
-from pathlib import Path
 from typing import Any
-from uuid import UUID
 
 import narwhals as nw
+import pydantic
 import pytest
 from pydantic import (
     AwareDatetime,
     BaseModel,
+    DirectoryPath,
+    FilePath,
     FutureDate,
     FutureDatetime,
+    HttpUrl,
     NaiveDatetime,
     PastDate,
     PastDatetime,
+    PostgresDsn,
     SecretBytes,
     SecretStr,
-)
-from pydantic.networks import (
-    AmqpDsn,
-    AnyHttpUrl,
-    AnyUrl,
-    AnyWebsocketUrl,
-    ClickHouseDsn,
-    CockroachDsn,
-    EmailStr,
-    FileUrl,
-    FtpUrl,
-    HttpUrl,
-    IPvAnyAddress,
-    IPvAnyInterface,
-    IPvAnyNetwork,
-    KafkaDsn,
-    MariaDBDsn,
-    MongoDsn,
-    MySQLDsn,
-    NameEmail,
-    NatsDsn,
-    PostgresDsn,
-    RedisDsn,
-    SnowflakeDsn,
-    WebsocketUrl,
+    networks,
 )
 
 from anyschema.exceptions import UnsupportedDTypeError
@@ -226,125 +205,56 @@ def test_parse_naive_datetime_with_timezone_raises(pydantic_parser: PydanticType
         pydantic_parser.parse(NaiveDatetime, constraints=(), metadata={"anyschema": {"time_zone": "UTC"}})
 
 
-# --- Tests for new pydantic.types ---
+# URL/DSN names differ across pydantic versions, discover them so new ones are covered too.
+_NETWORK_TYPE_NAMES = sorted(
+    {name for name in networks.__all__ if name.endswith(("Url", "Dsn"))}
+    | {"EmailStr", "NameEmail", "IPvAnyAddress", "IPvAnyInterface", "IPvAnyNetwork"}
+)
+
+
+@pytest.mark.parametrize("name", _NETWORK_TYPE_NAMES)
+def test_parse_pydantic_network_types(auto_pipeline: ParserPipeline, name: str) -> None:
+    # Goes through the full pipeline: in pydantic<2.10 URL types are `Annotated[pydantic_core.Url, ...]`
+    result = auto_pipeline.parse(getattr(pydantic, name), constraints=(), metadata={})
+    assert result == nw.String()
 
 
 @pytest.mark.parametrize(
     ("input_type", "expected"),
     [
-        # Secret types
         (SecretStr, nw.String()),
         (SecretBytes, nw.Binary()),
-        # Path types
-        (Path, nw.String()),
-        # UUID types
-        (UUID, nw.String()),
+        (FilePath, nw.String()),
+        (DirectoryPath, nw.String()),
+        (pydantic.UUID4, nw.String()),
     ],
 )
-def test_parse_pydantic_types_new(
-    pydantic_parser: PydanticTypeStep, input_type: type, expected: nw.dtypes.DType
+def test_parse_pydantic_secret_and_annotated_types(
+    auto_pipeline: ParserPipeline, input_type: Any, expected: nw.dtypes.DType
 ) -> None:
-    """Test parsing of new pydantic types (secrets, paths, UUIDs)."""
-    result = pydantic_parser.parse(input_type, constraints=(), metadata={})
+    result = auto_pipeline.parse(input_type, constraints=(), metadata={})
     assert result == expected
 
 
-# --- Tests for pydantic.networks ---
-
-
-@pytest.mark.parametrize(
-    "input_type",
-    [
-        # URL types
-        AnyUrl,
-        AnyHttpUrl,
-        HttpUrl,
-        AnyWebsocketUrl,
-        WebsocketUrl,
-        FileUrl,
-        FtpUrl,
-        # DSN types
-        PostgresDsn,
-        CockroachDsn,
-        MySQLDsn,
-        MariaDBDsn,
-        RedisDsn,
-        MongoDsn,
-        KafkaDsn,
-        NatsDsn,
-        AmqpDsn,
-        ClickHouseDsn,
-        SnowflakeDsn,
-        # Email types
-        EmailStr,
-        NameEmail,
-        # IP types
-        IPvAnyAddress,
-        IPvAnyInterface,
-        IPvAnyNetwork,
-    ],
-)
-def test_parse_pydantic_network_types(pydantic_parser: PydanticTypeStep, input_type: type) -> None:
-    """Test parsing of pydantic network types (URLs, DSNs, emails, IPs)."""
-    result = pydantic_parser.parse(input_type, constraints=(), metadata={})
-    assert result == nw.String()
-
-
-# --- Tests for models with new types ---
-
-
-def test_parse_model_with_network_types(pydantic_parser: PydanticTypeStep) -> None:
-    """Test parsing a model that uses network types."""
-
-    class ServerConfig(BaseModel):
-        database_url: PostgresDsn
-        cache_url: RedisDsn
+def test_parse_model_with_pydantic_types(auto_pipeline: ParserPipeline) -> None:
+    class Config(BaseModel):
         homepage: HttpUrl
-
-    result = pydantic_parser.parse(ServerConfig, constraints=(), metadata={})
-
-    expected_fields = [
-        nw.Field(name="database_url", dtype=nw.String()),
-        nw.Field(name="cache_url", dtype=nw.String()),
-        nw.Field(name="homepage", dtype=nw.String()),
-    ]
-    expected = nw.Struct(expected_fields)
-    assert result == expected
-
-
-def test_parse_model_with_secret_types(pydantic_parser: PydanticTypeStep) -> None:
-    """Test parsing a model that uses secret types."""
-
-    class Credentials(BaseModel):
-        username: str
+        database_url: PostgresDsn
         password: SecretStr
         api_key: SecretBytes
+        config_file: FilePath
+        tags: list[HttpUrl]
 
-    result = pydantic_parser.parse(Credentials, constraints=(), metadata={})
+    result = auto_pipeline.parse(Config, constraints=(), metadata={})
 
-    expected_fields = [
-        nw.Field(name="username", dtype=nw.String()),
-        nw.Field(name="password", dtype=nw.String()),
-        nw.Field(name="api_key", dtype=nw.Binary()),
-    ]
-    expected = nw.Struct(expected_fields)
-    assert result == expected
-
-
-def test_parse_model_with_url_types(pydantic_parser: PydanticTypeStep) -> None:
-    """Test parsing a model that uses URL types."""
-
-    class Website(BaseModel):
-        homepage: HttpUrl
-        websocket_endpoint: WebsocketUrl
-        file_location: FileUrl
-
-    result = pydantic_parser.parse(Website, constraints=(), metadata={})
-
-    expected_fields = [
-        nw.Field(name="homepage", dtype=nw.String()),
-        nw.Field(name="websocket_endpoint", dtype=nw.String()),
-        nw.Field(name="file_location", dtype=nw.String()),
-    ]
-    expected = nw.Struct(expected_fields)
+    expected = nw.Struct(
+        [
+            nw.Field(name="homepage", dtype=nw.String()),
+            nw.Field(name="database_url", dtype=nw.String()),
+            nw.Field(name="password", dtype=nw.String()),
+            nw.Field(name="api_key", dtype=nw.Binary()),
+            nw.Field(name="config_file", dtype=nw.String()),
+            nw.Field(name="tags", dtype=nw.List(nw.String())),
+        ]
+    )
     assert result == expected

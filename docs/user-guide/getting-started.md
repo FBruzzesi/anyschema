@@ -443,52 +443,51 @@ print(schema.to_polars())
 
 ## Supported Pydantic Types
 
-anyschema supports a wide range of Pydantic types from `pydantic.types`, `pydantic.networks`, and `pydantic-extra-types`.
-Since schema systems don't support the validation semantics of these types, they are mapped to basic data types.
-The mapping is the same for every Pydantic 2.x release, although some types only exist in newer releases.
+Dataframe schemas cannot express Pydantic's validation rules, so anyschema maps each Pydantic type to the dtype of
+the value it holds. The mapping is the same for every Pydantic 2.x release, although some types only exist in newer
+releases.
+
+`uuid.UUID`, `pathlib` paths and `ipaddress` types map to `String` in any spec, not only in Pydantic models.
 
 ### pydantic.types
 
-| Pydantic Type | Narwhals DType | Notes |
-|---------------|----------------|-------|
-| `SecretStr` | `String` | Sensitive string data |
-| `SecretBytes` | `Binary` | Sensitive binary data |
-| `FilePath`, `DirectoryPath`, `NewPath` | `String` | Path types (as is `pathlib.Path` in any spec) |
-| `UUID`, `UUID1`-`UUID8` | `String` | UUID types (as is `uuid.UUID` in any spec) |
-| `PositiveInt`, `NegativeInt`, etc. | `Int*` | Constrained integers (refined by constraints) |
-| `PositiveFloat`, `NegativeFloat`, etc. | `Float64` | Constrained floats |
-| `StrictStr`, `StrictBytes` | `String`/`Binary` | Strict mode types |
+| Pydantic Type | Narwhals DType |
+|---------------|----------------|
+| `SecretStr` | `String` |
+| `SecretBytes` | `Binary` |
+| `FilePath`, `DirectoryPath`, `NewPath` | `String` |
+| `UUID1` to `UUID8` | `String` |
+| `PositiveInt`, `NonNegativeInt` | `UInt64` |
+| `NegativeInt`, `NonPositiveInt` | `Int64` |
+| `PositiveFloat`, `NegativeFloat`, etc. | `Float64` |
+| `StrictStr`, `StrictBytes` | `String`, `Binary` |
 
-[Pydantic docs](https://docs.pydantic.dev/latest/api/types/)
+See the [Pydantic types reference](https://docs.pydantic.dev/latest/api/types/) and
+[Working with (Integer) Constraints](#working-with-integer-constraints) for how other integer bounds are mapped.
 
 ### pydantic.networks
 
-| Pydantic Type | Narwhals DType | Notes |
-|---------------|----------------|-------|
-| `AnyUrl`, `HttpUrl`, `AnyHttpUrl` | `String` | URL types |
-| `WebsocketUrl`, `AnyWebsocketUrl` | `String` | WebSocket URLs |
-| `FileUrl`, `FtpUrl` | `String` | File/FTP URLs |
-| `PostgresDsn`, `MySQLDsn`, `RedisDsn`, etc. | `String` | Database DSNs |
-| `EmailStr`, `NameEmail` | `String` | Email types |
-| `IPvAnyAddress`, `IPvAnyInterface`, `IPvAnyNetwork` | `String` | IP types (as are `ipaddress` types in any spec) |
+| Pydantic Type | Narwhals DType |
+|---------------|----------------|
+| `AnyUrl`, `HttpUrl`, `AnyHttpUrl`, `WebsocketUrl`, `FileUrl`, `FtpUrl`, etc. | `String` |
+| `PostgresDsn`, `MySQLDsn`, `RedisDsn`, etc. | `String` |
+| `EmailStr`, `NameEmail` | `String` |
+| `IPvAnyAddress`, `IPvAnyInterface`, `IPvAnyNetwork` | `String` |
 
-[Pydantic docs](https://docs.pydantic.dev/latest/api/networks/)
+See the [Pydantic networks reference](https://docs.pydantic.dev/latest/api/networks/).
 
 ### pydantic-extra-types
 
-| Pydantic Type | Narwhals DType | Notes |
-|---------------|----------------|-------|
-| `Color` | `String` | CSS color |
-| `Latitude`, `Longitude` | `Float64` | Coordinate types |
-| `CountryAlpha2`, `CountryAlpha3`, etc. | `String` | Country codes |
-| `PhoneNumber` | `String` | Phone numbers |
-| `Currency` | `String` | Currency codes |
-| `MacAddress` | `String` | MAC addresses |
-| `ISBN` | `String` | ISBN numbers |
-| `LanguageAlpha2`, `LanguageName` | `String` | Language codes |
-| `TimeZoneName` | `String` | Timezone names |
+| Pydantic Type | Narwhals DType |
+|---------------|----------------|
+| `Color` | `String` |
+| `Latitude`, `Longitude` | `Float64` |
+| `CountryAlpha2`, `CountryAlpha3`, etc. | `String` |
+| `PhoneNumber`, `Currency`, `MacAddress`, `ISBN` | `String` |
+| `LanguageAlpha2`, `LanguageName`, `TimeZoneName` | `String` |
 
-[pydantic-extra-types repository](https://github.com/pydantic/pydantic-extra-types)
+`Color` here is `pydantic_extra_types.color.Color`. The deprecated `pydantic.color.Color` is not supported.
+See the [pydantic-extra-types repository](https://github.com/pydantic/pydantic-extra-types).
 
 ### Example with Network Types
 
@@ -508,8 +507,6 @@ class ServerConfig(BaseModel):
 schema = AnySchema(spec=ServerConfig)
 print(schema.to_arrow())
 ```
-
-As you can see, all the specialized Pydantic types are mapped to their underlying data types (`String` in this case).
 
 ## Using Narwhals Directly
 

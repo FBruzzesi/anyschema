@@ -51,6 +51,10 @@ There are several reasons to support the `x-anyschema` prefix:
 3. **Standards Compliance**: Following the OpenAPI convention makes your API documentation more standardized and easier
     for other developers to understand.
 
+4. **Round-tripping**: `json_schema_extra` writes the namespace into the model's JSON Schema, and `anyschema` reads it
+    back from there. Building a schema from `Model.model_json_schema()` keeps settings such as `time_zone` (see
+    [With JSON Schema](getting-started.md#with-json-schema)).
+
 ## Choosing between `anyschema` and `x-anyschema`
 
 Both formats work identically in `anyschema`. Choose based on your needs:

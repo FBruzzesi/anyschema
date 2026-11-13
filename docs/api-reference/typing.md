@@ -13,4 +13,5 @@ The following type aliases are used throughout the anyschema codebase:
         - FieldSpecIterable
         - IntoOrderedDict
         - IntoParserPipeline
+        - JsonSchema
         - Spec

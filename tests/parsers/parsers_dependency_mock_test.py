@@ -27,6 +27,7 @@ def test_auto_pipeline_without_optional_dependency(dependency_flag: str, exclude
 
         # Core steps should still be there
         assert "ForwardRefStep" in step_names
+        assert "JsonSchemaStep" in step_names
         assert "PyTypeStep" in step_names
 
 
@@ -50,6 +51,7 @@ def test_auto_pipeline_without_all_optional_deps() -> None:
         assert "ForwardRefStep" in step_names
         assert "UnionTypeStep" in step_names
         assert "AnnotatedStep" in step_names
+        assert "JsonSchemaStep" in step_names
         assert "PyTypeStep" in step_names
 
         # Optional steps should NOT be present

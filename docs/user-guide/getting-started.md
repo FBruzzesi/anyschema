@@ -5,7 +5,8 @@ This guide will help you get started with `anyschema` and explore its core funct
 ## Basic Usage
 
 `anyschema` accepts specifications in multiple formats including Pydantic models, SQLAlchemy tables, TypedDict,
-dataclasses, attrs classes, and plain Python dicts (and more to come, see [anyschema#11](https://github.com/FBruzzesi/anyschema/issues/11)).
+dataclasses, attrs classes, JSON Schema objects, and plain Python dicts (and more to come, see
+[anyschema#11](https://github.com/FBruzzesi/anyschema/issues/11)).
 
 Let's explore each approach and when to use it.
 
@@ -233,6 +234,59 @@ spec = [
 schema = AnySchema(spec=spec)
 print(schema.to_polars())
 ```
+
+### With JSON Schema
+
+You can build a schema directly from a [JSON Schema](https://json-schema.org/) object, such as the output of
+`pydantic.BaseModel.model_json_schema()`. This is handy when the original model classes are no longer available at
+runtime but their JSON Schema is:
+
+```python exec="true" source="above" result="python" session="basic-jsonschema"
+from anyschema import AnySchema
+
+spec = {
+    "type": "object",
+    "properties": {
+        "id": {"type": "integer"},
+        "username": {"type": "string"},
+        "email": {"anyOf": [{"type": "string"}, {"type": "null"}]},
+        "age": {"type": "integer", "exclusiveMinimum": 0},
+        "address": {"$ref": "#/$defs/Address"},
+    },
+    "$defs": {
+        "Address": {
+            "type": "object",
+            "properties": {"street": {"type": "string"}, "zipcode": {"type": "integer"}},
+        }
+    },
+}
+
+schema = AnySchema(spec=spec)
+print(schema.to_arrow())
+```
+
+Local `$ref`s (including a root `$ref`), nested objects, arrays, enums and integer bounds are supported, so
+`exclusiveMinimum: 0` turns `age` into an unsigned integer. A field is nullable only when its schema allows `null`; the
+`required` keyword is ignored. To start from a raw JSON document, decode it with `json.loads` first.
+
+!!! note "Differences from the original Pydantic model"
+
+    A JSON Schema carries less information than the model it came from:
+
+    - `Decimal` fields are emitted as `anyOf: [number, string]`, without `max_digits`/`decimal_places`. `anyschema`
+        reads that union as a `Decimal` with default precision, and reads a `float | str` field the same way.
+    - Non-string `Literal`/`Enum` values become their scalar dtype (e.g. `Int64`), since a Narwhals `Enum` only holds
+        strings.
+    - `AwareDatetime` is emitted as a plain `date-time` string, so it becomes a `Datetime` without time zone instead
+        of raising. Set `time_zone` through `json_schema_extra={"anyschema": {...}}` to keep it.
+    - A self-referencing model raises `UnsupportedDTypeError`, unless the recursion only goes through `dict` values
+        (e.g. `children: dict[str, "Node"]`), which become an empty `Struct` as they do for the model.
+    - `model_json_schema()` names fields by their alias. Pass `by_alias=False` to keep the Python field names.
+
+Each property subschema is converted by the [`JsonSchemaStep`][api-jsonschema-step] parser step, which recurses
+through the pipeline for nested subschemas. To customize how a fragment is converted (e.g. map
+`{"type": "string", "format": "uuid"}` to a different dtype), add a [custom parser step](advanced.md) that handles
+that mapping and returns `None` otherwise.
 
 ## Understanding nullability
 
@@ -571,3 +625,4 @@ except UnsupportedDTypeError as e:
 ```
 
 [api-annotated-types-step]: ../api-reference/parsers.md#anyschema.parsers.annotated_types.AnnotatedTypesStep
+[api-jsonschema-step]: ../api-reference/parsers.md#anyschema.parsers.JsonSchemaStep

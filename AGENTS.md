@@ -18,7 +18,7 @@ or plain Python dicts) to dataframe schemas (PyArrow, Polars, Pandas) using Narw
 3. **Lazy imports:** Optional dependencies (Pydantic, attrs, SQLAlchemy) are checked via
     `anyschema/_dependencies.py` and only imported when available
 4. **Parser order matters**: `ForwardRefStep` → `UnionTypeStep` → `AnnotatedStep` → `AnnotatedTypesStep` →
-    `PydanticTypeStep` → `PyTypeStep`
+    `AttrsTypeStep` → `PydanticTypeStep` → `SQLAlchemyTypeStep` → `JsonSchemaStep` → `PyTypeStep`
 
 Read `docs/architecture.md` for complete details on the pipeline design.
 
@@ -220,7 +220,7 @@ When changing functionality:
 1. **Update relevant docs** in `docs/`:
     - `docs/user-guide/getting-started.md` - Basic usage examples
     - `docs/user-guide/advanced.md` - Custom parsers/adapters
-    - `docs/user-guide/field-metadata.md` - Metadata handling
+    - `docs/user-guide/metadata.md` - Metadata handling
     - `docs/architecture.md` - Architecture changes
 2. **Update README.md** if user-facing behavior changes
 3. **Add/update examples** that demonstrate the feature

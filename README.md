@@ -10,7 +10,7 @@
 ---
 
 `anyschema` allows you to convert from type specifications (such as attrs classes, Pydantic models, SQLAlchemy tables,
-TypedDict, dataclasses, or plain Python dicts) to _any_ dataframe schema
+TypedDict, dataclasses, JSON Schema objects, or plain Python dicts) to _any_ dataframe schema
 (by _"any"_ we intend those supported by Narwhals).
 
 Let's see how it works in practice with an example:

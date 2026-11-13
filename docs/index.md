@@ -106,7 +106,7 @@ generation, type-safe data processing.
 ## Key Features
 
 - **Multiple Input Formats**: Support for Pydantic models, SQLAlchemy tables (ORM and Core), attrs classes, TypedDict,
-    dataclasses, Python mappings and sequence of field specifications.
+    dataclasses, JSON Schema objects, Python mappings and sequence of field specifications.
 - **Multiple Output Formats**: Convert to PyArrow, Polars, Pandas, DuckDB, or PySpark schemas.
 - **Modular Architecture**: Extensible parser pipeline for custom type handling.
 - **Rich Type Support**: Handles complex types including Optional, Union, List, nested structures, Pydantic-specific
@@ -129,6 +129,7 @@ patterns:
 - [`PydanticTypeStep`][api-pydantic-type-step]: Handles Pydantic-specific types.
 - [`AttrsTypeStep`][api-attrs-type-step]: Handles attrs classes.
 - [`SQLAlchemyTypeStep`][api-sqlalchemy-type-step]: Handles SQLAlchemy column types.
+- [`JsonSchemaStep`][api-jsonschema-step]: Handles JSON Schema (sub)schemas, as yielded by the JSON Schema adapter.
 - [`PyTypeStep`][api-py-type-step]: Handles standard Python types, including `TypedDict` and dataclasses (fallback).
 
 Learn more about how these work together in the [Architecture](architecture.md) section.
@@ -143,6 +144,7 @@ Adapters convert input specifications into a common format that the parser pipel
 - [`attrs_adapter`][api-attrs-adapter]: Extracts field information from attrs classes.
 - [`pydantic_adapter`][api-pydantic-adapter]: Extracts field information from Pydantic models.
 - [`sqlalchemy_adapter`][api-sqlalchemy-adapter]: Extracts field information from SQLAlchemy tables.
+- [`jsonschema_adapter`][api-jsonschema-adapter]: Extracts field information from JSON Schema objects.
 
 See the [API Reference](api-reference/adapters.md) for detailed documentation.
 
@@ -189,9 +191,11 @@ as an intermediate representation. `anyschema` makes this conversion seamless an
 [api-pydantic-type-step]: api-reference/parsers.md#anyschema.parsers.pydantic.PydanticTypeStep
 [api-sqlalchemy-type-step]: api-reference/parsers.md#anyschema.parsers.sqlalchemy.SQLAlchemyTypeStep
 [api-py-type-step]: api-reference/parsers.md#anyschema.parsers.PyTypeStep
+[api-jsonschema-step]: api-reference/parsers.md#anyschema.parsers.JsonSchemaStep
 [api-into-ordered-dict-adapter]: api-reference/adapters.md#anyschema.adapters.into_ordered_dict_adapter
 [api-typed-dict-adapter]: api-reference/adapters.md#anyschema.adapters.typed_dict_adapter
 [api-dataclass-adapter]: api-reference/adapters.md#anyschema.adapters.dataclass_adapter
 [api-pydantic-adapter]: api-reference/adapters.md#anyschema.adapters.pydantic_adapter
 [api-attrs-adapter]: api-reference/adapters.md#anyschema.adapters.attrs_adapter
 [api-sqlalchemy-adapter]: api-reference/adapters.md#anyschema.adapters.sqlalchemy_adapter
+[api-jsonschema-adapter]: api-reference/adapters.md#anyschema.adapters.jsonschema_adapter

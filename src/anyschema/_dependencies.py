@@ -15,7 +15,14 @@ if TYPE_CHECKING:
 
     from pydantic import BaseModel
 
-    from anyschema.typing import AttrsClassType, DataclassType, IntoOrderedDict, SQLAlchemyTableType, TypedDictType
+    from anyschema.typing import (
+        AttrsClassType,
+        DataclassType,
+        IntoOrderedDict,
+        JsonSchema,
+        SQLAlchemyTableType,
+        TypedDictType,
+    )
 
     Version: TypeAlias = tuple[int, ...]
 
@@ -78,6 +85,21 @@ def is_into_ordered_dict(obj: object) -> TypeIs[IntoOrderedDict]:
     return isinstance(obj, Mapping) or (
         isinstance(obj, Sequence) and all(isinstance(s, tuple) and len(s) == tpl_size for s in obj)
     )
+
+
+def is_jsonschema(obj: object) -> TypeIs[JsonSchema]:
+    """Check if the object looks like a JSON Schema object.
+
+    That is a mapping with either a `"properties"` mapping and `"type": "object"` (or no `type`), or a root `"$ref"`
+    (or `"allOf"`, before Pydantic 2.9) next to `"$defs"`, as Pydantic emits for self-referencing models.
+    """
+    if not isinstance(obj, Mapping):
+        return False
+    if isinstance(obj.get("$defs"), Mapping) and (
+        isinstance(obj.get("$ref"), str) or isinstance(obj.get("allOf"), list)
+    ):
+        return True
+    return isinstance(obj.get("properties"), Mapping) and obj.get("type", "object") == "object"
 
 
 def is_typed_dict(obj: object) -> TypeIs[TypedDictType]:

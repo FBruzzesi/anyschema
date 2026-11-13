@@ -4,7 +4,10 @@ from collections.abc import Iterable, Mapping, Sequence
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 from enum import Enum
+from ipaddress import IPv4Address, IPv4Network, IPv6Address, IPv6Network
+from pathlib import PurePath
 from typing import TYPE_CHECKING, Any, Literal
+from uuid import UUID
 
 import narwhals as nw
 from typing_extensions import get_args, get_origin, get_type_hints  # noqa: UP035
@@ -20,6 +23,9 @@ if TYPE_CHECKING:
 
     from anyschema.typing import DataclassType, FieldConstraints, FieldMetadata, FieldType, TypedDictType
 
+# `IPv4Interface`/`IPv6Interface` subclass the `Address` types
+_STDLIB_STRING_TYPES = (str, UUID, PurePath, IPv4Address, IPv6Address, IPv4Network, IPv6Network)
+
 
 class PyTypeStep(ParserStep):
     """Parser for Python builtin types.
@@ -28,6 +34,7 @@ class PyTypeStep(ParserStep):
 
     - `int`, `float`, `decimal`, `str`, `bytes`, `bool`, `date`, `datetime`, `timedelta`, `time`, `object`, `Enum`,
         `Literal`
+    - `UUID`, `pathlib` paths and `ipaddress` types, as String
     - generics: `list[T]`, `Sequence[T]`, `Iterable[T]`, `tuple[T, ...]`
     - `dict`, `Mapping[K, V]`, typed dictionaries (`TypedDict`) and dataclasses
     """
@@ -59,7 +66,7 @@ class PyTypeStep(ParserStep):
             #   * issubclass(datetime, date) -> True
             if issubclass(input_type, Enum):
                 return nw.Enum(input_type)
-            if issubclass(input_type, str):
+            if issubclass(input_type, _STDLIB_STRING_TYPES):
                 return nw.String()
             if issubclass(input_type, bool):
                 return nw.Boolean()

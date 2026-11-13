@@ -3,9 +3,29 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import narwhals as nw
-from pydantic import AwareDatetime, BaseModel, FutureDate, FutureDatetime, NaiveDatetime, PastDate, PastDatetime
+from pydantic import (
+    AnyUrl,
+    AwareDatetime,
+    BaseModel,
+    EmailStr,
+    FutureDate,
+    FutureDatetime,
+    IPvAnyAddress,
+    IPvAnyInterface,
+    IPvAnyNetwork,
+    MongoDsn,
+    NaiveDatetime,
+    NameEmail,
+    PastDate,
+    PastDatetime,
+    PostgresDsn,
+    SecretBytes,
+    SecretStr,
+    networks,
+)
+from pydantic_core import MultiHostUrl, Url
 
-from anyschema._dependencies import is_pydantic_base_model
+from anyschema._dependencies import is_pydantic_base_model, is_pydantic_extra_types_color
 from anyschema._metadata import get_anyschema_value_by_key
 from anyschema.exceptions import UnsupportedDTypeError
 from anyschema.parsers._base import ParserStep
@@ -17,6 +37,28 @@ if TYPE_CHECKING:
 
 __all__ = ("PydanticTypeStep",)
 
+# URL/DSN types: before pydantic 2.10 they are `Annotated[pydantic_core.Url | MultiHostUrl, ...]`, which
+# `AnnotatedStep` unwraps, so the `isinstance` filter drops the aliases. From 2.10 they are classes, and all but the
+# multi-host DSNs subclass `AnyUrl`. Only public names are used, so a pydantic refactor cannot silently break this.
+_PYDANTIC_STRING_TYPES: tuple[type, ...] = tuple(
+    tp
+    for tp in (
+        Url,
+        MultiHostUrl,
+        AnyUrl,
+        PostgresDsn,
+        MongoDsn,
+        getattr(networks, "NatsDsn", None),  # pydantic>=2.6
+        EmailStr,
+        NameEmail,
+        IPvAnyAddress,
+        IPvAnyInterface,
+        IPvAnyNetwork,
+        SecretStr,
+    )
+    if isinstance(tp, type)
+)
+
 
 class PydanticTypeStep(ParserStep):
     """Parser for Pydantic-specific types.
@@ -25,13 +67,19 @@ class PydanticTypeStep(ParserStep):
 
     - Pydantic datetime types (`AwareDatetime`, `NaiveDatetime`, etc.)
     - Pydantic date types (`PastDate`, `FutureDate`)
+    - URLs, DSNs, `EmailStr`, `NameEmail`, `IPvAny*` and `SecretStr` as String
+    - `SecretBytes` as Binary
+    - `Color` from [pydantic-extra-types](https://github.com/pydantic/pydantic-extra-types) as String
     - Pydantic `BaseModel` (Struct types)
+
+    Types defined as `Annotated[T, ...]` (e.g. `FilePath`, `UUID4`, `StrictStr`) are unwrapped by `AnnotatedStep`
+    and parsed as `T`.
 
     Warning:
         It requires [pydantic](https://docs.pydantic.dev/latest/) to be installed.
     """
 
-    def parse(
+    def parse(  # noqa: C901
         self,
         input_type: FieldType,
         constraints: FieldConstraints,  # noqa: ARG002
@@ -91,11 +139,16 @@ class PydanticTypeStep(ParserStep):
         if issubclass(input_type, (PastDate, FutureDate)):  # pyright: ignore[reportArgumentType]  # pyrefly: ignore[invalid-argument]
             return nw.Date()
 
+        # `Color` does not subclass `str`, so `PyTypeStep` would not catch it
+        if issubclass(input_type, _PYDANTIC_STRING_TYPES) or is_pydantic_extra_types_color(input_type):
+            return nw.String()
+
+        if issubclass(input_type, SecretBytes):
+            return nw.Binary()
+
         # Handle Pydantic models (Struct types)
         if is_pydantic_base_model(input_type):
             return self._parse_pydantic_model(input_type)
-
-        # TODO(FBruzzesi): Add support for more pydantic types. See https://github.com/FBruzzesi/anyschema/issues/45
 
         # This parser doesn't handle this type
         return None

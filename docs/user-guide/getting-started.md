@@ -54,6 +54,12 @@ Convert to different schema formats:
     print(schema.to_duckdb())
     ```
 
+=== "ibis"
+
+    ```python exec="true" source="above" result="python" session="basic-pydantic"
+    print(schema.to_ibis())
+    ```
+
 The `AnySchema` object also provides access to detailed field information through the `fields` attribute:
 
 ```python exec="true" source="above" result="python" session="basic-pydantic"
@@ -606,6 +612,39 @@ columns = ", ".join(f"{name} {dtype}" for name, dtype in duckdb_schema.items())
 con = duckdb.connect()
 con.sql(f"CREATE TABLE events ({columns})")
 print(con.sql("DESCRIBE events"))
+```
+
+## Ibis output format
+
+!!! abstract "ibis schema"
+    `to_ibis()` returns an `ibis.Schema`. Each field keeps its nullability, and non-nullable types print with a
+    leading `!`. Nested element and struct field types are always nullable. Field metadata is dropped, because Ibis
+    schemas cannot store it.
+
+Int128, UInt128, Categorical, Enum, Object and Unknown dtypes have no Ibis equivalent and raise
+`UnsupportedDTypeError`, also when nested inside a List, Array or Struct.
+
+```python exec="true" source="above" result="python" session="ibis-format"
+from datetime import datetime
+
+import ibis
+from anyschema import AnySchema
+from pydantic import BaseModel
+
+
+class Event(BaseModel):
+    id: int
+    tags: list[str]
+    created_at: datetime
+    note: str | None
+
+
+schema = AnySchema(spec=Event)
+ibis_schema = schema.to_ibis()
+print(ibis_schema)
+
+events = ibis.table(ibis_schema, name="events")
+print(ibis.to_sql(events.select("id", "note"), dialect="duckdb"))
 ```
 
 ## Error Handling

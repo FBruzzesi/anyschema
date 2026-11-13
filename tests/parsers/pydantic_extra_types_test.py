@@ -32,7 +32,6 @@ from pydantic_extra_types.phone_numbers import PhoneNumber
 from pydantic_extra_types.timezone_name import TimeZoneName
 
 from anyschema.parsers import ParserPipeline, PyTypeStep, UnionTypeStep
-from anyschema.parsers.pydantic import PydanticTypeStep
 
 
 @pytest.fixture(scope="module")
@@ -42,15 +41,6 @@ def py_type_parser() -> PyTypeStep:
     py_parser = PyTypeStep()
     _ = ParserPipeline([union_parser, py_parser])
     return py_parser
-
-
-@pytest.fixture(scope="module")
-def pydantic_parser() -> PydanticTypeStep:
-    """Create a PydanticTypeStep instance with pipeline set."""
-    pydantic_parser = PydanticTypeStep()
-    py_parser = PyTypeStep()
-    _ = ParserPipeline([pydantic_parser, py_parser])
-    return pydantic_parser
 
 
 @pytest.mark.parametrize(
@@ -88,19 +78,11 @@ def pydantic_parser() -> PydanticTypeStep:
     ],
 )
 def test_pydantic_extra_types(py_type_parser: PyTypeStep, input_type: Any, expected: nw.dtypes.DType) -> None:
-    """Test that PyTypeStep handles pydantic-extra-types that inherit from str/float."""
     result = py_type_parser.parse(input_type, (), {})
     assert result == expected
 
 
-def test_pydantic_extra_types_color(pydantic_parser: PydanticTypeStep) -> None:
-    """Test that PydanticTypeStep handles Color (which doesn't inherit from str)."""
-    result = pydantic_parser.parse(Color, (), {})
-    assert result == nw.String()
-
-
-def test_pydantic_extra_types_color_in_list(pydantic_parser: PydanticTypeStep) -> None:
-    """Test that Color works in container types."""
-    # Color in a list should work through the pipeline
-    result = pydantic_parser.pipeline.parse(list[Color], (), {})
-    assert result == nw.List(nw.String())
+@pytest.mark.parametrize(("input_type", "expected"), [(Color, nw.String()), (list[Color], nw.List(nw.String()))])
+def test_pydantic_extra_types_color(auto_pipeline: ParserPipeline, input_type: Any, expected: nw.dtypes.DType) -> None:
+    # `Color` does not subclass `str`, so `PydanticTypeStep` maps it, not `PyTypeStep`
+    assert auto_pipeline.parse(input_type, (), {}) == expected

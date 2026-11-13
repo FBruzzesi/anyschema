@@ -1,12 +1,12 @@
 repos:
 - repo: https://github.com/astral-sh/ruff-pre-commit
   # Ruff version.
-  rev: 'v0.17.4'
+  rev: 'v0.17.5'
   hooks:
     - id: ruff-format
     - id: ruff-check
 - repo: https://github.com/rvben/rumdl-pre-commit
-  rev: v0.3.2
+  rev: v0.3.4
   hooks:
     - id: rumdl      # Lint only; add args [--fix] to auto-fix
     - id: rumdl-fmt  # Pure format, always exits 0
@@ -18,7 +18,7 @@ repos:
       args: [--ignore-words-list=ser]
 - repo: https://github.com/adhtruong/mirrors-typos
   # Use mirror to avoid autoupdate issue: https://github.com/crate-ci/typos/issues/390
-  rev: 'v1.52.0'
+  rev: 'v1.52.2'
   hooks:
     - id: typos
 - repo: https://github.com/pre-commit/pre-commit-hooks

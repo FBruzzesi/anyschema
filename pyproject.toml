@@ -203,12 +203,8 @@ line-length = 120
 flavor = "mkdocs"
 include = ["docs/**", "README.md", "AGENTS.md"]
 disable = [
-  # NOTE: These look like either false positives or unsupported case
-  # TODO(FBruzzesi): Report upstream
-  # No blank line after admonition block
-  "MD031",
-  # Use fenced code blocks
-  "MD046",
+  # Link fragments: mkdocstrings `:::` anchors only exist after the docs build
+  "MD051",
 ]
 
 [tool.rumdl.MD007]

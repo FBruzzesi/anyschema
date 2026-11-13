@@ -104,7 +104,7 @@ def get_anyschema_value_by_key(
         >>> get_anyschema_value_by_key(metadata_openapi, key="nullable")
         True
     """
-    return _get_anyschema_metadata(metadata).get(key, default)
+    return _get_anyschema_metadata(metadata).get(key, default)  # pyrefly: ignore[bad-return]
 
 
 @overload
@@ -176,4 +176,4 @@ def filter_anyschema_metadata(metadata: FieldMetadata) -> FieldMetadata:
         >>> filter_anyschema_metadata(metadata)
         {'custom': 'value'}
     """
-    return {key: value for key, value in metadata.items() if key not in ("anyschema", "x-anyschema")}
+    return {key: value for key, value in metadata.items() if key not in {"anyschema", "x-anyschema"}}

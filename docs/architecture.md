@@ -23,7 +23,7 @@ Understanding these concepts will help you extend anyschema and troubleshoot iss
 
     * Return `None` if your parser can't handle a type (lets next parser try).
     * Use `self.pipeline.parse(..., constraints=constraints, metadata=metadata)` for recursion (handles nested types
-        like `list[YourType]`).
+      like `list[YourType]`).
     * Pass metadata through when recursing (`metadata=metadata`).
     * Order matters - specialized parsers before general ones.
 
@@ -55,7 +55,7 @@ flowchart TD
 
     NA["Pydantic Models<br/>Python mappings or sequences"]
     NB["pydantic_adapter<br/>into_ordered_dict_adapter"]
-    NE["pyarrow, polars or pandas schema"]
+    NE["pyarrow, polars, pandas, duckdb or pyspark schema"]
 
     A -.-> NA
     B -.-> NB
@@ -139,7 +139,7 @@ Steps inherit from the [`ParserStep`][api-parser-step] abstract base class.
 | `AnnotatedStep` | Separates base types from their constraints/metadata for independent processing | `Annotated[T, metadata1, ...]` | Before type-specific parsers |
 | `AnnotatedTypesStep` | Refines types based on constraints (e.g., positive integers become unsigned types) | Types with `annotated_types` or Pydantic constraints | After `AnnotatedStep`, before type parsers |
 | `PydanticTypeStep` | Handles Pydantic-specific types that need special processing beyond Python type inspection | Pydantic types like `FutureDate` | After metadata extraction, before fallback |
-| `PyTypeStep` | Fallback parser for all standard Python types | Basic (`int`, `str`, `bool`), temporal (`date`, `datetime`), container (`list[T]`, `tuple[T, ...]`), other (`Decimal`, `Enum`) | Must be last |
+| `PyTypeStep` | Fallback parser for all standard Python types | Basic (`int`, `str`, `bool`), temporal (`date`, `datetime`), container (`list[T]`, `tuple[T, ...]`), struct (`TypedDict`, dataclasses), other (`Decimal`, `Enum`) | Must be last |
 
 ### Parser Order and Rationale
 
@@ -161,7 +161,7 @@ steps = (
 With this architecture we aim to achieve multiple goals at once:
 
 * **Modularity**: Each parser has a single, well-defined responsibility.
-* **Composability**: Parsers can be re-ordered, re-used, mixed and matched.
+* **Composability**: Parsers can be re-ordered, reused, mixed and matched.
 * **Extensibility**: New parsers can be added without modifying existing code.
 * **Recursion Simplification**: Union/Optional extraction happens once, simplifying other parsers.
 * **Metadata Flow**: Metadata is preserved and passed through the pipeline.

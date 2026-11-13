@@ -228,7 +228,7 @@ class ParserPipeline:
             >>> pipeline.parse(CustomType, constraints=(), metadata={})
             String
         """
-        auto_steps = tuple(_auto_pipeline())
+        auto_steps = _auto_pipeline()
         insert_idx = cls._find_insert_index(steps=auto_steps, at_position=at_position)
         it = chain(
             auto_steps[:insert_idx],

@@ -315,13 +315,13 @@ def _parse_struct_fields(fields_str: str) -> list[Field]:
     Note:
         Assumes well-formed input from Narwhals dtype string representation.
     """
-    if not fields_str:  # Empty struct case
+    if (n_chars := len(fields_str)) == 0:  # Empty struct case
         return []
 
     fields = []
     pos = 0
 
-    while pos < len(fields_str):
+    while pos < n_chars:
         field_name, pos = _extract_field_name(fields_str, pos)
 
         # Skip whitespace after colon

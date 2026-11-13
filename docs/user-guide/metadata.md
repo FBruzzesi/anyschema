@@ -30,8 +30,10 @@ Currently supported special metadata keys under the `"anyschema"` (or `"x-anysch
 
 ## The `AnyField` Class
 
-Starting from version 0.3.0, `anyschema` provides a [`AnyField`][anyschema.AnyField] class that encapsulates detailed
+<!-- rumdl-disable MD051 -->
+Starting from version 0.3.0, `anyschema` provides a [`AnyField`](../api-reference/anyschema#anyschema.AnyField) class that encapsulates detailed
 information about each field in a schema.
+<!-- rumdl-enable MD051 -->
 
 When you create an `AnySchema`, it parses each field into a `AnyField` object that contains:
 
@@ -191,9 +193,7 @@ class ProductWithOverrides(BaseModel):
     price: Optional[int] = Field(json_schema_extra={"anyschema": {"dtype": "UInt32"}})
 
     # Explicitly set nullable=True along with dtype override
-    name: Optional[str] = Field(
-        json_schema_extra={"anyschema": {"dtype": "String", "nullable": True}}
-    )
+    name: Optional[str] = Field(json_schema_extra={"anyschema": {"dtype": "String", "nullable": True}})
 
 
 schema = AnySchema(spec=ProductWithOverrides)
@@ -239,9 +239,7 @@ from anyschema import AnySchema
 
 class Config(BaseModel):
     # Type says Optional, but metadata overrides to non-nullable
-    required_field: Optional[str] = Field(
-        json_schema_extra={"anyschema": {"nullable": False}}
-    )
+    required_field: Optional[str] = Field(json_schema_extra={"anyschema": {"nullable": False}})
     # Type says non-Optional, but metadata overrides to nullable
     optional_field: str = Field(json_schema_extra={"anyschema": {"nullable": True}})
 
@@ -335,9 +333,7 @@ anyschema_obj = AnySchema(spec=User)
 arrow_schema = anyschema_obj.to_arrow()
 
 # Create table with explicit schema
-explicit_table = pa.Table.from_pylist(
-    [user.model_dump() for user in users], schema=arrow_schema
-)
+explicit_table = pa.Table.from_pylist([user.model_dump() for user in users], schema=arrow_schema)
 print("anyschema-generated PyArrow schema:")
 print(explicit_table.schema)
 ```
@@ -407,12 +403,8 @@ from anyschema import AnySchema
 
 
 class Product(BaseModel):
-    price: Decimal = Field(
-        json_schema_extra={"anyschema": {"precision": 10, "scale": 2}}
-    )
-    discount: Decimal = Field(
-        json_schema_extra={"anyschema": {"precision": 5, "scale": 2}}
-    )
+    price: Decimal = Field(json_schema_extra={"anyschema": {"precision": 10, "scale": 2}})
+    discount: Decimal = Field(json_schema_extra={"anyschema": {"precision": 5, "scale": 2}})
 
 
 schema = AnySchema(spec=Product)
@@ -537,9 +529,7 @@ from anyschema import AnySchema
 
 class LogEntry(BaseModel):
     message: str
-    timestamp: datetime = Field(
-        json_schema_extra={"anyschema": {"time_zone": "UTC", "time_unit": "ns"}}
-    )
+    timestamp: datetime = Field(json_schema_extra={"anyschema": {"time_zone": "UTC", "time_unit": "ns"}})
 
 
 schema = AnySchema(spec=LogEntry)
@@ -572,9 +562,7 @@ class EventModel(BaseModel):
         json_schema_extra={"anyschema": {"time_unit": "ms"}}
     )
     completed_at: datetime = Field(  # Specify both timezone and precision
-        json_schema_extra={
-            "anyschema": {"time_zone": "Europe/Berlin", "time_unit": "ns"}
-        }
+        json_schema_extra={"anyschema": {"time_zone": "Europe/Berlin", "time_unit": "ns"}}
     )
 
 
@@ -594,10 +582,8 @@ class TimeModel(BaseModel):
     aware_utc: AwareDatetime = Field(  # AwareDatetime **requires** timezone metadata
         json_schema_extra={"anyschema": {"time_zone": "UTC"}}
     )
-    naive: NaiveDatetime = (
-        Field(  # NaiveDatetime **rejects** timezone metadata (will raise an error)
-            json_schema_extra={"anyschema": {"time_unit": "ns"}}
-        )
+    naive: NaiveDatetime = Field(  # NaiveDatetime **rejects** timezone metadata (will raise an error)
+        json_schema_extra={"anyschema": {"time_unit": "ns"}}
     )
 
 
@@ -647,9 +633,7 @@ This also works with `@attrs.frozen` classes:
 @attrs.frozen
 class ImmutableEvent:
     event_id: int
-    timestamp: datetime = attrs.field(
-        metadata={"anyschema": {"time_zone": "UTC", "time_unit": "ms"}}
-    )
+    timestamp: datetime = attrs.field(metadata={"anyschema": {"time_zone": "UTC", "time_unit": "ms"}})
 
 
 schema = AnySchema(spec=ImmutableEvent)
@@ -694,9 +678,7 @@ from pydantic.dataclasses import dataclass as pydantic_dataclass
 @pydantic_dataclass
 class PydanticDataclassEvent:
     event_id: int
-    timestamp: datetime = field(
-        metadata={"anyschema": {"time_zone": "UTC", "time_unit": "ms"}}
-    )
+    timestamp: datetime = field(metadata={"anyschema": {"time_zone": "UTC", "time_unit": "ms"}})
 
 
 schema = AnySchema(spec=PydanticDataclassEvent)
@@ -792,12 +774,8 @@ class EventORM(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str]
     created_at: Mapped[DateTime] = mapped_column(DateTime)
-    scheduled_at: Mapped[DateTime] = mapped_column(
-        DateTime(timezone=True), info={"anyschema": {"time_zone": "UTC"}}
-    )
-    started_at: Mapped[DateTime] = mapped_column(
-        DateTime, info={"anyschema": {"time_unit": "ms"}}
-    )
+    scheduled_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), info={"anyschema": {"time_zone": "UTC"}})
+    started_at: Mapped[DateTime] = mapped_column(DateTime, info={"anyschema": {"time_unit": "ms"}})
     completed_at: Mapped[DateTime] = mapped_column(
         DateTime(timezone=True),
         info={"anyschema": {"time_zone": "Europe/Berlin", "time_unit": "ns"}},
@@ -925,9 +903,7 @@ class Int32ParserStep(ParserStep):
 
 class Product(BaseModel):
     id: int  # Will use custom parser
-    quantity: int = Field(
-        json_schema_extra={"anyschema": {"dtype": "Int16"}}
-    )  # Override to Int16
+    quantity: int = Field(json_schema_extra={"anyschema": {"dtype": "Int16"}})  # Override to Int16
     stock: int  # Will use custom parser
     name: str  # Parsed normally
 

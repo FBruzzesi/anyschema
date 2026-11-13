@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Mapping
+from dataclasses import dataclass, field
+from datetime import datetime  # noqa: TC003 (get_type_hints needs it at runtime)
+from typing import TYPE_CHECKING, Mapping, Optional
 
 import narwhals as nw
 import pytest
@@ -10,6 +12,23 @@ from tests.conftest import DataclassEventWithTimeMetadata
 
 if TYPE_CHECKING:
     from anyschema.typing import DataclassType
+
+
+@dataclass
+class Customer:
+    name: str
+    joined_at: datetime = field(metadata={"anyschema": {"time_zone": "UTC"}})
+
+
+@dataclass
+class Order:
+    item: str
+    customer: Customer
+    referrer: Optional[Customer]
+    co_buyers: list[Customer]
+
+
+CUSTOMER_STRUCT = nw.Struct({"name": nw.String(), "joined_at": nw.Datetime("us", time_zone="UTC")})
 
 
 @pytest.mark.parametrize(
@@ -23,6 +42,15 @@ if TYPE_CHECKING:
                 "scheduled_at": nw.Datetime("us", time_zone="UTC"),
                 "started_at": nw.Datetime("ms"),
                 "completed_at": nw.Datetime("ns", time_zone="Europe/Berlin"),
+            },
+        ),
+        (
+            Order,
+            {
+                "item": nw.String(),
+                "customer": CUSTOMER_STRUCT,
+                "referrer": CUSTOMER_STRUCT,
+                "co_buyers": nw.List(CUSTOMER_STRUCT),
             },
         ),
     ],

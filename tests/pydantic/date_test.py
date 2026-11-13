@@ -21,19 +21,19 @@ def test_parse_date(auto_pipeline: ParserPipeline) -> None:
         py_dt: date
         py_dt_optional: date | None
         py_dt_or_none: date | None
-        none_or_py_dt: None | date
+        none_or_py_dt: date | None
 
         # pydantic PastDate type
         past_dt: PastDate
         past_dt_optional: PastDate | None
         past_dt_or_none: PastDate | None
-        none_or_past_dt: None | PastDate
+        none_or_past_dt: PastDate | None
 
         # pydantic FutureDate type
         future_dt: FutureDate
         future_dt_optional: FutureDate | None
         future_dt_or_none: FutureDate | None
-        none_or_future_dt: None | FutureDate
+        none_or_future_dt: FutureDate | None
 
     schema = model_to_nw_schema(DateModel, pipeline=auto_pipeline)
 
@@ -46,9 +46,9 @@ def test_parse_date_with_constraints(auto_pipeline: ParserPipeline, min_date: da
 
     class DateConstraintModel(BaseModel):
         x: Annotated[date, Interval(gt=min_date, lt=max_date)]
-        y: None | Annotated[date, Interval(ge=min_date, lt=max_date)]
+        y: Annotated[date, Interval(ge=min_date, lt=max_date)] | None
         z: Annotated[date, Interval(gt=min_date, le=max_date)] | None
-        w: None | Annotated[date, Interval(ge=min_date, le=max_date)]
+        w: Annotated[date, Interval(ge=min_date, le=max_date)] | None
 
     schema = model_to_nw_schema(DateConstraintModel, pipeline=auto_pipeline)
 

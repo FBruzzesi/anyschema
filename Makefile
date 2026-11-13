@@ -1,29 +1,35 @@
 ARG := $(word 2, $(MAKECMDGOALS))
 $(eval $(ARG):;@:)
 
-sources = anyschema tests
+sources = src tests
 
-lint:
+py-lint:
 	uvx ruff version
 	uvx ruff format $(sources)
 	uvx ruff check $(sources) --fix
 	uvx ruff clean
-	uv tool run rumdl check .
+
+md-lint:
+	uvx rumdl version
+	uvx rumdl config --no-defaults
+	uvx rumdl check --output-format=github .
+
+lint: py-lint md-lint
 
 test:
-	uv run --active --no-sync --group tests pytest tests --cov=anyschema --cov=tests --cov-fail-under=90
-	uv run --active --no-sync --group tests pytest anyschema --doctest-modules
+	uv run --group testing --all-extras pytest tests --cov=src --cov=tests
+	uv run --group testing --all-extras pytest src --doctest-modules
 
 typing:
-	# uv run --active --no-sync --group typing ty check $(sources) --output-format concise
-	uv run --active --no-sync --group typing pyright $(sources)
-	uv run --active --no-sync --group typing mypy $(sources)
+	uv run --group typing --all-extras pyrefly check $(sources) --min-severity info --summary
+	uv run --group typing --all-extras pyright $(sources)
+	uv run --group typing --all-extras mypy $(sources)
 
 docs-serve:
-	uv run --active --no-sync --group docs mkdocs serve --watch anyschema --watch docs --dirty
+	uv run --group docs zensical serve
 
 docs-build:
-	uv run --active --no-sync --group docs mkdocs build --strict
+	uv run --group docs zensical build --strict
 
 setup-release:
 	git checkout main

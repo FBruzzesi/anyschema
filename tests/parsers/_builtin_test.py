@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping, Sequence
+from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 from enum import Enum
@@ -226,3 +227,44 @@ class PersonWithAddressTypedDict(TypedDict):
 def test_parse_dict_types(py_type_parser: PyTypeStep, input_type: Any, expected: nw.dtypes.DType) -> None:
     result = py_type_parser.parse(input_type, (), {})
     assert result == expected
+
+
+@dataclass
+class AddressDataclass:
+    street: str
+    zipcode: int
+
+
+@dataclass
+class PersonWithAddressDataclass:
+    name: str
+    address: AddressDataclass
+    past_addresses: list[AddressDataclass]
+
+
+class EnumWithDataclassMixin(AddressDataclass, Enum):
+    HOME = "Main St", 1
+
+
+ADDRESS_STRUCT = nw.Struct([nw.Field(name="street", dtype=nw.String()), nw.Field(name="zipcode", dtype=nw.Int64())])
+
+
+@pytest.mark.parametrize(
+    ("input_type", "expected"),
+    [
+        (AddressDataclass, ADDRESS_STRUCT),
+        (
+            PersonWithAddressDataclass,
+            nw.Struct(
+                [
+                    nw.Field(name="name", dtype=nw.String()),
+                    nw.Field(name="address", dtype=ADDRESS_STRUCT),
+                    nw.Field(name="past_addresses", dtype=nw.List(ADDRESS_STRUCT)),
+                ]
+            ),
+        ),
+        (EnumWithDataclassMixin, nw.Enum(EnumWithDataclassMixin)),
+    ],
+)
+def test_parse_dataclass(py_type_parser: PyTypeStep, input_type: Any, expected: nw.dtypes.DType) -> None:
+    assert py_type_parser.parse(input_type, (), {}) == expected

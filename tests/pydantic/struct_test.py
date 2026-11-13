@@ -17,7 +17,7 @@ def test_parse_struct(auto_pipeline: ParserPipeline) -> None:
         x1: Annotated[int, Interval(gt=0, lt=123)]
         x2: str
         x3: float | None
-        x4: None | bool
+        x4: bool | None
 
     class StructModel(BaseModel):
         struct: BaseStruct | None

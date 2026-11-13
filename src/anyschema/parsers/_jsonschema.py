@@ -11,7 +11,7 @@ from typing_extensions import TypeIs
 
 from anyschema._jsonschema import extract_field_metadata
 from anyschema._metadata import get_anyschema_value_by_key, set_anyschema_meta
-from anyschema._utils import MAX_INT, MIN_INT, int_dtype_from_bounds
+from anyschema._utils import INT64_MIN, UINT64_MAX, int_dtype_from_bounds
 from anyschema.exceptions import UnsupportedDTypeError
 from anyschema.parsers._base import ParserStep
 
@@ -179,7 +179,7 @@ def _is_decimal_union(branches: Sequence[JsonSchema]) -> bool:
 
 def _integer_bounds(schema: JsonSchema) -> tuple[int, int] | None:
     """Return the inclusive `(lower, upper)` bounds of an integer schema, or None if it is unbounded."""
-    lower, upper = MIN_INT, MAX_INT
+    lower, upper = INT64_MIN, UINT64_MAX
     if _is_number(value := schema.get("minimum")):
         lower = max(lower, ceil(value))
     if _is_number(value := schema.get("exclusiveMinimum")):  # The draft 4 boolean form is not a number.
@@ -188,7 +188,7 @@ def _integer_bounds(schema: JsonSchema) -> tuple[int, int] | None:
         upper = min(upper, floor(value))
     if _is_number(value := schema.get("exclusiveMaximum")):
         upper = min(upper, ceil(value) - 1)
-    return None if (lower, upper) == (MIN_INT, MAX_INT) else (lower, upper)
+    return None if (lower, upper) == (INT64_MIN, UINT64_MAX) else (lower, upper)
 
 
 def _is_number(value: object) -> TypeIs[int | float]:

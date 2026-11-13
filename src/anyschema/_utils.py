@@ -7,29 +7,29 @@ from typing import TYPE_CHECKING, Any, Final, TypeVar
 import narwhals as nw
 
 if TYPE_CHECKING:
-    from narwhals.dtypes import DType
+    from narwhals.dtypes import IntegerType, SignedIntegerType, UnsignedIntegerType
     from typing_extensions import TypeIs
 
 _T = TypeVar("_T")
 
-UINT_RANGES: Final[dict[DType, tuple[int, int]]] = {
+UINT_RANGES: Final[dict[UnsignedIntegerType, tuple[int, int]]] = {
     nw.UInt8(): (0, 255),
     nw.UInt16(): (0, 65535),
     nw.UInt32(): (0, 4294967295),
     nw.UInt64(): (0, 18446744073709551615),
 }
-"""Unsigned integer ranges, both included, sorted by upper bound ascending for smallest-fit selection."""
+"""Inclusive unsigned integer ranges, in ascending order so the first fit is the smallest."""
 
-INT_RANGES: Final[dict[DType, tuple[int, int]]] = {
+INT_RANGES: Final[dict[SignedIntegerType, tuple[int, int]]] = {
     nw.Int8(): (-128, 127),
     nw.Int16(): (-32768, 32767),
     nw.Int32(): (-2147483648, 2147483647),
     nw.Int64(): (-9223372036854775808, 9223372036854775807),
 }
-"""Signed integer ranges, both included, sorted by upper bound ascending for smallest-fit selection."""
+"""Inclusive signed integer ranges, in ascending order so the first fit is the smallest."""
 
-MIN_INT: Final[int] = -9_223_372_036_854_775_808
-MAX_INT: Final[int] = 18_446_744_073_709_551_615
+INT64_MIN: Final[int] = -9_223_372_036_854_775_808
+UINT64_MAX: Final[int] = 18_446_744_073_709_551_615
 
 
 def qualified_type_name(obj: object | type[Any], /) -> str:
@@ -120,11 +120,10 @@ def is_sequence_of(obj: Any, tp: type[_T]) -> TypeIs[Sequence[_T]]:
     return bool(is_sequence_but_not_str(obj) and (first := next(iter(obj), None)) and isinstance(first, tp))
 
 
-def int_dtype_from_bounds(lower_bound: int, upper_bound: int) -> DType:
+def int_dtype_from_bounds(lower_bound: int, upper_bound: int) -> IntegerType:
     """Return the smallest Narwhals integer dtype that fits the inclusive `[lower_bound, upper_bound]` range.
 
-    Unsigned dtypes are preferred whenever `lower_bound >= 0`. Ranges that do not fit any dtype fall back to
-    `UInt64` (non-negative) or `Int64`.
+    Unsigned dtypes are used when `lower_bound >= 0`. A range that fits no dtype falls back to `UInt64` or `Int64`.
 
     Examples:
         >>> int_dtype_from_bounds(0, 255)

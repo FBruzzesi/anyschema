@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Any
 
 from annotated_types import Ge, Gt, Interval, Le, Lt
 
-from anyschema._utils import MAX_INT, MIN_INT, int_dtype_from_bounds
+from anyschema._utils import INT64_MIN, UINT64_MAX, int_dtype_from_bounds
 from anyschema.parsers._base import ParserStep
 
 if TYPE_CHECKING:
@@ -68,7 +68,7 @@ class AnnotatedTypesStep(ParserStep):
             The most appropriate integer DType based on the constraints.
         """
         # Extract constraint values safely
-        lower_bound, upper_bound = MIN_INT, MAX_INT
+        lower_bound, upper_bound = INT64_MIN, UINT64_MAX
 
         for constraint in constraints:
             if isinstance(constraint, Interval):

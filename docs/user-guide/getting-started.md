@@ -445,6 +445,7 @@ print(schema.to_polars())
 
 anyschema supports a wide range of Pydantic types from `pydantic.types`, `pydantic.networks`, and `pydantic-extra-types`.
 Since schema systems don't support the validation semantics of these types, they are mapped to basic data types.
+The mapping is the same for every Pydantic 2.x release, although some types only exist in newer releases.
 
 ### pydantic.types
 
@@ -452,8 +453,8 @@ Since schema systems don't support the validation semantics of these types, they
 |---------------|----------------|-------|
 | `SecretStr` | `String` | Sensitive string data |
 | `SecretBytes` | `Binary` | Sensitive binary data |
-| `FilePath`, `DirectoryPath`, `NewPath` | `String` | Path types |
-| `UUID`, `UUID1`-`UUID8` | `String` | UUID types |
+| `FilePath`, `DirectoryPath`, `NewPath` | `String` | Path types (as is `pathlib.Path` in any spec) |
+| `UUID`, `UUID1`-`UUID8` | `String` | UUID types (as is `uuid.UUID` in any spec) |
 | `PositiveInt`, `NegativeInt`, etc. | `Int*` | Constrained integers (refined by constraints) |
 | `PositiveFloat`, `NegativeFloat`, etc. | `Float64` | Constrained floats |
 | `StrictStr`, `StrictBytes` | `String`/`Binary` | Strict mode types |
@@ -469,7 +470,7 @@ Since schema systems don't support the validation semantics of these types, they
 | `FileUrl`, `FtpUrl` | `String` | File/FTP URLs |
 | `PostgresDsn`, `MySQLDsn`, `RedisDsn`, etc. | `String` | Database DSNs |
 | `EmailStr`, `NameEmail` | `String` | Email types |
-| `IPvAnyAddress`, `IPvAnyInterface`, `IPvAnyNetwork` | `String` | IP address types |
+| `IPvAnyAddress`, `IPvAnyInterface`, `IPvAnyNetwork` | `String` | IP types (as are `ipaddress` types in any spec) |
 
 [Pydantic docs](https://docs.pydantic.dev/latest/api/networks/)
 

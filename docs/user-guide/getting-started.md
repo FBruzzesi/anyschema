@@ -265,21 +265,24 @@ schema = AnySchema(spec=spec)
 print(schema.to_arrow())
 ```
 
-`$ref`/`$defs`, nested objects, arrays, enums and integer bounds (e.g. `exclusiveMinimum`, which refines `age` to an
-unsigned integer) are all handled. A field is marked nullable only when its schema explicitly allows the `null` type.
+`$ref`/`$defs`, nested objects, arrays, enums and integer bounds are handled: `exclusiveMinimum: 0` turns `age` into
+an unsigned integer. A field is nullable only when its schema allows `null`; the `required` keyword is ignored.
+To start from a raw JSON document, decode it with `json.loads` first.
 
-!!! note "Raw JSON strings"
+!!! note "Differences from the original Pydantic model"
 
-    Only the parsed-mapping form is auto-detected. A raw JSON `str`/`bytes` document must be passed through the
-    `adapter` argument:
+    A JSON Schema carries less information than the model it came from:
 
-    ```python
-    import json
-    from anyschema import AnySchema
-    from anyschema.adapters import jsonschema_adapter
+    - `Decimal` fields are emitted as `anyOf: [number, string]`, without `max_digits`/`decimal_places`. `anyschema`
+        reads that union as a `Decimal` with default precision, and reads a `float | str` field the same way.
+    - Non-string `Literal`/`Enum` values become their scalar dtype (e.g. `Int64`), since a Narwhals `Enum` only holds
+        strings.
+    - `model_json_schema()` names fields by their alias. Pass `by_alias=False` to keep the Python field names.
 
-    schema = AnySchema(spec=json.dumps(spec), adapter=jsonschema_adapter)
-    ```
+Each property subschema is converted by the [`JsonSchemaStep`][api-jsonschema-step] parser step, which recurses
+through the pipeline for nested subschemas. To customize how a fragment is converted (e.g. map
+`{"type": "string", "format": "uuid"}` to a different dtype), add a [custom parser step](advanced.md) that handles
+that mapping and returns `None` otherwise.
 
 ## Understanding nullability
 
@@ -618,3 +621,4 @@ except UnsupportedDTypeError as e:
 ```
 
 [api-annotated-types-step]: ../api-reference/parsers.md#anyschema.parsers.annotated_types.AnnotatedTypesStep
+[api-jsonschema-step]: ../api-reference/parsers.md#anyschema.parsers.JsonSchemaStep

@@ -153,10 +153,10 @@ class AnySchema:
                 instance or [DeclarativeBase](https://docs.sqlalchemy.org/en/20/orm/mapping_api.html#sqlalchemy.orm.DeclarativeBase)
                 subclass (not an instance).
                 The fields are extracted using SQLAlchemy's schema introspection.
-            - A [JSON Schema](https://json-schema.org/) object (a mapping with `"type": "object"` and `"properties"`),
+            - A [JSON Schema](https://json-schema.org/) object (a mapping with a `"properties"` mapping),
                 such as the output of `pydantic.BaseModel.model_json_schema()`.
                 See [`jsonschema_adapter`][anyschema.adapters.jsonschema_adapter] for the conversion details.
-                Raw JSON `str`/`bytes` documents are not auto-detected: pass them via `adapter=jsonschema_adapter`.
+                Decode a raw JSON document with `json.loads` first.
 
         pipeline: Control how types are parsed into Narwhals dtypes. Options:
 

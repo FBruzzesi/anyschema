@@ -16,8 +16,11 @@ Understanding these concepts will help you extend anyschema and troubleshoot iss
     2. `UnionTypeStep` - Extracts non-None from `T | None`
     3. `AnnotatedStep` - Separates `Annotated[T, ...]` into type + metadata
     4. `AnnotatedTypesStep` - Refines types based on constraints (e.g., `PositiveInt` -> `UInt64`)
-    5. `PydanticTypeStep` - Handles Pydantic-specific types
-    6. `PyTypeStep` - Fallback for standard Python types
+    5. `AttrsTypeStep` - Handles attrs classes
+    6. `PydanticTypeStep` - Handles Pydantic-specific types
+    7. `SQLAlchemyTypeStep` - Handles SQLAlchemy column types
+    8. `JsonSchemaStep` - Converts JSON Schema subschemas (mappings)
+    9. `PyTypeStep` - Fallback for standard Python types
 
 * Key concepts:
 
@@ -67,15 +70,21 @@ flowchart TD
         P1[ForwardRefStep] --> P2[UnionTypeStep]
         P2 --> P3[AnnotatedStep]
         P3 --> P4[AnnotatedTypesStep]
-        P4 --> P5[PydanticTypeStep]
-        P5 --> P6[PyTypeStep]
+        P4 --> P5[AttrsTypeStep]
+        P5 --> P6[PydanticTypeStep]
+        P6 --> P7[SQLAlchemyTypeStep]
+        P7 --> P8[JsonSchemaStep]
+        P8 --> P9[PyTypeStep]
 
         N1["Resolves forward references"]
         N2["Extracts non-None types"]
         N3["Separates base type from metadata"]
         N4["Refines types based on constraints"]
-        N5["Handles Pydantic-specific types"]
-        N6["Fallback for standard Python types"]
+        N5["Handles attrs classes"]
+        N6["Handles Pydantic-specific types"]
+        N7["Handles SQLAlchemy column types"]
+        N8["Converts JSON Schema subschemas"]
+        N9["Fallback for standard Python types"]
 
         P1 -.-> N1
         P2 -.-> N2
@@ -83,6 +92,9 @@ flowchart TD
         P4 -.-> N4
         P5 -.-> N5
         P6 -.-> N6
+        P7 -.-> N7
+        P8 -.-> N8
+        P9 -.-> N9
     end
 
     P -.-> P1
@@ -139,6 +151,7 @@ Steps inherit from the [`ParserStep`][api-parser-step] abstract base class.
 | `AnnotatedStep` | Separates base types from their constraints/metadata for independent processing | `Annotated[T, metadata1, ...]` | Before type-specific parsers |
 | `AnnotatedTypesStep` | Refines types based on constraints (e.g., positive integers become unsigned types) | Types with `annotated_types` or Pydantic constraints | After `AnnotatedStep`, before type parsers |
 | `PydanticTypeStep` | Handles Pydantic-specific types that need special processing beyond Python type inspection | Pydantic types like `FutureDate` | After metadata extraction, before fallback |
+| `JsonSchemaStep` | Converts JSON Schema (sub)schemas yielded by `jsonschema_adapter`, recursing through the pipeline for nested ones | Mappings such as `{"type": "integer", "minimum": 0}`, `anyOf`/`oneOf` with `null`, `enum`/`const` | Before `PyTypeStep` |
 | `PyTypeStep` | Fallback parser for all standard Python types | Basic (`int`, `str`, `bool`), temporal (`date`, `datetime`), container (`list[T]`, `tuple[T, ...]`), struct (`TypedDict`, dataclasses), other (`Decimal`, `Enum`) | Must be last |
 
 ### Parser Order and Rationale
@@ -151,8 +164,11 @@ steps = (
     UnionTypeStep(),  # 2. Extract non-None types from Optional/Union, it simplifies all downstream parsers
     AnnotatedStep(),  # 3. Extract metadata from Annotated, it should happen before type-specific logic
     AnnotatedTypesStep(),  # 4. Refine types based on metadata in `annotated_types` library
-    PydanticTypeStep(),  # 5. Handle Pydantic-specific types before falling back to Python types
-    PyTypeStep(),  # 6. The catch-all fallback for standard Python types
+    AttrsTypeStep(),  # 5. Handle attrs classes (only if attrs is installed)
+    PydanticTypeStep(),  # 6. Handle Pydantic-specific types before falling back to Python types
+    SQLAlchemyTypeStep(),  # 7. Handle SQLAlchemy column types (only if SQLAlchemy is installed)
+    JsonSchemaStep(),  # 8. Convert JSON Schema subschemas, which are mappings rather than types
+    PyTypeStep(),  # 9. The catch-all fallback for standard Python types
 )
 ```
 

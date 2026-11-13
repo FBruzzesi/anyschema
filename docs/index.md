@@ -129,6 +129,7 @@ patterns:
 - [`PydanticTypeStep`][api-pydantic-type-step]: Handles Pydantic-specific types.
 - [`AttrsTypeStep`][api-attrs-type-step]: Handles attrs classes.
 - [`SQLAlchemyTypeStep`][api-sqlalchemy-type-step]: Handles SQLAlchemy column types.
+- [`JsonSchemaStep`][api-jsonschema-step]: Handles JSON Schema (sub)schemas, as yielded by the JSON Schema adapter.
 - [`PyTypeStep`][api-py-type-step]: Handles standard Python types, including `TypedDict` and dataclasses (fallback).
 
 Learn more about how these work together in the [Architecture](architecture.md) section.
@@ -190,6 +191,7 @@ as an intermediate representation. `anyschema` makes this conversion seamless an
 [api-pydantic-type-step]: api-reference/parsers.md#anyschema.parsers.pydantic.PydanticTypeStep
 [api-sqlalchemy-type-step]: api-reference/parsers.md#anyschema.parsers.sqlalchemy.SQLAlchemyTypeStep
 [api-py-type-step]: api-reference/parsers.md#anyschema.parsers.PyTypeStep
+[api-jsonschema-step]: api-reference/parsers.md#anyschema.parsers.JsonSchemaStep
 [api-into-ordered-dict-adapter]: api-reference/adapters.md#anyschema.adapters.into_ordered_dict_adapter
 [api-typed-dict-adapter]: api-reference/adapters.md#anyschema.adapters.typed_dict_adapter
 [api-dataclass-adapter]: api-reference/adapters.md#anyschema.adapters.dataclass_adapter

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-import json
+from decimal import Decimal  # noqa: TC003 (pydantic resolves annotations at runtime)
+from enum import Enum
 from typing import Literal, Mapping
 
 import narwhals as nw
@@ -8,24 +9,20 @@ import pytest
 from pydantic import BaseModel, PositiveInt
 
 from anyschema import AnySchema
-from anyschema.adapters import jsonschema_adapter
 from anyschema.exceptions import UnsupportedDTypeError
 from tests.conftest import (
     PydanticEventWithTimeMetadata,
     PydanticEventWithXAnyschema,
     PydanticStudent,
+    json_object_schema,
 )
-
-
-def _object(properties: dict[str, object], **extra: object) -> dict[str, object]:
-    return {"type": "object", "properties": properties, **extra}
 
 
 @pytest.mark.parametrize(
     ("spec", "expected_schema"),
     [
         (
-            _object(
+            json_object_schema(
                 {
                     "id": {"type": "integer"},
                     "name": {"type": "string"},
@@ -47,28 +44,32 @@ def _object(properties: dict[str, object], **extra: object) -> dict[str, object]
             },
         ),
         (
-            _object(
+            json_object_schema(
                 {"address": {"$ref": "#/$defs/Address"}},
                 **{
                     "$defs": {
-                        "Address": _object({"street": {"type": "string"}, "zipcode": {"type": "integer"}}),
+                        "Address": json_object_schema({"street": {"type": "string"}, "zipcode": {"type": "integer"}}),
                     }
                 },
             ),
             {"address": nw.Struct([nw.Field("street", nw.String()), nw.Field("zipcode", nw.Int64())])},
         ),
         (
-            _object({"byte": {"type": "integer", "minimum": 0, "maximum": 255}}),
+            json_object_schema({"byte": {"type": "integer", "minimum": 0, "maximum": 255}}),
             {"byte": nw.UInt8()},
         ),
         # Integer constraints must survive inside a nested struct (regression: they were dropped).
         (
-            _object({"addr": _object({"zipcode": {"type": "integer", "minimum": 0, "maximum": 255}})}),
+            json_object_schema(
+                {"addr": json_object_schema({"zipcode": {"type": "integer", "minimum": 0, "maximum": 255}})}
+            ),
             {"addr": nw.Struct([nw.Field("zipcode", nw.UInt8())])},
         ),
         # ... and inside a list's element type.
         (
-            _object({"bytes": {"type": "array", "items": {"type": "integer", "minimum": 0, "maximum": 255}}}),
+            json_object_schema(
+                {"bytes": {"type": "array", "items": {"type": "integer", "minimum": 0, "maximum": 255}}}
+            ),
             {"bytes": nw.List(nw.UInt8())},
         ),
     ],
@@ -79,7 +80,7 @@ def test_jsonschema_to_schema(spec: dict[str, object], expected_schema: Mapping[
 
 
 def test_mixed_union_is_rejected() -> None:
-    spec = _object({"x": {"anyOf": [{"type": "integer"}, {"type": "string"}]}})
+    spec = json_object_schema({"x": {"anyOf": [{"type": "integer"}, {"type": "string"}]}})
     with pytest.raises(UnsupportedDTypeError, match="mixed types"):
         AnySchema(spec=spec)
 
@@ -98,7 +99,7 @@ def test_non_string_enum_const_convert_to_backends(
 ) -> None:
     # Non-string `enum`/`const` must degrade to a scalar dtype: a non-string `Enum` cannot be lowered to any
     # backend. These conversions would raise if the field were mapped to `Enum([...])`.
-    schema = AnySchema(spec=_object({"x": json_schema}))
+    schema = AnySchema(spec=json_object_schema({"x": json_schema}))
     assert schema._nw_schema == nw.Schema({"x": expected_dtype})
     schema.to_arrow()
     schema.to_polars()
@@ -108,16 +109,16 @@ def test_string_enum_is_polars_enum() -> None:
     # String choices stay categorical (a Narwhals `Enum`), which Polars can lower.
     import polars as pl
 
-    schema = AnySchema(spec=_object({"role": {"enum": ["admin", "user"]}}))
+    schema = AnySchema(spec=json_object_schema({"role": {"enum": ["admin", "user"]}}))
     assert schema._nw_schema == nw.Schema({"role": nw.Enum(["admin", "user"])})
     assert schema.to_polars()["role"] == pl.Enum(["admin", "user"])
 
 
 def test_optional_nested_model_via_anyof_ref() -> None:
     # The common Pydantic v2 emission for an optional nested model: `anyOf: [{$ref}, {"type": "null"}]`.
-    spec = _object(
+    spec = json_object_schema(
         {"address": {"anyOf": [{"$ref": "#/$defs/Address"}, {"type": "null"}]}},
-        **{"$defs": {"Address": _object({"street": {"type": "string"}})}},
+        **{"$defs": {"Address": json_object_schema({"street": {"type": "string"}})}},
     )
     schema = AnySchema(spec=spec)
     assert schema._nw_schema == nw.Schema({"address": nw.Struct([nw.Field("street", nw.String())])})
@@ -126,13 +127,13 @@ def test_optional_nested_model_via_anyof_ref() -> None:
 
 def test_jsonschema_dict_is_not_treated_as_field_mapping() -> None:
     # A JSON Schema is also a `Mapping`; it must be detected before the `IntoOrderedDict` adapter.
-    spec = _object({"id": {"type": "integer"}, "name": {"type": "string"}})
+    spec = json_object_schema({"id": {"type": "integer"}, "name": {"type": "string"}})
     schema = AnySchema(spec=spec)
     assert schema.names() == ("id", "name")
 
 
 def test_nullable_and_description_propagate() -> None:
-    spec = _object(
+    spec = json_object_schema(
         {
             "email": {"anyOf": [{"type": "string"}, {"type": "null"}], "description": "contact email"},
             "id": {"type": "integer"},
@@ -143,16 +144,24 @@ def test_nullable_and_description_propagate() -> None:
     assert schema.descriptions(named=True) == {"email": "contact email", "id": None}
 
 
-def test_string_spec_via_explicit_adapter() -> None:
-    # Raw JSON strings are not auto-detected, but can be passed through the adapter argument.
-    spec = json.dumps(_object({"id": {"type": "integer"}, "name": {"type": "string"}}))
-    schema = AnySchema(spec=spec, adapter=jsonschema_adapter)
-    assert schema._nw_schema == nw.Schema({"id": nw.Int64(), "name": nw.String()})
+def test_plain_mapping_with_nested_dict_is_not_a_jsonschema() -> None:
+    # A nested mapping that is not a JSON Schema must still fail instead of becoming an Object column.
+    with pytest.raises(NotImplementedError, match="No parser in the pipeline could handle"):
+        AnySchema(spec={"x": {"b": int}})
 
 
 class _RoundTripAddress(BaseModel):
+    """A postal address."""
+
     zipcode: PositiveInt  # nested constrained int -> must round-trip to UInt64, not Int64
     street: str
+
+
+class _RoundTripColor(str, Enum):
+    """A color."""
+
+    RED = "red"
+    BLUE = "blue"
 
 
 class _RoundTripModel(BaseModel):
@@ -164,6 +173,11 @@ class _RoundTripModel(BaseModel):
     address: _RoundTripAddress
     nickname: str | None
     scores: list[PositiveInt]
+    pair: tuple[int, int]
+    maybe_address: _RoundTripAddress | None
+    color: _RoundTripColor
+    price: Decimal
+    maybe_price: Decimal | None
 
 
 _ROUND_TRIP_MODELS: list[type[BaseModel]] = [

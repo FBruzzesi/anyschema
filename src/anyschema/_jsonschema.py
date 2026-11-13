@@ -1,390 +1,89 @@
-"""Conversion helpers from JSON Schema (objects) to anyschema field specifications.
+"""JSON Schema helpers shared by `jsonschema_adapter` and `JsonSchemaStep`.
 
-The public entry point is [`jsonschema_adapter`][anyschema.adapters.jsonschema_adapter], which is a thin
-wrapper around [`iter_field_specs`][anyschema._jsonschema.iter_field_specs] defined here.
-
-The strategy is deliberately simple: rather than mapping JSON Schema constructs directly to Narwhals dtypes,
-we translate each property into the equivalent Python type (e.g. `"integer"` to `int`, an object to a
-dynamically created `TypedDict`, an array to `list[...]`) and let the regular
-[`ParserPipeline`][anyschema.parsers.ParserPipeline] do the heavy lifting. This reuses all existing parsing
-logic (nested structs, lists, optionals, integer-constraint refinement) for free.
-
-Constraints that the pipeline can refine (currently integer bounds) are folded into the type via
-`Annotated[...]` whenever the type is nested inside a struct or a list, so that nested refinements survive
-(e.g. a struct field with `{"minimum": 0, "maximum": 255}` becomes `UInt8`, not `Int64`).
+The adapter inlines every `$ref`, so the step can convert each subschema without the root document.
 """
 
 from __future__ import annotations
 
-import json
 from collections.abc import Mapping
-from datetime import date, datetime, time, timedelta
-from typing import TYPE_CHECKING, Annotated, Any, Literal, Optional, Union, cast
+from typing import TYPE_CHECKING, Any
 
-from typing_extensions import TypedDict, TypeIs
-
-from anyschema._dependencies import ANNOTATED_TYPES_AVAILABLE, is_jsonschema
 from anyschema._metadata import get_anyschema_value_by_key, set_anyschema_meta
 from anyschema.exceptions import UnsupportedDTypeError
 
 if TYPE_CHECKING:
-    from anyschema.typing import FieldConstraints, FieldSpecIterable, JsonSchema
+    from anyschema.typing import FieldMetadata, JsonSchema
 
-__all__ = ("iter_field_specs", "parse_schema")
+__all__ = ("extract_field_metadata", "resolve_refs")
 
-# The type constructs below are built dynamically from runtime data, so we route them through `Any`-typed
-# aliases. This keeps the (otherwise statically-special-cased) `Literal`/`Union`/`Optional`/`list` subscripts
-# opaque to the type checkers, which cannot reason about non-literal arguments anyway.
-_Literal: Any = Literal
-_Union: Any = Union
-_Optional: Any = Optional
-_List: Any = list
-_TypedDict: Any = TypedDict
-_Annotated: Any = Annotated
-
-_FORMAT_TO_TYPE: dict[str, type] = {
-    "date-time": datetime,
-    "date": date,
-    "time": time,
-    "duration": timedelta,
-    "binary": bytes,
-}
-"""JSON Schema string `format` values mapped to the equivalent Python type."""
+_TYPE_ANNOTATIONS = frozenset({"title", "description"})
+"""Keywords of a referenced definition that document the type itself, not the field referring to it."""
 
 
-def parse_schema(spec: JsonSchema) -> Mapping[str, Any]:
-    """Coerce and validate the input into a JSON Schema object mapping.
+def resolve_refs(node: Any, root: JsonSchema, _ref_path: tuple[str, ...] = ()) -> Any:
+    """Return a copy of `node` with every local `$ref` replaced by the subschema it points to.
+
+    Keywords next to a `$ref` win over the referenced ones. The referenced `title` and `description` are dropped,
+    so a model docstring does not become the description of every field using that model.
 
     Arguments:
-        spec: A JSON Schema, either as a parsed mapping or as a raw JSON document (`str` or bytes-like).
-
-    Returns:
-        The schema as a mapping.
+        node: The (sub)schema to resolve.
+        root: The document that `$ref` pointers are resolved against.
+        _ref_path: The `$ref`s being expanded on the current path, to detect cycles.
 
     Raises:
-        ValueError: If the input is not (or does not decode to) a JSON object with `"type": "object"` and
-            a `"properties"` mapping.
+        UnsupportedDTypeError: If a `$ref` is recursive, since it has no finite dtype.
+        ValueError: If a `$ref` is not local (`#...`) or cannot be resolved.
     """
-    schema = json.loads(spec) if isinstance(spec, (str, bytes, bytearray)) else spec
+    if isinstance(node, Mapping):
+        if isinstance(ref := node.get("$ref"), str):
+            if ref in _ref_path:
+                msg = f"Recursive JSON Schema reference is not supported: {ref!r}."
+                raise UnsupportedDTypeError(msg)
+            target = {key: value for key, value in _resolve_pointer(root, ref).items() if key not in _TYPE_ANNOTATIONS}
+            siblings = {key: value for key, value in node.items() if key != "$ref"}
+            return resolve_refs({**target, **siblings}, root, (*_ref_path, ref))
+        return {key: resolve_refs(value, root, _ref_path) for key, value in node.items()}
+    if isinstance(node, list):
+        return [resolve_refs(value, root, _ref_path) for value in node]
+    return node
 
-    if not is_jsonschema(schema):
-        msg = "Expected a JSON Schema object with `'type': 'object'` and a `'properties'` mapping."
+
+def _resolve_pointer(root: JsonSchema, ref: str) -> JsonSchema:
+    """Resolve a local JSON pointer such as `#/$defs/Address` against `root`."""
+    if ref != "#" and not ref.startswith("#/"):
+        msg = f"Only local JSON Schema references (starting with '#') are supported, found: {ref!r}."
         raise ValueError(msg)
 
-    return cast("Mapping[str, Any]", schema)
-
-
-def iter_field_specs(schema: Mapping[str, Any]) -> FieldSpecIterable:
-    """Yield field specifications for each property of a JSON Schema object.
-
-    Arguments:
-        schema: A validated JSON Schema object (see [`parse_schema`][anyschema._jsonschema.parse_schema]).
-
-    Yields:
-        Tuples of `(field_name, field_type, constraints, metadata)`.
-
-    Notes:
-        The `anyschema` / `x-anyschema` metadata namespaces (e.g. embedded by `pydantic`'s `json_schema_extra`)
-        are propagated, so field-level hints such as `time_zone`, `time_unit` or an explicit `dtype` survive a
-        round-trip. The top-level `description` keyword is mapped to the `anyschema` description.
-    """
-    defs = {**schema.get("$defs", {}), **schema.get("definitions", {})}
-    for name, prop_schema in schema["properties"].items():
-        field_type, constraints = _build_field_type(prop_schema, defs, name, frozenset())
-
-        metadata: dict[str, Any] = {
-            ns: dict(prop_schema[ns]) for ns in ("anyschema", "x-anyschema") if isinstance(prop_schema.get(ns), Mapping)
-        }
-        if (description := prop_schema.get("description")) is not None and (
-            get_anyschema_value_by_key(metadata, key="description") is None
-        ):
-            set_anyschema_meta(metadata, key="description", value=description)
-
-        yield name, field_type, constraints, metadata
-
-
-def _build_field_type(
-    schema: Mapping[str, Any], defs: Mapping[str, Any], name_hint: str, seen: frozenset[str]
-) -> tuple[Any, FieldConstraints]:
-    """Convert a single (possibly nullable/union) property schema into a Python type.
-
-    Nullability is driven solely by the presence of the `null` type (via an `anyOf`/`oneOf` branch or a
-    `type` array containing `"null"`); the schema-level `required` array is intentionally not consulted.
-
-    Arguments:
-        schema: The property subschema.
-        defs: Mapping of definition name to subschema, used to resolve `$ref`.
-        name_hint: Hint used to name dynamically created `TypedDict`s.
-        seen: Set of `$ref` names already being expanded, used to detect cyclic references.
-
-    Returns:
-        A tuple of `(python_type, constraints)`. The type is wrapped in `Optional[...]` when null is allowed.
-    """
-    branches, has_null = _split_branches(schema)
-
-    if len(branches) == 1:
-        base, constraints = _base_type(branches[0], defs, name_hint, seen)
-    elif not branches:  # only `null`, or an empty schema
-        base, constraints = object, ()
-    else:  # genuine multi-type union: defer to the pipeline (which rejects truly mixed unions)
-        base = _Union[tuple(_base_type(b, defs, name_hint, seen)[0] for b in branches)]
-        constraints = ()
-
-    if has_null:
-        base = _Optional[base]
-
-    return base, constraints
-
-
-def _base_type(  # noqa: C901
-    schema: Mapping[str, Any], defs: Mapping[str, Any], name_hint: str, seen: frozenset[str]
-) -> tuple[Any, FieldConstraints]:
-    """Convert a single subschema (already split from any union) into a Python type.
-
-    Callers pass a non-union branch; the only way a union is seen here is via a `$ref` that resolves to one,
-    in which case it is re-dispatched to [`_build_field_type`][anyschema._jsonschema._build_field_type].
-
-    Arguments:
-        schema: The subschema to convert.
-        defs: Mapping of definition name to subschema, used to resolve `$ref`.
-        name_hint: Hint used to name dynamically created `TypedDict`s.
-        seen: Set of `$ref` names already being expanded, used to detect cyclic references.
-
-    Returns:
-        A tuple of `(python_type, constraints)`. Constraints are only populated for integers.
-    """
-    schema, seen = _resolve_ref(schema, defs, seen)
-
-    # A `$ref` may resolve to a union/nullable schema; re-dispatch through `_build_field_type` so it is
-    # handled like an inline union instead of silently degrading to `object`.
-    if _is_union_schema(schema):
-        return _build_field_type(schema, defs, name_hint, seen)
-
-    if "const" in schema:
-        return _const_or_enum_type([schema["const"]]), ()
-    if "enum" in schema:
-        return _const_or_enum_type(list(schema["enum"])), ()
-
-    json_type = schema.get("type")
-
-    if json_type == "string":
-        fmt = schema.get("format")
-        return (_FORMAT_TO_TYPE.get(fmt, str) if isinstance(fmt, str) else str), ()
-    if json_type == "integer":
-        return int, _int_constraints(schema)
-    if json_type == "number":
-        return float, ()
-    if json_type == "boolean":
-        return bool, ()
-    if json_type == "array":
-        items = schema.get("items")
-        if isinstance(items, Mapping):
-            # Fold the item constraints into the element type so they survive inside the `list`.
-            return _List[_annotate(*_build_field_type(items, defs, f"{name_hint}_item", seen))], ()
-        return list, ()
-    if json_type == "object":
-        if isinstance(schema.get("properties"), Mapping):
-            return _object_to_typed_dict(schema, defs, name_hint, seen), ()
-        return dict, ()
-
-    # No (or unsupported) `type`: fall back to an opaque object.
-    return object, ()
-
-
-def _object_to_typed_dict(
-    schema: Mapping[str, Any], defs: Mapping[str, Any], name_hint: str, seen: frozenset[str]
-) -> Any:
-    """Build a dynamic `TypedDict` from a JSON Schema object so it parses into a Narwhals `Struct`.
-
-    Arguments:
-        schema: An object subschema with a `properties` mapping.
-        defs: Mapping of definition name to subschema, used to resolve `$ref`.
-        name_hint: Hint used to name the created `TypedDict`.
-        seen: Set of `$ref` names already being expanded, used to detect cyclic references.
-
-    Returns:
-        A dynamically created `TypedDict` class.
-    """
-    # Fold each field's constraints into its type so integer refinement survives inside the struct.
-    fields = {
-        key: _annotate(*_build_field_type(sub, defs, f"{name_hint}_{key}", seen))
-        for key, sub in schema["properties"].items()
-    }
-    name = schema.get("title") or name_hint
-    return _TypedDict(name, fields)
-
-
-def _resolve_ref(
-    schema: Mapping[str, Any], defs: Mapping[str, Any], seen: frozenset[str]
-) -> tuple[Mapping[str, Any], frozenset[str]]:
-    """Resolve local `$ref` chains against `defs`, guarding against cycles.
-
-    Arguments:
-        schema: The subschema, possibly a `{"$ref": ...}` reference.
-        defs: Mapping of definition name to subschema.
-        seen: Set of `$ref` names already being expanded.
-
-    Returns:
-        A tuple of `(resolved_schema, updated_seen)`.
-
-    Raises:
-        UnsupportedDTypeError: If a cyclic (self-referential) reference is detected.
-        ValueError: If a reference cannot be resolved against `defs`.
-
-    Notes:
-        Only local references into `$defs`/`definitions` are supported, keyed by the last path segment
-        (e.g. `Address` in `#/$defs/Address`). External references and other JSON Pointer locations are not
-        resolved and raise `ValueError`.
-    """
-    while "$ref" in schema:
-        ref = schema["$ref"]
-        name = ref.rsplit("/", 1)[-1]
-        if name in seen:
-            msg = f"Recursive/cyclic JSON Schema reference is not supported: {ref!r}."
-            raise UnsupportedDTypeError(msg)
-        if name not in defs:
+    target: Any = root
+    for token in ref[2:].split("/") if ref != "#" else ():
+        key = token.replace("~1", "/").replace("~0", "~")  # RFC 6901 escaping
+        if not isinstance(target, Mapping) or key not in target:
             msg = f"Could not resolve JSON Schema reference: {ref!r}."
             raise ValueError(msg)
-        seen = seen | {name}
-        schema = defs[name]
-    return schema, seen
+        target = target[key]
+
+    if not isinstance(target, Mapping):
+        msg = f"JSON Schema reference {ref!r} does not point to a schema object."
+        raise ValueError(msg)  # noqa: TRY004
+    return target
 
 
-def _split_branches(schema: Mapping[str, Any]) -> tuple[list[Mapping[str, Any]], bool]:
-    """Split a subschema into its non-null branches and whether `null` is allowed.
+def extract_field_metadata(schema: object) -> FieldMetadata:
+    """Build field metadata from a property subschema.
 
-    Handles `anyOf`/`oneOf` unions as well as a `type` given as a list (e.g. `["integer", "null"]`).
-
-    Arguments:
-        schema: The subschema to inspect.
-
-    Returns:
-        A tuple of `(non_null_branches, has_null)`.
+    Copies the `anyschema`/`x-anyschema` namespaces and maps the `description` keyword to the anyschema
+    description, unless a namespace already sets one. Boolean subschemas (`true`/`false`) carry no metadata.
     """
-    for key in ("anyOf", "oneOf"):
-        if key in schema:
-            subs = schema[key]
-            return [s for s in subs if not _is_null(s)], any(_is_null(s) for s in subs)
-
-    if isinstance(json_type := schema.get("type"), list):
-        rest = {k: v for k, v in schema.items() if k != "type"}
-        branches: list[Mapping[str, Any]] = [{**rest, "type": t} for t in json_type if t != "null"]
-        return branches, "null" in json_type
-
-    if _is_null(schema):
-        return [], True
-    return [schema], False
-
-
-def _is_null(schema: object) -> bool:
-    """Return whether a subschema denotes the JSON `null` type."""
-    return isinstance(schema, Mapping) and schema.get("type") == "null"
-
-
-def _is_union_schema(schema: Mapping[str, Any]) -> bool:
-    """Return whether a subschema is a union: an `anyOf`/`oneOf`, or a `type` given as a list."""
-    return "anyOf" in schema or "oneOf" in schema or isinstance(schema.get("type"), list)
-
-
-def _annotate(type_: Any, constraints: FieldConstraints) -> Any:
-    """Fold constraints into the type via `Annotated`, so they survive nesting inside lists/structs.
-
-    Arguments:
-        type_: The base Python type.
-        constraints: Constraints to attach (empty for everything but integers today).
-
-    Returns:
-        `Annotated[type_, *constraints]` when there are constraints, otherwise `type_` unchanged.
-    """
-    return _Annotated[(type_, *constraints)] if constraints else type_
-
-
-def _const_or_enum_type(values: list[Any]) -> Any:
-    """Convert a JSON Schema `const`/`enum` value list into a Python type.
-
-    String-only choices become a `Literal[...]` (which the pipeline parses into a Narwhals `Enum`). Any other
-    value cannot be a Narwhals `Enum` (whose categories must be strings), so a homogeneous scalar list degrades
-    to the underlying Python scalar type (e.g. an integer `enum` becomes `int` -> `Int64`) and anything
-    heterogeneous to an opaque `object`. A `null` member makes the result `Optional[...]`.
-
-    Arguments:
-        values: The `enum` list, or a single-element list holding the `const` value.
-
-    Returns:
-        The corresponding Python type.
-    """
-    has_null = any(value is None for value in values)
-    non_null = [value for value in values if value is not None]
-
-    if not non_null:
-        base: Any = object
-    elif all(isinstance(value, str) for value in non_null):
-        base = _Literal[tuple(non_null)]
-    else:
-        base = _scalar_type_of(non_null)
-
-    return _Optional[base] if has_null else base
-
-
-def _scalar_type_of(values: list[Any]) -> type:
-    """Return the common Python scalar type of non-string `values`, or `object` if heterogeneous.
-
-    Arguments:
-        values: A non-empty list of JSON scalar values (with at least one non-string entry).
-
-    Returns:
-        `bool`/`int`/`float` when the values share a single scalar type, `float` for a mix of JSON numbers,
-        and `object` otherwise.
-    """
-    types = {_json_scalar_type(value) for value in values}
-    if len(types) == 1:
-        return types.pop()
-    if types <= {int, float}:  # JSON numbers may legitimately mix integers and floats
-        return float
-    return object
-
-
-def _json_scalar_type(value: Any) -> type:
-    """Map a JSON scalar value to its Python type (`bool` before `int`, as `bool` subclasses `int`)."""
-    if isinstance(value, bool):
-        return bool
-    if isinstance(value, int):
-        return int
-    if isinstance(value, float):
-        return float
-    return object
-
-
-def _int_constraints(schema: Mapping[str, Any]) -> FieldConstraints:
-    """Map JSON Schema numeric bounds to `annotated_types` constraints for integer dtype refinement.
-
-    Returns an empty tuple when `annotated_types` is not installed (the pipeline would ignore the
-    constraints anyway), so that JSON integers degrade gracefully to `Int64`.
-
-    Arguments:
-        schema: An integer subschema, possibly carrying `minimum`/`maximum`/`exclusiveMinimum`/`exclusiveMaximum`.
-
-    Returns:
-        A tuple of `annotated_types` constraint instances (e.g. `Gt(0)`).
-    """
-    if not ANNOTATED_TYPES_AVAILABLE:
-        return ()
-
-    from annotated_types import Ge, Gt, Le, Lt
-
-    # `isinstance(..., bool)` guards against the legacy draft-4 boolean `exclusive*` form.
-    constraints: list[Any] = []
-    if _is_number(minimum := schema.get("minimum")):
-        constraints.append(Ge(minimum))
-    if _is_number(excl_min := schema.get("exclusiveMinimum")):
-        constraints.append(Gt(excl_min))
-    if _is_number(maximum := schema.get("maximum")):
-        constraints.append(Le(maximum))
-    if _is_number(excl_max := schema.get("exclusiveMaximum")):
-        constraints.append(Lt(excl_max))
-    return tuple(constraints)
-
-
-def _is_number(value: object) -> TypeIs[float]:
-    """Return whether a value is a real number (excluding the legacy draft-4 boolean `exclusive*` form)."""
-    return isinstance(value, (int, float)) and not isinstance(value, bool)
+    if not isinstance(schema, Mapping):
+        return {}
+    metadata: FieldMetadata = {
+        namespace: dict(schema[namespace])
+        for namespace in ("anyschema", "x-anyschema")
+        if isinstance(schema.get(namespace), Mapping)
+    }
+    if (description := schema.get("description")) is not None and (
+        get_anyschema_value_by_key(metadata, key="description") is None
+    ):
+        set_anyschema_meta(metadata, key="description", value=description)
+    return metadata

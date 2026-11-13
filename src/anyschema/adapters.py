@@ -6,7 +6,8 @@ from typing import TYPE_CHECKING, Literal
 
 from typing_extensions import get_type_hints
 
-from anyschema._jsonschema import iter_field_specs, parse_schema
+from anyschema._dependencies import is_jsonschema
+from anyschema._jsonschema import extract_field_metadata, resolve_refs
 from anyschema._metadata import get_anyschema_value_by_key, set_anyschema_meta
 
 if TYPE_CHECKING:
@@ -34,56 +35,49 @@ __all__ = (
 
 
 def jsonschema_adapter(spec: JsonSchema) -> FieldSpecIterable:
-    """Adapter for JSON Schema objects.
+    """Adapter for JSON Schema objects, such as the output of `pydantic.BaseModel.model_json_schema()`.
 
-    Converts a [JSON Schema](https://json-schema.org/) object (the kind produced by, e.g.,
-    `pydantic.BaseModel.model_json_schema()`) into an iterator yielding field information as
-    `(field_name, field_type, constraints, metadata)` tuples.
+    Each property is yielded with its subschema as the field type, with every local `$ref` inlined.
+    [`JsonSchemaStep`][anyschema.parsers.JsonSchemaStep] then converts it into a Narwhals dtype.
 
-    Each property is translated into the equivalent Python type and handed to the parser pipeline:
-
-    - `"string"` maps to `str`, refined by `format` (`date`, `date-time`, `time`, `duration`, `binary`).
-    - `"integer"`/`"number"`/`"boolean"` map to `int`/`float`/`bool`. Integer bounds (`minimum`, `maximum`,
-        `exclusiveMinimum`, `exclusiveMaximum`) become `annotated_types` constraints, so e.g.
-        `{"type": "integer", "exclusiveMinimum": 0}` refines to an unsigned integer (matching `PositiveInt`).
-        These refinements are preserved inside nested structs and lists. The integer `format` keyword
-        (e.g. `int32`) is not consulted; use the bound keywords to control integer width.
-    - `"array"` maps to `list[...]` and `"object"` (with `properties`) to a nested struct.
-    - `enum`/`const` of strings map to `Literal[...]` (a Narwhals `Enum`); non-string choices map to the
-        underlying scalar Python type (e.g. an integer `enum` becomes `int`), since `Enum` categories must be
-        strings.
-    - `$ref`/`$defs` (and the legacy `definitions`) are resolved, including references that resolve to a
-        union/nullable schema.
-
-    A field is marked nullable only when its schema explicitly allows the `null` type (an `anyOf`/`oneOf`
-    null branch, a `type` array containing `"null"`, or a `null` member of an `enum`); the `required` array
-    does not affect nullability.
+    A field is nullable only when its schema allows `null`: a `null` branch in `anyOf`/`oneOf`, `"null"` in a
+    `type` list, or `null` in `enum`. The `required` keyword does not affect nullability.
 
     Arguments:
-        spec: A JSON Schema object, either already parsed (a mapping) or as a raw JSON document
-            (`str` or bytes-like).
+        spec: A JSON Schema with a `"properties"` mapping and `"type": "object"` (or no `type`).
 
     Yields:
         A tuple of `(field_name, field_type, constraints, metadata)` for each property.
+            - `field_type`: The property subschema with `$ref`s inlined.
+            - `constraints`: Always an empty tuple.
+            - `metadata`: The `anyschema`/`x-anyschema` namespaces of the property, plus its `description`.
 
     Raises:
-        ValueError: If `spec` is not a JSON object with `"type": "object"` and a `"properties"` mapping,
-            or if a `$ref` cannot be resolved.
-        UnsupportedDTypeError: If the schema contains a cyclic (self-referential) reference.
+        ValueError: If `spec` is not a JSON Schema object, or a `$ref` is not local or cannot be resolved.
+        UnsupportedDTypeError: If a `$ref` is recursive.
 
     Examples:
         >>> schema = {
         ...     "type": "object",
         ...     "properties": {
         ...         "id": {"type": "integer"},
-        ...         "name": {"type": "string"},
+        ...         "name": {"type": "string", "description": "Full name"},
+        ...         "address": {"$ref": "#/$defs/Address"},
         ...     },
-        ...     "required": ["id", "name"],
+        ...     "$defs": {"Address": {"type": "object", "properties": {"city": {"type": "string"}}}},
         ... }
-        >>> list(jsonschema_adapter(schema))
-        [('id', <class 'int'>, (), {}), ('name', <class 'str'>, (), {})]
+        >>> for spec_field in jsonschema_adapter(schema):
+        ...     print(spec_field)
+        ('id', {'type': 'integer'}, (), {})
+        ('name', {'type': 'string', 'description': 'Full name'}, (), {'anyschema': {'description': 'Full name'}})
+        ('address', {'type': 'object', 'properties': {'city': {'type': 'string'}}}, (), {})
     """
-    return iter_field_specs(parse_schema(spec))
+    if not is_jsonschema(spec):
+        msg = "Expected a JSON Schema object with a `'properties'` mapping and `'type': 'object'` (or no `'type'`)."
+        raise ValueError(msg)
+    for field_name, field_schema in spec["properties"].items():
+        resolved_schema = resolve_refs(field_schema, spec)
+        yield field_name, resolved_schema, (), extract_field_metadata(resolved_schema)
 
 
 def into_ordered_dict_adapter(spec: IntoOrderedDict) -> FieldSpecIterable:
@@ -133,9 +127,7 @@ def typed_dict_adapter(spec: TypedDictType) -> FieldSpecIterable:
         >>> list(typed_dict_adapter(Student))
         [('name', <class 'str'>, (), {}), ('age', <class 'int'>, (), {})]
     """
-    # `include_extras=True` keeps `Annotated[...]` metadata (e.g. `Annotated[int, Gt(0)]`) so the pipeline can
-    # refine it, matching how nested `TypedDict` fields are parsed (see `PyTypeStep._parse_typed_dict`).
-    type_hints = get_type_hints(spec, include_extras=True)
+    type_hints = get_type_hints(spec)
     for field_name, field_type in type_hints.items():
         yield field_name, field_type, (), {}
 

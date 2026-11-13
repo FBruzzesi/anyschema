@@ -88,18 +88,15 @@ def is_into_ordered_dict(obj: object) -> TypeIs[IntoOrderedDict]:
 
 
 def is_jsonschema(obj: object) -> TypeIs[JsonSchema]:
-    """Check if the object looks like a JSON Schema object.
+    """Check if the object is a JSON Schema object: a mapping with a `"properties"` mapping and `"type": "object"`.
 
-    A JSON Schema object is detected as a mapping with `"type": "object"` and a `"properties"` mapping.
-    This is checked before [`is_into_ordered_dict`][anyschema._dependencies.is_into_ordered_dict] since a JSON
-    Schema is also a mapping; the `"type": "object"` discriminator avoids the ambiguity (a plain field mapping
-    would map names to Python types, not to the string `"object"`).
-
-    Notes:
-        Raw JSON `str`/`bytes` documents are not auto-detected; pass them via the `adapter` argument
-        (`adapter=jsonschema_adapter`) or parse them first.
+    The `type` keyword may be omitted. A plain field mapping never matches, since it maps names to Python types.
     """
-    return isinstance(obj, Mapping) and obj.get("type") == "object" and isinstance(obj.get("properties"), Mapping)
+    return (
+        isinstance(obj, Mapping)
+        and isinstance(obj.get("properties"), Mapping)
+        and obj.get("type", "object") == "object"
+    )
 
 
 def is_typed_dict(obj: object) -> TypeIs[TypedDictType]:

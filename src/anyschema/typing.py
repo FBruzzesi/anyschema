@@ -36,11 +36,10 @@ IntoParserPipeline: TypeAlias = "Literal['auto'] | Sequence[ParserStep]"
 Either "auto" or a sequence of [`ParserStep`][anyschema.parsers.ParserStep].
 """
 
-JsonSchema: TypeAlias = "Mapping[str, Any] | str | bytes | bytearray"
-"""A [JSON Schema](https://json-schema.org/) object: either a parsed mapping or a raw JSON document.
+JsonSchema: TypeAlias = Mapping[str, Any]
+"""A parsed [JSON Schema](https://json-schema.org/), such as the output of `pydantic.BaseModel.model_json_schema()`.
 
-Only the mapping form is auto-detected by [`AnySchema`][anyschema.AnySchema]; a raw JSON document (`str` or
-bytes-like) must be passed via the `adapter` argument or parsed beforehand.
+To use a raw JSON document, decode it first with `json.loads`.
 """
 
 UnknownSpec: TypeAlias = Any
@@ -50,7 +49,7 @@ Spec: TypeAlias = "Schema | IntoOrderedDict | JsonSchema | type[BaseModel] | Dat
 """Input specification supported directly by [`AnySchema`][anyschema.AnySchema]."""
 
 FieldName: TypeAlias = str
-FieldType: TypeAlias = "type[Any] | Annotated[Any, ...] | TypeEngine[Any]"
+FieldType: TypeAlias = "type[Any] | Annotated[Any, ...] | TypeEngine[Any] | JsonSchema"
 FieldConstraints: TypeAlias = tuple[Any, ...]
 FieldMetadata: TypeAlias = dict[str, Any]
 

@@ -13,6 +13,7 @@ from anyschema.parsers._annotated import AnnotatedStep
 from anyschema.parsers._base import ParserStep
 from anyschema.parsers._builtin import PyTypeStep
 from anyschema.parsers._forward_ref import ForwardRefStep
+from anyschema.parsers._jsonschema import JsonSchemaStep
 from anyschema.parsers._union import UnionTypeStep
 from anyschema.serde import deserialize_dtype
 
@@ -334,7 +335,7 @@ def make_pipeline(steps: IntoParserPipeline = "auto") -> ParserPipeline:
 
         >>> pipeline = make_pipeline(steps="auto")
         >>> print(pipeline.steps)  # doctest: +ELLIPSIS
-        (ForwardRefStep, UnionTypeStep, ..., PydanticTypeStep, SQLAlchemyTypeStep, PyTypeStep)
+        (ForwardRefStep, UnionTypeStep, ..., SQLAlchemyTypeStep, JsonSchemaStep, PyTypeStep)
 
     Raises:
         TypeError: If the steps are not a sequence of `ParserStep` instances or a `ParserPipeline`.
@@ -387,7 +388,10 @@ def _auto_pipeline() -> tuple[ParserStep, ...]:
 
             yield SQLAlchemyTypeStep()
 
-        # 8. PyTypeStep - handles basic Python types (fallback)
+        # 8. JsonSchemaStep - handles JSON Schema (sub)schemas, i.e. mappings (dependency-free)
+        yield JsonSchemaStep()
+
+        # 9. PyTypeStep - handles basic Python types (fallback)
         yield PyTypeStep()
 
     return tuple(_generate_steps())

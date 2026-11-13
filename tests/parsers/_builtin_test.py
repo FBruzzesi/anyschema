@@ -5,8 +5,11 @@ from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 from enum import Enum
+from ipaddress import IPv4Address, IPv4Network, IPv6Address, IPv6Interface
+from pathlib import Path, PurePosixPath
 from types import NoneType
 from typing import Any, Literal, TypedDict
+from uuid import UUID
 
 import narwhals as nw
 import pytest
@@ -56,6 +59,13 @@ def py_type_parser() -> PyTypeStep:
         (time, nw.Time()),
         (Decimal, nw.Decimal()),
         (bytes, nw.Binary()),
+        (UUID, nw.String()),
+        (Path, nw.String()),
+        (PurePosixPath, nw.String()),
+        (IPv4Address, nw.String()),
+        (IPv6Address, nw.String()),
+        (IPv6Interface, nw.String()),
+        (IPv4Network, nw.String()),
         (object, nw.Object()),
         (Color, nw.Enum(Color)),
         (Status, nw.Enum(Status)),

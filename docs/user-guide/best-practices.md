@@ -96,9 +96,7 @@ def good_adapter(spec: CustomSchemaSpec) -> FieldSpecIterable:
     for field_name, field_value in spec.fields.items():
         if isinstance(field_value, CustomSchemaSpec):
             # For nested schemas, create a TypedDict with the proper structure
-            nested_dict = {
-                name: type_ for name, type_, _, _ in good_adapter(field_value)
-            }
+            nested_dict = {name: type_ for name, type_, _, _ in good_adapter(field_value)}
             # Create a dynamic TypedDict with the nested fields
             nested_typed_dict = TypedDict(
                 f"{field_name.title()}TypedDict",
@@ -138,9 +136,7 @@ def custom_step() -> GoodParserStep:
         (str, None),
     ],
 )
-def test_custom_step_parse(
-    custom_step: GoodParserStep, input_type: Any, expected_dtype: nw.dtypes.DType
-) -> None:
+def test_custom_step_parse(custom_step: GoodParserStep, input_type: Any, expected_dtype: nw.dtypes.DType) -> None:
     """Test that custom parser handles its types correctly."""
     result = custom_step.parse(CustomType, constraints=(), metadata={})
     assert result == expected_dtype

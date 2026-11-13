@@ -55,7 +55,7 @@ flowchart TD
 
     NA["Pydantic Models<br/>Python mappings or sequences"]
     NB["pydantic_adapter<br/>into_ordered_dict_adapter"]
-    NE["pyarrow, polars or pandas schema"]
+    NE["pyarrow, polars, pandas, duckdb or pyspark schema"]
 
     A -.-> NA
     B -.-> NB
@@ -139,7 +139,7 @@ Steps inherit from the [`ParserStep`][api-parser-step] abstract base class.
 | `AnnotatedStep` | Separates base types from their constraints/metadata for independent processing | `Annotated[T, metadata1, ...]` | Before type-specific parsers |
 | `AnnotatedTypesStep` | Refines types based on constraints (e.g., positive integers become unsigned types) | Types with `annotated_types` or Pydantic constraints | After `AnnotatedStep`, before type parsers |
 | `PydanticTypeStep` | Handles Pydantic-specific types that need special processing beyond Python type inspection | Pydantic types like `FutureDate` | After metadata extraction, before fallback |
-| `PyTypeStep` | Fallback parser for all standard Python types | Basic (`int`, `str`, `bool`), temporal (`date`, `datetime`), container (`list[T]`, `tuple[T, ...]`), other (`Decimal`, `Enum`) | Must be last |
+| `PyTypeStep` | Fallback parser for all standard Python types | Basic (`int`, `str`, `bool`), temporal (`date`, `datetime`), container (`list[T]`, `tuple[T, ...]`), struct (`TypedDict`, dataclasses), other (`Decimal`, `Enum`) | Must be last |
 
 ### Parser Order and Rationale
 

@@ -3,11 +3,12 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import pytest
-from sqlalchemy import BigInteger, Float, Integer, String
+from sqlalchemy import BigInteger, Double, Float, Integer, String
 from sqlalchemy.types import DateTime, TypeEngine
 
 from anyschema.adapters import sqlalchemy_adapter
 from tests.conftest import (
+    SQLALCHEMY_GE_2_1,
     EventORMWithTimeMetadata,
     SimpleUserORM,
     UserWithTypesORM,
@@ -52,7 +53,7 @@ def assert_result_equal(result: Iterable[FieldSpec], expected: Iterable[FieldSpe
                 ("id", Integer(), (), {"anyschema": {"nullable": False}}),
                 ("name", String(50), (), {"anyschema": {"nullable": False}}),
                 ("age", Integer(), (), {"anyschema": {"nullable": True}}),
-                ("score", Float(), (), {"anyschema": {"nullable": True}}),
+                ("score", Double() if SQLALCHEMY_GE_2_1 else Float(), (), {"anyschema": {"nullable": True}}),
             ],
         ),
         (

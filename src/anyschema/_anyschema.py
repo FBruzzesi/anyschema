@@ -25,6 +25,7 @@ from anyschema.adapters import (
     sqlalchemy_adapter,
     typed_dict_adapter,
 )
+from anyschema.exceptions import UnsupportedDTypeError
 from anyschema.parsers import ParserPipeline
 
 if TYPE_CHECKING:
@@ -33,13 +34,14 @@ if TYPE_CHECKING:
     import pandas as pd
     import polars as pl
     import pyarrow as pa
+    from duckdb.sqltypes import DuckDBPyType
     from narwhals.dtypes import DType
-    from narwhals.typing import DTypeBackend
+    from narwhals.typing import DTypeBackend, IntoDType
     from pyspark.sql.types import StructType as PySparkStructType
 
     from anyschema.typing import Adapter, IntoParserPipeline, Spec
 
-    T = TypeVar("T", bool, str | None, DType)
+    T = TypeVar("T")
     AnyFieldAttrAccessor: TypeAlias = Callable[["AnyField"], T]
 
 __all__ = ("AnyField", "AnySchema")
@@ -641,6 +643,66 @@ class AnySchema:
             Schema({'id': Int64, 'username': String, 'email': String, 'is_active': Boolean})
         """
         return self._nw_schema.to_polars()
+
+    def to_duckdb(self) -> dict[str, DuckDBPyType]:
+        """Converts input model into mapping of {field_name: duckdb_type}.
+
+        DuckDB types carry no nullability or metadata, so only data types are converted.
+
+        Timezone-aware datetimes become `TIMESTAMPTZ`, which stores an instant and displays it in the connection time
+        zone. The original time zone name is dropped.
+
+        Returns:
+            The converted duckdb schema.
+
+        Raises:
+            UnsupportedDTypeError: If a dtype has no DuckDB equivalent (Categorical, Object, Unknown), or a
+                timezone-aware datetime has a time unit other than microseconds.
+
+        Examples:
+            >>> from anyschema import AnySchema
+            >>> from pydantic import BaseModel
+            >>>
+            >>>
+            >>> class User(BaseModel):
+            ...     id: int
+            ...     username: str
+            ...     tags: list[str]
+            >>>
+            >>> schema = AnySchema(spec=User)
+            >>> {name: str(dtype) for name, dtype in schema.to_duckdb().items()}
+            {'id': 'BIGINT', 'username': 'VARCHAR', 'tags': 'VARCHAR[]'}
+        """
+        import duckdb
+        from narwhals._duckdb.utils import narwhals_to_native_dtype
+        from narwhals.utils import Version
+
+        version = Version.MAIN
+        dtypes = version.dtypes
+
+        # Nested dtypes are converted here, not by narwhals: narwhals needs a live relation to resolve tz-aware
+        # datetimes, quotes enum categories with repr, and reverses the shape of multi-dimensional arrays.
+        def to_duckdb_type(dtype: IntoDType) -> DuckDBPyType:
+            if isinstance(dtype, dtypes.Datetime) and dtype.time_zone is not None:
+                if dtype.time_unit != "us":
+                    msg = f"DuckDB supports only microsecond precision for timezone-aware datetimes, found {dtype}"
+                    raise UnsupportedDTypeError(msg)
+                return duckdb.sqltype("TIMESTAMPTZ")
+            if isinstance(dtype, dtypes.Enum):
+                categories = ", ".join("'{}'".format(category.replace("'", "''")) for category in dtype.categories)
+                return duckdb.sqltype(f"ENUM({categories})")
+            if isinstance(dtype, dtypes.List):
+                return duckdb.list_type(to_duckdb_type(dtype.inner))
+            if isinstance(dtype, dtypes.Array):
+                return duckdb.array_type(to_duckdb_type(dtype.inner), dtype.size)
+            if isinstance(dtype, dtypes.Struct):
+                return duckdb.struct_type({field.name: to_duckdb_type(field.dtype) for field in dtype.fields})
+            if issubclass(dtype.base_type(), (dtypes.Categorical, dtypes.Object, dtypes.Unknown)):
+                msg = f"{dtype} has no DuckDB equivalent"
+                raise UnsupportedDTypeError(msg)
+            return narwhals_to_native_dtype(dtype, version=version, deferred_time_zone=None)  # type: ignore[arg-type]
+
+        return {field.name: to_duckdb_type(field.dtype) for field in self._fields.values()}
 
     def to_pyspark(self) -> PySparkStructType:
         """Converts input model into pyspark [StructType](https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.types.StructType.html).

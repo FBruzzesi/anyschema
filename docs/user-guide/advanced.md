@@ -22,8 +22,7 @@ def parse(
     input_type: FieldType,
     constraints: FieldConstraints,
     metadata: FieldMetadata,
-) -> nw.dtypes.DType | None:
-    ...
+) -> nw.dtypes.DType | None: ...
 ```
 
 ### Basic Custom Parser
@@ -91,6 +90,7 @@ from anyschema.typing import FieldConstraints, FieldMetadata, FieldType
 
 T = TypeVar("T")
 
+
 class MyList[T]:
     """A custom list-like type."""
 
@@ -126,6 +126,7 @@ class MyListStep(ParserStep):
                 return nw.List(nw.Object())
 
         return None
+
 
 my_list_step = MyListStep()
 python_step = PyTypeStep()
@@ -399,9 +400,7 @@ def nested_adapter(spec: NestedSchema) -> FieldSpecIterable:
     for field_name, field_value in spec.fields.items():
         if isinstance(field_value, NestedSchema):
             # For nested schemas, create a TypedDict with the proper structure
-            nested_dict = {
-                name: type_ for name, type_, _, _ in nested_adapter(field_value)
-            }
+            nested_dict = {name: type_ for name, type_, _, _ in nested_adapter(field_value)}
             # Create a dynamic TypedDict with the nested fields
             nested_typed_dict = TypedDict(
                 f"{field_name.title()}TypedDict",  # Generate a unique name

@@ -1,7 +1,7 @@
 # anyschema: From Type Specifications to Dataframe Schemas
 
 `anyschema` is a Python library that enables conversions from type specifications (such as Pydantic models, SQLAlchemy
-tables, attrs classes, TypedDict, dataclasses) to native dataframe schemas (such as PyArrow, Polars, and Pandas).
+tables, attrs classes, TypedDict, dataclasses) to native dataframe schemas (such as PyArrow, Polars, Pandas, and DuckDB).
 
 !!! warning "Development Status"
     `anyschema` is still in early development and possibly unstable.
@@ -107,7 +107,7 @@ generation, type-safe data processing.
 
 - **Multiple Input Formats**: Support for Pydantic models, SQLAlchemy tables (ORM and Core), attrs classes, TypedDict,
     dataclasses, JSON Schema objects, Python mappings and sequence of field specifications.
-- **Multiple Output Formats**: Convert to PyArrow, Polars, or Pandas schemas.
+- **Multiple Output Formats**: Convert to PyArrow, Polars, Pandas, DuckDB, or PySpark schemas.
 - **Modular Architecture**: Extensible parser pipeline for custom type handling.
 - **Rich Type Support**: Handles complex types including Optional, Union, List, nested structures, Pydantic-specific
     types, SQLAlchemy types, and attrs classes.
@@ -129,7 +129,7 @@ patterns:
 - [`PydanticTypeStep`][api-pydantic-type-step]: Handles Pydantic-specific types.
 - [`AttrsTypeStep`][api-attrs-type-step]: Handles attrs classes.
 - [`SQLAlchemyTypeStep`][api-sqlalchemy-type-step]: Handles SQLAlchemy column types.
-- [`PyTypeStep`][api-py-type-step]: Handles basic Python types (fallback).
+- [`PyTypeStep`][api-py-type-step]: Handles standard Python types, including `TypedDict` and dataclasses (fallback).
 
 Learn more about how these work together in the [Architecture](architecture.md) section.
 

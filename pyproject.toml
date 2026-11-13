@@ -45,7 +45,7 @@ testing = [
   "anyschema[attrs,pydantic,sqlalchemy]",
   "covdefaults>=2.3.0",
   "hypothesis>=6.0.0",
-  "narwhals[duckdb,pandas,polars,pyarrow,pyspark]",
+  "narwhals[duckdb,ibis,pandas,polars,pyarrow,pyspark]",
   "pydantic-extra-types[pycountry,phonenumbers]",
   "pytest>=9.0.3",
   "pytest-cov>=6.0.0",
@@ -166,6 +166,11 @@ files = ["src", "tests"]
 plugins = [
   "pydantic.mypy",
 ]
+
+[[tool.mypy.overrides]]
+# ibis ships inline annotations but no py.typed marker
+module = ["ibis", "ibis.*"]
+follow_untyped_imports = true
 
 [tool.pyright]
 pythonPlatform = "All"

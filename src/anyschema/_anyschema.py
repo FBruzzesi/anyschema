@@ -33,6 +33,8 @@ if TYPE_CHECKING:
     import polars as pl
     import pyarrow as pa
     from duckdb.sqltypes import DuckDBPyType
+    from ibis import Schema as IbisSchema
+    from ibis.expr.datatypes import DataType as IbisDataType
     from narwhals.dtypes import DType
     from narwhals.typing import DTypeBackend, IntoDType
     from pyspark.sql.types import StructType as PySparkStructType
@@ -694,6 +696,54 @@ class AnySchema:
             return narwhals_to_native_dtype(dtype, version=version, deferred_time_zone=None)  # type: ignore[arg-type]
 
         return {field.name: to_duckdb_type(field.dtype) for field in self._fields.values()}
+
+    def to_ibis(self) -> IbisSchema:
+        """Converts input model into ibis [Schema](https://ibis-project.org/reference/schemas#ibis.expr.schema.Schema).
+
+        Each field keeps its nullability. Nested element and struct field types are always nullable. Field metadata
+        is dropped, because Ibis schemas cannot store it.
+
+        Returns:
+            The converted ibis schema.
+
+        Raises:
+            UnsupportedDTypeError: If a dtype, at any nesting level, is Int128, UInt128, Categorical, Enum, Object or
+                Unknown. Ibis has no equivalent for these.
+
+        Examples:
+            >>> from anyschema import AnySchema
+            >>> from pydantic import BaseModel
+            >>>
+            >>>
+            >>> class User(BaseModel):
+            ...     id: int
+            ...     username: str | None
+            ...     tags: list[str]
+            >>>
+            >>> schema = AnySchema(spec=User)
+            >>> print(schema.to_ibis())
+            ibis.Schema {
+              id        !int64
+              username  string
+              tags      !array<string>
+            }
+        """
+        import ibis
+        from narwhals._ibis.utils import narwhals_to_native_dtype
+        from narwhals.utils import Version
+
+        version = Version.MAIN
+
+        def to_ibis_type(field: AnyField) -> IbisDataType:
+            try:
+                ibis_type = narwhals_to_native_dtype(field.dtype, version=version)
+            # narwhals raises NotImplementedError for Int128/UInt128/Categorical/Enum, AssertionError for Object/Unknown
+            except (NotImplementedError, AssertionError) as exc:
+                msg = f"{field.dtype} has no Ibis equivalent (field '{field.name}')"
+                raise UnsupportedDTypeError(msg) from exc
+            return ibis_type.copy(nullable=field.nullable)
+
+        return ibis.schema({field.name: to_ibis_type(field) for field in self._fields.values()})
 
     def to_pyspark(self) -> PySparkStructType:
         """Converts input model into pyspark [StructType](https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.types.StructType.html).

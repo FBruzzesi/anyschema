@@ -46,7 +46,7 @@ def jsonschema_adapter(spec: JsonSchema) -> FieldSpecIterable:
 
     Arguments:
         spec: A JSON Schema with a `"properties"` mapping and `"type": "object"` (or no `type`), or a root `"$ref"` to
-            such a schema in `"$defs"`.
+            such a schema in `"$defs"`, optionally wrapped in a single-item `"allOf"`.
 
     Yields:
         A tuple of `(field_name, field_type, constraints, metadata)` for each property.
@@ -78,6 +78,10 @@ def jsonschema_adapter(spec: JsonSchema) -> FieldSpecIterable:
     if not is_jsonschema(spec):
         raise ValueError(msg)
     inlined_spec = inline_refs(spec, spec)
+    all_of = inlined_spec.get("allOf")
+    if "properties" not in inlined_spec and isinstance(all_of, list) and len(all_of) == 1:
+        # Pydantic < 2.9 wraps the root `$ref` of a self-referencing model in a single-item `allOf`.
+        inlined_spec = all_of[0] if isinstance(all_of[0], Mapping) else {}
     if not isinstance(properties := inlined_spec.get("properties"), Mapping):  # a root `$ref` to a non-object
         raise ValueError(msg)  # noqa: TRY004
     for field_name, field_schema in properties.items():

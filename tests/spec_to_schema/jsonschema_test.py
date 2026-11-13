@@ -2,10 +2,12 @@ from __future__ import annotations
 
 from decimal import Decimal  # noqa: TC003 (pydantic resolves annotations at runtime)
 from enum import Enum
+from importlib.metadata import version
 from typing import Any, Literal, Mapping
 
 import narwhals as nw
 import pytest
+from narwhals.utils import parse_version
 from pydantic import BaseModel, Field, PositiveInt
 
 from anyschema import AnySchema
@@ -195,12 +197,17 @@ class _RoundTripTree(BaseModel):
     children: dict[str, _RoundTripTree]
 
 
-_ROUND_TRIP_MODELS: list[type[BaseModel]] = [
+_ROUND_TRIP_MODELS: list[type[BaseModel] | Any] = [
     PydanticStudent,
     PydanticEventWithTimeMetadata,
     PydanticEventWithXAnyschema,
     _RoundTripModel,
-    _RoundTripLink,
+    pytest.param(
+        _RoundTripLink,
+        marks=pytest.mark.skipif(
+            parse_version(version("pydantic")) < (2, 9), reason="`model_json_schema()` raises on a `$ref` default"
+        ),
+    ),
     _RoundTripTree,
 ]
 

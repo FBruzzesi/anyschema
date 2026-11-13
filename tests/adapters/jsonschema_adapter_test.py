@@ -81,8 +81,12 @@ def test_jsonschema_adapter_does_not_follow_additional_properties() -> None:
     assert next(jsonschema_adapter(spec))[1] == node
 
 
-def test_jsonschema_adapter_follows_root_ref() -> None:
-    spec = {"$ref": "#/$defs/User", "$defs": {"User": json_object_schema({"id": {"type": "integer"}})}}
+@pytest.mark.parametrize(
+    "root",
+    [{"$ref": "#/$defs/User"}, {"allOf": [{"$ref": "#/$defs/User"}]}],  # `allOf` form: Pydantic < 2.9
+)
+def test_jsonschema_adapter_follows_root_ref(root: dict[str, object]) -> None:
+    spec = {**root, "$defs": {"User": json_object_schema({"id": {"type": "integer"}})}}
     assert tuple(jsonschema_adapter(spec)) == (("id", {"type": "integer"}, (), {}),)
 
 
@@ -134,6 +138,8 @@ def test_jsonschema_adapter_does_not_mutate_input() -> None:
         {"type": "object"},  # no properties
         json.dumps(json_object_schema({"id": {"type": "integer"}})),  # raw JSON must be decoded first
         {"$ref": "#/$defs/Name", "$defs": {"Name": {"type": "string"}}},  # root `$ref` to a non-object
+        {"allOf": [{"$ref": "#/$defs/Name"}], "$defs": {"Name": {"type": "string"}}},
+        {"allOf": [True], "$defs": {}},
         42,
     ],
 )
@@ -165,6 +171,10 @@ def test_jsonschema_adapter_bad_reference_raises(ref: str, match: str) -> None:
         ),
         json_object_schema({"self": {"$ref": "#"}}),
         {"$ref": "#/$defs/Node", "$defs": {"Node": json_object_schema({"child": {"$ref": "#/$defs/Node"}})}},
+        {
+            "allOf": [{"$ref": "#/$defs/Node"}],
+            "$defs": {"Node": json_object_schema({"child": {"$ref": "#/$defs/Node"}})},
+        },
     ],
 )
 def test_jsonschema_adapter_recursive_reference_raises(spec: dict[str, object]) -> None:
@@ -179,6 +189,7 @@ def test_jsonschema_adapter_recursive_reference_raises(spec: dict[str, object]) 
         ({"type": "object", "properties": {}}, True),
         ({"properties": {"x": {"type": "string"}}}, True),  # `type` is optional
         ({"$ref": "#/$defs/A", "$defs": {}}, True),  # root `$ref`
+        ({"allOf": [{"$ref": "#/$defs/A"}], "$defs": {}}, True),  # root `$ref` before Pydantic 2.9
         ({"name": int, "age": int}, False),  # plain field mapping (IntoOrderedDict)
         ({"$ref": "SomeType"}, False),  # plain field mapping with a forward reference
         ({"type": "array", "items": {}}, False),

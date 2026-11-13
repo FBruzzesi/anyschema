@@ -91,11 +91,13 @@ def is_jsonschema(obj: object) -> TypeIs[JsonSchema]:
     """Check if the object looks like a JSON Schema object.
 
     That is a mapping with either a `"properties"` mapping and `"type": "object"` (or no `type`), or a root `"$ref"`
-    string next to `"$defs"`, as Pydantic emits for self-referencing models.
+    (or `"allOf"`, before Pydantic 2.9) next to `"$defs"`, as Pydantic emits for self-referencing models.
     """
     if not isinstance(obj, Mapping):
         return False
-    if isinstance(obj.get("$ref"), str) and isinstance(obj.get("$defs"), Mapping):
+    if isinstance(obj.get("$defs"), Mapping) and (
+        isinstance(obj.get("$ref"), str) or isinstance(obj.get("allOf"), list)
+    ):
         return True
     return isinstance(obj.get("properties"), Mapping) and obj.get("type", "object") == "object"
 

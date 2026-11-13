@@ -88,15 +88,16 @@ def is_into_ordered_dict(obj: object) -> TypeIs[IntoOrderedDict]:
 
 
 def is_jsonschema(obj: object) -> TypeIs[JsonSchema]:
-    """Check if the object is a JSON Schema object: a mapping with a `"properties"` mapping and `"type": "object"`.
+    """Check if the object looks like a JSON Schema object.
 
-    The `type` keyword may be omitted. A plain field mapping never matches, since it maps names to Python types.
+    That is a mapping with either a `"properties"` mapping and `"type": "object"` (or no `type`), or a root `"$ref"`
+    string next to `"$defs"`, as Pydantic emits for self-referencing models.
     """
-    return (
-        isinstance(obj, Mapping)
-        and isinstance(obj.get("properties"), Mapping)
-        and obj.get("type", "object") == "object"
-    )
+    if not isinstance(obj, Mapping):
+        return False
+    if isinstance(obj.get("$ref"), str) and isinstance(obj.get("$defs"), Mapping):
+        return True
+    return isinstance(obj.get("properties"), Mapping) and obj.get("type", "object") == "object"
 
 
 def is_typed_dict(obj: object) -> TypeIs[TypedDictType]:

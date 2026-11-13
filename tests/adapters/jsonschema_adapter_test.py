@@ -60,6 +60,32 @@ def test_jsonschema_adapter_resolves_escaped_json_pointer() -> None:
     assert next(jsonschema_adapter(spec))[1] == {"type": "integer"}
 
 
+@pytest.mark.parametrize(
+    ("keyword", "value"),
+    [
+        ("default", {"$ref": "https://example.com/a.json"}),
+        ("examples", [{"$ref": "#/$defs/Missing"}]),
+        ("const", {"$ref": "#"}),
+        ("enum", [{"$ref": "#"}]),
+    ],
+)
+def test_jsonschema_adapter_keeps_ref_in_instance_data(keyword: str, value: object) -> None:
+    prop = {"type": "object", keyword: value}
+    assert next(jsonschema_adapter(json_object_schema({"x": prop})))[1] == prop
+
+
+def test_jsonschema_adapter_does_not_follow_additional_properties() -> None:
+    # `dict[str, Node]` in a self-referencing model: `additionalProperties` is not converted, so it is not inlined.
+    node = json_object_schema({}, additionalProperties={"$ref": "#/$defs/Node"})
+    spec = json_object_schema({"children": {"$ref": "#/$defs/Node"}}, **{"$defs": {"Node": node}})
+    assert next(jsonschema_adapter(spec))[1] == node
+
+
+def test_jsonschema_adapter_follows_root_ref() -> None:
+    spec = {"$ref": "#/$defs/User", "$defs": {"User": json_object_schema({"id": {"type": "integer"}})}}
+    assert tuple(jsonschema_adapter(spec)) == (("id", {"type": "integer"}, (), {}),)
+
+
 def test_jsonschema_adapter_same_ref_twice_is_not_a_cycle() -> None:
     spec = json_object_schema(
         {"pair": json_object_schema({"a": {"$ref": "#/$defs/Address"}, "b": {"$ref": "#/$defs/Address"}})},
@@ -107,6 +133,7 @@ def test_jsonschema_adapter_does_not_mutate_input() -> None:
         {"type": "array", "items": {"type": "string"}},
         {"type": "object"},  # no properties
         json.dumps(json_object_schema({"id": {"type": "integer"}})),  # raw JSON must be decoded first
+        {"$ref": "#/$defs/Name", "$defs": {"Name": {"type": "string"}}},  # root `$ref` to a non-object
         42,
     ],
 )
@@ -137,6 +164,7 @@ def test_jsonschema_adapter_bad_reference_raises(ref: str, match: str) -> None:
             **{"$defs": {"Node": json_object_schema({"child": {"$ref": "#/$defs/Node"}})}},
         ),
         json_object_schema({"self": {"$ref": "#"}}),
+        {"$ref": "#/$defs/Node", "$defs": {"Node": json_object_schema({"child": {"$ref": "#/$defs/Node"}})}},
     ],
 )
 def test_jsonschema_adapter_recursive_reference_raises(spec: dict[str, object]) -> None:
@@ -150,7 +178,9 @@ def test_jsonschema_adapter_recursive_reference_raises(spec: dict[str, object]) 
         ({"type": "object", "properties": {"x": {"type": "string"}}}, True),
         ({"type": "object", "properties": {}}, True),
         ({"properties": {"x": {"type": "string"}}}, True),  # `type` is optional
+        ({"$ref": "#/$defs/A", "$defs": {}}, True),  # root `$ref`
         ({"name": int, "age": int}, False),  # plain field mapping (IntoOrderedDict)
+        ({"$ref": "SomeType"}, False),  # plain field mapping with a forward reference
         ({"type": "array", "items": {}}, False),
         ({"type": "array", "properties": {}}, False),
         ({"type": "object"}, False),  # no properties mapping

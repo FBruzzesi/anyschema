@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 from collections import OrderedDict
+from collections.abc import Mapping
 from dataclasses import fields as dc_fields
 from typing import TYPE_CHECKING, Literal
 
 from typing_extensions import get_type_hints
 
 from anyschema._dependencies import is_jsonschema
-from anyschema._jsonschema import extract_field_metadata, resolve_refs
+from anyschema._jsonschema import extract_field_metadata, inline_refs
 from anyschema._metadata import get_anyschema_value_by_key, set_anyschema_meta
 
 if TYPE_CHECKING:
@@ -37,14 +38,15 @@ __all__ = (
 def jsonschema_adapter(spec: JsonSchema) -> FieldSpecIterable:
     """Adapter for JSON Schema objects, such as the output of `pydantic.BaseModel.model_json_schema()`.
 
-    Each property is yielded with its subschema as the field type, with every local `$ref` inlined.
-    [`JsonSchemaStep`][anyschema.parsers.JsonSchemaStep] then converts it into a Narwhals dtype.
+    Each property is yielded with its subschema as the field type, with every local `$ref` inlined, for
+    [`JsonSchemaStep`][anyschema.parsers.JsonSchemaStep] to convert.
 
-    A field is nullable only when its schema allows `null`: a `null` branch in `anyOf`/`oneOf`, `"null"` in a
-    `type` list, or `null` in `enum`. The `required` keyword does not affect nullability.
+    A field is nullable only when its schema allows `null`: a `null` branch in `anyOf`/`oneOf`, `"null"` in a `type`
+    list, or `null` in `enum`. The `required` keyword does not affect nullability.
 
     Arguments:
-        spec: A JSON Schema with a `"properties"` mapping and `"type": "object"` (or no `type`).
+        spec: A JSON Schema with a `"properties"` mapping and `"type": "object"` (or no `type`), or a root `"$ref"` to
+            such a schema in `"$defs"`.
 
     Yields:
         A tuple of `(field_name, field_type, constraints, metadata)` for each property.
@@ -72,12 +74,14 @@ def jsonschema_adapter(spec: JsonSchema) -> FieldSpecIterable:
         ('name', {'type': 'string', 'description': 'Full name'}, (), {'anyschema': {'description': 'Full name'}})
         ('address', {'type': 'object', 'properties': {'city': {'type': 'string'}}}, (), {})
     """
+    msg = "Expected a JSON Schema object with a `'properties'` mapping and `'type': 'object'` (or no `'type'`)."
     if not is_jsonschema(spec):
-        msg = "Expected a JSON Schema object with a `'properties'` mapping and `'type': 'object'` (or no `'type'`)."
         raise ValueError(msg)
-    for field_name, field_schema in spec["properties"].items():
-        resolved_schema = resolve_refs(field_schema, spec)
-        yield field_name, resolved_schema, (), extract_field_metadata(resolved_schema)
+    inlined_spec = inline_refs(spec, spec)
+    if not isinstance(properties := inlined_spec.get("properties"), Mapping):  # a root `$ref` to a non-object
+        raise ValueError(msg)  # noqa: TRY004
+    for field_name, field_schema in properties.items():
+        yield field_name, field_schema, (), extract_field_metadata(field_schema)
 
 
 def into_ordered_dict_adapter(spec: IntoOrderedDict) -> FieldSpecIterable:

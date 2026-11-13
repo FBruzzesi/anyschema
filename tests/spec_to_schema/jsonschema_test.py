@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from decimal import Decimal  # noqa: TC003 (pydantic resolves annotations at runtime)
 from enum import Enum
-from typing import Literal, Mapping
+from typing import Any, Literal, Mapping
 
 import narwhals as nw
 import pytest
-from pydantic import BaseModel, PositiveInt
+from pydantic import BaseModel, Field, PositiveInt
 
 from anyschema import AnySchema
 from anyschema.exceptions import UnsupportedDTypeError
@@ -178,6 +178,21 @@ class _RoundTripModel(BaseModel):
     color: _RoundTripColor
     price: Decimal
     maybe_price: Decimal | None
+    retries: int = 5
+    note: str | None = None
+
+
+class _RoundTripLink(BaseModel):
+    """Instance data that looks like a `$ref` is not a reference."""
+
+    target: dict[str, Any] = Field(default={"$ref": "https://example.com/a.json"})
+
+
+class _RoundTripTree(BaseModel):
+    """Self-referencing model: its JSON Schema has a root `$ref`, and the recursion sits in `dict` values."""
+
+    name: str
+    children: dict[str, _RoundTripTree]
 
 
 _ROUND_TRIP_MODELS: list[type[BaseModel]] = [
@@ -185,6 +200,8 @@ _ROUND_TRIP_MODELS: list[type[BaseModel]] = [
     PydanticEventWithTimeMetadata,
     PydanticEventWithXAnyschema,
     _RoundTripModel,
+    _RoundTripLink,
+    _RoundTripTree,
 ]
 
 
@@ -194,3 +211,12 @@ def test_pydantic_json_schema_round_trip(model: type[BaseModel]) -> None:
     from_model = AnySchema(spec=model)
     from_json = AnySchema(spec=model.model_json_schema())
     assert from_json == from_model
+
+
+class _RecursiveNode(BaseModel):
+    child: _RecursiveNode | None = None
+
+
+def test_recursive_model_json_schema_is_rejected() -> None:
+    with pytest.raises(UnsupportedDTypeError, match="Recursive JSON Schema reference"):
+        AnySchema(spec=_RecursiveNode.model_json_schema())

@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     from types import ModuleType
 
     from pydantic import BaseModel
+    from pydantic_extra_types.color import Color
 
     from anyschema.typing import AttrsClassType, DataclassType, IntoOrderedDict, SQLAlchemyTableType, TypedDictType
 
@@ -97,6 +98,15 @@ def is_pydantic_base_model(obj: object) -> TypeIs[type[BaseModel]]:
         and isinstance(obj, type)
         and isinstance(obj, type(pydantic.BaseModel))
         and issubclass(obj, pydantic.BaseModel)
+    )
+
+
+def is_pydantic_extra_types_color(obj: object) -> TypeIs[type[Color]]:
+    """Check if the object is `pydantic_extra_types.color.Color` or a subclass of it."""
+    return (
+        (color_module := sys.modules.get("pydantic_extra_types.color")) is not None
+        and isinstance(obj, type)
+        and issubclass(obj, color_module.Color)
     )
 
 

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-import sys
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import narwhals as nw
 from pydantic import (
@@ -26,7 +25,7 @@ from pydantic import (
 )
 from pydantic_core import MultiHostUrl, Url
 
-from anyschema._dependencies import is_pydantic_base_model
+from anyschema._dependencies import is_pydantic_base_model, is_pydantic_extra_types_color
 from anyschema._metadata import get_anyschema_value_by_key
 from anyschema.exceptions import UnsupportedDTypeError
 from anyschema.parsers._base import ParserStep
@@ -38,24 +37,26 @@ if TYPE_CHECKING:
 
 __all__ = ("PydanticTypeStep",)
 
-# pydantic<2.10 defines URL/DSN types as `Annotated[pydantic_core.Url | MultiHostUrl, UrlConstraints(...)]`,
-# which `AnnotatedStep` unwraps to the pydantic_core class. From 2.10 they are classes: `AnyUrl` subclasses,
-# except the multi-host DSNs. Only public names are used, so that a pydantic refactor cannot silently break this.
-_URL_TYPES: tuple[type, ...] = tuple(
+# URL/DSN types: before pydantic 2.10 they are `Annotated[pydantic_core.Url | MultiHostUrl, ...]`, which
+# `AnnotatedStep` unwraps, so the `isinstance` filter drops the aliases. From 2.10 they are classes, and all but the
+# multi-host DSNs subclass `AnyUrl`. Only public names are used, so a pydantic refactor cannot silently break this.
+_PYDANTIC_STRING_TYPES: tuple[type, ...] = tuple(
     tp
-    for tp in (Url, MultiHostUrl, AnyUrl, PostgresDsn, MongoDsn, getattr(networks, "NatsDsn", None))
+    for tp in (
+        Url,
+        MultiHostUrl,
+        AnyUrl,
+        PostgresDsn,
+        MongoDsn,
+        getattr(networks, "NatsDsn", None),  # pydantic>=2.6
+        EmailStr,
+        NameEmail,
+        IPvAnyAddress,
+        IPvAnyInterface,
+        IPvAnyNetwork,
+        SecretStr,
+    )
     if isinstance(tp, type)
-)
-
-# `Any`: type checkers see some of these as their `TYPE_CHECKING` aliases (e.g. `EmailStr = Annotated[str, ...]`)
-_STRING_TYPES: tuple[Any, ...] = (
-    *_URL_TYPES,
-    EmailStr,
-    NameEmail,
-    IPvAnyAddress,
-    IPvAnyInterface,
-    IPvAnyNetwork,
-    SecretStr,
 )
 
 
@@ -66,13 +67,13 @@ class PydanticTypeStep(ParserStep):
 
     - Pydantic datetime types (`AwareDatetime`, `NaiveDatetime`, etc.)
     - Pydantic date types (`PastDate`, `FutureDate`)
-    - Pydantic network types (URLs, DSNs, `EmailStr`, `NameEmail`, `IPvAny*`) as String
-    - Pydantic secret types: `SecretStr` as String, `SecretBytes` as Binary
+    - URLs, DSNs, `EmailStr`, `NameEmail`, `IPvAny*` and `SecretStr` as String
+    - `SecretBytes` as Binary
     - `Color` from [pydantic-extra-types](https://github.com/pydantic/pydantic-extra-types) as String
     - Pydantic `BaseModel` (Struct types)
 
-    Pydantic types defined as `Annotated[T, ...]` (e.g. `FilePath`, `UUID4`, `StrictStr`) are unwrapped by
-    `AnnotatedStep` and parsed as `T`.
+    Types defined as `Annotated[T, ...]` (e.g. `FilePath`, `UUID4`, `StrictStr`) are unwrapped by `AnnotatedStep`
+    and parsed as `T`.
 
     Warning:
         It requires [pydantic](https://docs.pydantic.dev/latest/) to be installed.
@@ -138,17 +139,12 @@ class PydanticTypeStep(ParserStep):
         if issubclass(input_type, (PastDate, FutureDate)):  # pyright: ignore[reportArgumentType]  # pyrefly: ignore[invalid-argument]
             return nw.Date()
 
-        if issubclass(input_type, _STRING_TYPES):
+        # `Color` does not subclass `str`, so `PyTypeStep` would not catch it
+        if issubclass(input_type, _PYDANTIC_STRING_TYPES) or is_pydantic_extra_types_color(input_type):
             return nw.String()
 
         if issubclass(input_type, SecretBytes):
             return nw.Binary()
-
-        # `Color` does not inherit from `str`. If it is used in a spec, its module is already imported.
-        if (color := getattr(sys.modules.get("pydantic_extra_types.color"), "Color", None)) and issubclass(
-            input_type, color
-        ):
-            return nw.String()
 
         # Handle Pydantic models (Struct types)
         if is_pydantic_base_model(input_type):

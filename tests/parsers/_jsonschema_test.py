@@ -111,8 +111,18 @@ def test_jsonschema_step_explicit_nullable_is_preserved(pipeline: ParserPipeline
     assert metadata == {"anyschema": {"nullable": False}}
 
 
-def test_jsonschema_step_type_list_keeps_sibling_keywords(pipeline: ParserPipeline) -> None:
-    assert pipeline.parse({"type": ["integer", "null"], "minimum": 0, "maximum": 255}, (), {}) == nw.UInt8()
+@pytest.mark.parametrize(
+    "schema",
+    [
+        {"type": ["integer", "null"], "minimum": 0, "maximum": 255},
+        {"anyOf": [{"type": "integer"}, {"type": "null"}], "minimum": 0, "maximum": 255},
+        {"oneOf": [{"type": "integer"}, {"type": "null"}], "minimum": 0, "maximum": 255},
+        {"allOf": [{"type": "integer"}], "minimum": 0, "maximum": 255},
+        {"anyOf": [{"type": "integer", "maximum": 255}, {"type": "null"}], "maximum": 70000, "minimum": 0},
+    ],
+)
+def test_jsonschema_step_union_keeps_sibling_keywords(pipeline: ParserPipeline, schema: dict[str, Any]) -> None:
+    assert pipeline.parse(schema, (), {}) == nw.UInt8()
 
 
 def test_jsonschema_step_datetime_metadata(pipeline: ParserPipeline) -> None:

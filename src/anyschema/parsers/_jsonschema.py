@@ -45,19 +45,22 @@ _ANNOTATION_KEYWORDS: Final = frozenset(
 )
 """Keywords that do not constrain a value: a schema made only of these accepts anything."""
 
+_UNION_KEYWORDS: Final = ("anyOf", "oneOf", "allOf")
+
 
 class JsonSchemaStep(ParserStep):
     """Parser for [JSON Schema](https://json-schema.org/) subschemas, as yielded by
     [`jsonschema_adapter`][anyschema.adapters.jsonschema_adapter].
 
     - `object` becomes a `Struct` of its `properties`.
-    - `array` becomes a `List` of its `items`, or an `Array` when `prefixItems` share one dtype (as emitted for
-        `tuple[int, int]`).
-    - `integer` bounds (`minimum`, `maximum`, `exclusiveMinimum`, `exclusiveMaximum`) pick the smallest fitting
-        integer dtype, e.g. `{"type": "integer", "exclusiveMinimum": 0}` becomes `UInt64`.
-    - String `enum`/`const` become an `Enum`, other values the dtype of their scalar type.
-    - A `null` branch in `anyOf`/`oneOf` or a `type` list marks the field nullable. `anyOf: [number, string]` becomes
-        `Decimal`, matching what Pydantic emits for `Decimal` fields. Other unions with mixed types are rejected.
+    - `array` becomes a `List` of its `items`, or an `Array` when all `prefixItems` have the same dtype (as emitted
+        for `tuple[int, int]`).
+    - `integer` bounds (`minimum`, `maximum`, `exclusiveMinimum`, `exclusiveMaximum`) pick the smallest integer dtype
+        that fits, e.g. `{"type": "integer", "exclusiveMinimum": 0}` becomes `UInt64`.
+    - String `enum`/`const` values become an `Enum`, other values the dtype of their Python type.
+    - A `null` branch in `anyOf`/`oneOf`, or `"null"` in a `type` list, marks the field nullable. Keywords next to
+        `anyOf`/`oneOf`/`allOf` apply to every branch. `anyOf: [number, string]` becomes `Decimal`, as Pydantic emits
+        it for `Decimal` fields. Other unions of different types are rejected.
     - A schema without `type` or constraints, such as `{}` for `typing.Any`, becomes `Object`.
     - Other scalars are parsed as the equivalent Python type (e.g. `"format": "date-time"` as `datetime`), so
         metadata such as `time_zone` and `time_unit` applies as for any other spec.
@@ -119,7 +122,7 @@ class JsonSchemaStep(ParserStep):
     ) -> DType:
         non_null_branches = [branch for branch in branches if branch.get("type") != "null"]
         if len(non_null_branches) < len(branches):
-            _set_nullable(metadata)
+            _mark_nullable(metadata)
         if not non_null_branches:
             return nw.Object()
         if len(non_null_branches) == 1:
@@ -132,11 +135,11 @@ class JsonSchemaStep(ParserStep):
     def _parse_enum(self, values: Sequence[Any], metadata: FieldMetadata) -> DType:
         non_null_values = [value for value in values if value is not None]
         if len(non_null_values) < len(values):
-            _set_nullable(metadata)
+            _mark_nullable(metadata)
         value_types = frozenset(type(value) for value in non_null_values)
         if value_types == frozenset({str}):
             return nw.Enum(non_null_values)
-        # Narwhals `Enum` categories must be strings, so other values fall back to their scalar dtype.
+        # Narwhals `Enum` categories must be strings.
         return self.pipeline.parse(_PY_TYPE_BY_ENUM_VALUE_TYPES.get(value_types, object), (), metadata)
 
     def _parse_array(self, schema: JsonSchema, constraints: FieldConstraints, metadata: FieldMetadata) -> DType:
@@ -152,12 +155,15 @@ class JsonSchemaStep(ParserStep):
 
 
 def _union_branches(schema: JsonSchema) -> list[JsonSchema] | None:
-    """Return the branches of `anyOf`, `oneOf`, a single-item `allOf` or a `type` list, else None."""
-    for keyword in ("anyOf", "oneOf"):
-        if isinstance(branches := schema.get(keyword), list):
-            return branches
-    if isinstance(all_of := schema.get("allOf"), list) and len(all_of) == 1:  # e.g. `{"allOf": [{"$ref": ...}]}`
-        return all_of
+    """Return the branches of `anyOf`, `oneOf`, a single-item `allOf` or a `type` list, else None.
+
+    Each branch also gets the keywords next to the union, and its own keywords win on conflicts.
+    """
+    for keyword in _UNION_KEYWORDS:
+        branches = schema.get(keyword)
+        if isinstance(branches, list) and (keyword != "allOf" or len(branches) == 1):
+            siblings = {key: value for key, value in schema.items() if key != keyword}
+            return [{**siblings, **branch} for branch in branches]
     if isinstance(json_type := schema.get("type"), list):
         return [{**schema, "type": type_name} for type_name in json_type]
     if json_type == "null":
@@ -178,7 +184,7 @@ def _is_decimal_union(branches: Sequence[JsonSchema]) -> bool:
 
 
 def _integer_bounds(schema: JsonSchema) -> tuple[int, int] | None:
-    """Return the inclusive `(lower, upper)` bounds of an integer schema, or None if it is unbounded."""
+    """Return the inclusive `(lower, upper)` bounds of an integer schema, or None if it has none."""
     lower, upper = INT64_MIN, UINT64_MAX
     if _is_number(value := schema.get("minimum")):
         lower = max(lower, ceil(value))
@@ -195,6 +201,7 @@ def _is_number(value: object) -> TypeIs[int | float]:
     return isinstance(value, (int, float)) and not isinstance(value, bool)
 
 
-def _set_nullable(metadata: FieldMetadata) -> None:
+def _mark_nullable(metadata: FieldMetadata) -> None:
+    """Mark the field nullable, unless the metadata already sets `nullable` explicitly."""
     if get_anyschema_value_by_key(metadata, key="nullable") is None:
         set_anyschema_meta(metadata, key="nullable", value=True)

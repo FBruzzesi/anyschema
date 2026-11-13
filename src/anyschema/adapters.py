@@ -77,7 +77,7 @@ def typed_dict_adapter(spec: TypedDictType) -> FieldSpecIterable:
         >>> list(typed_dict_adapter(Student))
         [('name', <class 'str'>, (), {}), ('age', <class 'int'>, (), {})]
     """
-    type_hints = get_type_hints(spec)
+    type_hints = get_type_hints(spec, include_extras=True)
     for field_name, field_type in type_hints.items():
         yield field_name, field_type, (), {}
 
@@ -108,7 +108,7 @@ def dataclass_adapter(spec: DataclassType) -> FieldSpecIterable:
     """
     # get_type_hints eagerly evaluates annotations, which alleviates us from
     #  needing to evaluate ForwardRef's by hand later on.
-    annot_map = get_type_hints(spec)
+    annot_map = get_type_hints(spec, include_extras=True)
 
     # Get dataclass fields
     dataclass_fields = dc_fields(spec)
@@ -218,7 +218,7 @@ def attrs_adapter(spec: AttrsClassType) -> FieldSpecIterable:
     # However, it may fail for classes defined in local scopes (e.g., nested classes in functions)
     # so we fall back to using field.type directly if get_type_hints fails.
     try:
-        annot_map = get_type_hints(spec)
+        annot_map = get_type_hints(spec, include_extras=True)
     except Exception:  # pragma: no cover  # noqa: BLE001
         # If we can't get type hints, use field.type directly
         annot_map = {}

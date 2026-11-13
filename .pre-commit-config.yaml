@@ -36,3 +36,14 @@ repos:
   -   id: check-yaml
   -   id: check-ast
   -   id: check-added-large-files
+- repo: local
+  hooks:
+    # Without include_extras=True, `Annotated` metadata is stripped (see #137).
+    # shortcut: a nested call before the kwarg, e.g. `get_type_hints(f(x), include_extras=True)`,
+    # is a false positive; switch to ruff banned-api + a wrapper if that becomes a problem.
+    - id: get-type-hints-include-extras
+      name: get_type_hints must use include_extras=True
+      language: pygrep
+      entry: 'get_type_hints\((?![^)]*include_extras=True)'
+      args: [--multiline]
+      types: [python]

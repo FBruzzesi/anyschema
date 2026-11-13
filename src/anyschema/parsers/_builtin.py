@@ -23,6 +23,9 @@ if TYPE_CHECKING:
 
     from anyschema.typing import DataclassType, FieldConstraints, FieldMetadata, FieldType, TypedDictType
 
+# `IPv4Interface`/`IPv6Interface` subclass the `Address` types
+_STDLIB_STRING_TYPES = (str, UUID, PurePath, IPv4Address, IPv6Address, IPv4Network, IPv6Network)
+
 
 class PyTypeStep(ParserStep):
     """Parser for Python builtin types.
@@ -31,7 +34,7 @@ class PyTypeStep(ParserStep):
 
     - `int`, `float`, `decimal`, `str`, `bytes`, `bool`, `date`, `datetime`, `timedelta`, `time`, `object`, `Enum`,
         `Literal`
-    - `UUID`, `pathlib` paths and `ipaddress` addresses, interfaces and networks (as String)
+    - `UUID`, `pathlib` paths and `ipaddress` types, as String
     - generics: `list[T]`, `Sequence[T]`, `Iterable[T]`, `tuple[T, ...]`
     - `dict`, `Mapping[K, V]`, typed dictionaries (`TypedDict`) and dataclasses
     """
@@ -63,8 +66,7 @@ class PyTypeStep(ParserStep):
             #   * issubclass(datetime, date) -> True
             if issubclass(input_type, Enum):
                 return nw.Enum(input_type)
-            # IPv4Interface/IPv6Interface subclass the Address types
-            if issubclass(input_type, (str, UUID, PurePath, IPv4Address, IPv6Address, IPv4Network, IPv6Network)):
+            if issubclass(input_type, _STDLIB_STRING_TYPES):
                 return nw.String()
             if issubclass(input_type, bool):
                 return nw.Boolean()

@@ -306,26 +306,22 @@ def partition_markers(items: Iterable[object]) -> tuple[tuple[WithAnySchema, ...
     return tuple(markers), tuple(others)
 
 
-def merge_field_markers(
-    field_name: str, metadata: FieldMetadata, markers: Iterable[WithAnySchema], *, is_optional: bool
-) -> FieldMetadata:
+def merge_field_markers(field_name: str, metadata: FieldMetadata, markers: Iterable[WithAnySchema]) -> FieldMetadata:
     """Merge field-level markers into the spec's own field metadata.
 
-    Markers are applied in order (innermost first) and the last value wins per key: anyschema keys one by one,
-    `custom` keys shallow-merged. A marker `dtype` on an optional field makes it nullable unless `nullable` is set.
+    Markers apply innermost first and the last value wins per key. `custom` values are merged key by key, not deeply.
 
     Arguments:
         field_name: The field name, used in error messages.
         metadata: The spec's own field metadata, with at most one of the `"anyschema"` / `"x-anyschema"` keys. It is
             not mutated.
         markers: The field-level markers, innermost first.
-        is_optional: Whether the field type has a field-level `| None`.
 
     Returns:
         A new metadata dictionary.
 
     Raises:
-        ValueError: If a key is set both by a marker and by the spec's own metadata, even with equal values.
+        ValueError: If a marker and the spec's own metadata set the same key, even to the same value.
     """
     marker_anyschema: dict[str, Any] = {}
     marker_custom: dict[str, Any] = {}
@@ -345,9 +341,6 @@ def merge_field_markers(
             f"(`WithAnySchema`) and by the spec's own field metadata: {keys}."
         )
         raise ValueError(msg)
-
-    if is_optional and "dtype" in marker_anyschema and "nullable" not in spec_anyschema:
-        marker_anyschema.setdefault("nullable", True)
 
     namespace_key: AnySchemaNamespaceKey = "x-anyschema" if "x-anyschema" in metadata else "anyschema"
     return {**metadata, **marker_custom, namespace_key: {**(metadata.get(namespace_key) or {}), **marker_anyschema}}

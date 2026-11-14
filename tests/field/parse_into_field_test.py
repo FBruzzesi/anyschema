@@ -405,17 +405,40 @@ def test_parse_into_field_dtype_override_with_nullable() -> None:
     assert field.unique is True
 
 
-def test_parse_into_field_dtype_override_bypasses_pipeline() -> None:
-    pipeline = make_pipeline()
-
-    field = pipeline.parse_into_field("test", Optional[int], (), {"anyschema": {"dtype": "Float32"}})
+@pytest.mark.parametrize(
+    ("anyschema_meta", "expected_nullable"),
+    [
+        ({"dtype": "Float32"}, True),
+        ({"dtype": "Float32", "nullable": True}, True),
+        ({"dtype": "Float32", "nullable": False}, False),
+    ],
+)
+def test_parse_into_field_dtype_override_optional_nullable(
+    anyschema_meta: dict[str, Any], *, expected_nullable: bool
+) -> None:
+    field = make_pipeline().parse_into_field("test", Optional[int], (), {"anyschema": anyschema_meta})
     assert field.dtype == nw.Float32()
-    assert field.nullable is False  # Pipeline bypassed, so nullable not detected
+    assert field.nullable is expected_nullable
 
-    # To have both dtype override and nullable, set both explicitly
-    field = pipeline.parse_into_field("test", Optional[int], (), {"anyschema": {"dtype": "Float32", "nullable": True}})
-    assert field.dtype == nw.Float32()
-    assert field.nullable is True
+
+@pytest.mark.parametrize(
+    ("py_type", "expected"),
+    [
+        (list[Optional[int]], AnyField(name="x", dtype=nw.List(nw.Int64()), nullable=False)),
+        (tuple[Optional[int], ...], AnyField(name="x", dtype=nw.List(nw.Int64()), nullable=False)),
+        (tuple[Optional[int], Optional[int]], AnyField(name="x", dtype=nw.Array(nw.Int64(), 2), nullable=False)),
+        (list[list[Optional[int]]], AnyField(name="x", dtype=nw.List(nw.List(nw.Int64())), nullable=False)),
+        (Optional[list[Optional[int]]], AnyField(name="x", dtype=nw.List(nw.Int64()), nullable=True)),
+    ],
+)
+def test_parse_into_field_nested_optional_not_nullable(py_type: Any, expected: AnyField) -> None:
+    assert make_pipeline().parse_into_field("x", py_type, (), {}) == expected
+
+
+def test_parse_into_field_nested_optional_does_not_mutate_metadata() -> None:
+    metadata: dict[str, Any] = {}
+    make_pipeline().parse_into_field("x", Optional[list[Optional[int]]], (), metadata)
+    assert metadata == {}
 
 
 @pytest.mark.parametrize(

@@ -263,11 +263,18 @@ def test_optional_without_dtype(kind: SpecKind) -> None:
     assert field_of(make_spec(kind, tp)) == AnyField(name="x", dtype=nw.UInt64(), nullable=True, metadata={"foo": 1})
 
 
+@pytest.mark.parametrize("kind", ALL_KINDS)
+@pytest.mark.parametrize("tp", [list[int | None], tuple[int | None, ...]])
+def test_nested_optional_is_not_nullable(kind: SpecKind, tp: Any) -> None:
+    assert field_of(make_spec(kind, tp)) == AnyField(name="x", dtype=nw.List(nw.Int64()))
+
+
 @pytest.mark.parametrize("kind", KINDS_WITH_METADATA)
-def test_spec_dtype_override_does_not_infer_nullable(kind: SpecKind) -> None:
-    # Existing `dtype` override from the spec's own metadata is unchanged: no nullability inference.
-    spec = make_spec(kind, int | None, metadata={"anyschema": {"dtype": "Int32"}})
-    assert field_of(spec) == AnyField(name="x", dtype=nw.Int32(), nullable=False)
+@pytest.mark.parametrize("tp", [int | None])
+def test_spec_dtype_override_and_optional_is_nullable(kind: SpecKind, tp: Any) -> None:
+    # Same rule as a marker `dtype`: a field-level `| None` makes the field nullable.
+    spec = make_spec(kind, tp, metadata={"anyschema": {"dtype": "Int32"}})
+    assert field_of(spec) == AnyField(name="x", dtype=nw.Int32(), nullable=True)
 
 
 # --- Nested markers ----------------------------------------------------------------------------------------------

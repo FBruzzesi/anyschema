@@ -278,7 +278,8 @@ class ParserPipeline:
             A [`AnyField`][anyschema.AnyField] instance containing the parsed dtype and field-level metadata.
 
         Raises:
-            ValueError: If a marker sets a key that `metadata` also sets.
+            ValueError: If `metadata` has both an `"anyschema"` and an `"x-anyschema"` key, or if a marker sets a key
+                that `metadata` also sets.
 
         Examples:
             >>> from anyschema.parsers import make_pipeline
@@ -301,6 +302,13 @@ class ParserPipeline:
             True
         """
         from anyschema._anyschema import AnyField
+
+        if "anyschema" in metadata and "x-anyschema" in metadata:
+            msg = (
+                f"Field '{name}' sets both 'anyschema' and 'x-anyschema' metadata: use only one of them, "
+                "as both hold the same keys."
+            )
+            raise ValueError(msg)
 
         if isinstance(input_type, ForwardRef) and (
             forward_ref_step := next((step for step in self.steps if isinstance(step, ForwardRefStep)), None)

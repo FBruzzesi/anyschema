@@ -15,7 +15,8 @@ with the `"anyschema"` (or `"x-anyschema"` for OpenAPI compatibility) key that m
 !!! tip "OpenAPI Compatibility"
     For better integration with OpenAPI tools and specifications, you can use `"x-anyschema"` instead of `"anyschema"`.
 
-    Both work identically. See the [OpenAPI Compatibility](openapi-compatibility.md) guide for more details.
+    Both work identically, but a field can use only one of them: setting both raises a `ValueError`. See the
+    [OpenAPI Compatibility](openapi-compatibility.md) guide for more details.
 
 Currently supported special metadata keys under the `"anyschema"` (or `"x-anyschema"`) namespace:
 
@@ -899,8 +900,8 @@ print(schema.fields["email"])
 
 If a marker and the spec's own field metadata set the same key, anyschema raises a `ValueError`, **even if the
 values are equal**. The spec's own metadata includes Pydantic's `json_schema_extra` and `Field(description=...)`,
-attrs and dataclass `metadata`, and the dataclass `doc` on Python 3.14+. Keys under the `"anyschema"` and
-`"x-anyschema"` namespaces of the spec's own metadata are both compared against the marker keyword arguments, and its
+attrs and dataclass `metadata`, and the dataclass `doc` on Python 3.14+. Keys under the `"anyschema"` (or
+`"x-anyschema"`) namespace of the spec's own metadata are compared against the marker keyword arguments, and its
 custom keys against `custom`. With Pydantic's `use_attribute_docstrings=True`, an attribute docstring sets
 `description`, so it conflicts with `WithAnySchema(description=...)` too.
 

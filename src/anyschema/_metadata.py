@@ -306,15 +306,6 @@ def partition_markers(items: Iterable[object]) -> tuple[tuple[WithAnySchema, ...
     return tuple(markers), tuple(others)
 
 
-def _combined_anyschema_metadata(metadata: Mapping[str, Any]) -> dict[str, Any]:
-    # "x-anyschema" goes last: it takes precedence when reading.
-    return {
-        key: value
-        for namespace in ("anyschema", "x-anyschema")
-        for key, value in (metadata.get(namespace) or {}).items()
-    }
-
-
 def merge_field_markers(
     field_name: str, metadata: FieldMetadata, markers: Iterable[WithAnySchema], *, is_optional: bool
 ) -> FieldMetadata:
@@ -325,7 +316,8 @@ def merge_field_markers(
 
     Arguments:
         field_name: The field name, used in error messages.
-        metadata: The spec's own field metadata. It is not mutated.
+        metadata: The spec's own field metadata, with at most one of the `"anyschema"` / `"x-anyschema"` keys. It is
+            not mutated.
         markers: The field-level markers, innermost first.
         is_optional: Whether the field type has a field-level `| None`.
 
@@ -341,7 +333,7 @@ def merge_field_markers(
         marker_anyschema.update(marker.anyschema)
         marker_custom.update(marker.custom)
 
-    spec_anyschema = _combined_anyschema_metadata(metadata)
+    spec_anyschema = _get_anyschema_metadata(metadata)
     conflicts = [
         *sorted(marker_anyschema.keys() & spec_anyschema.keys()),
         *sorted(marker_custom.keys() & metadata.keys()),

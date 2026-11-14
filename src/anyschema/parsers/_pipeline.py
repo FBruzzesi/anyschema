@@ -294,21 +294,19 @@ class ParserPipeline:
             raise ValueError(msg)
 
         forward_ref_step = next((step for step in self.steps if isinstance(step, ForwardRefStep)), None)
-        input_type, markers, is_optional = split_field_markers(
-            input_type, resolve_forward_ref=forward_ref_step.resolve if forward_ref_step else None
-        )
-        if markers:
-            metadata = merge_field_markers(name, metadata, markers)
+        parts = split_field_markers(input_type, forward_ref_step.resolve if forward_ref_step else None)
+        if parts.markers:
+            metadata = merge_field_markers(name, metadata, parts.markers)
 
         if (dtype_override := get_anyschema_value_by_key(metadata, key="dtype")) is not None:
             dtype = ensure_dtype(dtype_override)
         else:
-            dtype = self.parse(input_type, constraints, metadata, strict=True)
+            dtype = self.parse(parts.field_type, constraints, metadata, strict=True)
 
         return AnyField(
             name=name,
             dtype=dtype,
-            nullable=get_anyschema_value_by_key(metadata, key="nullable", default=is_optional),
+            nullable=get_anyschema_value_by_key(metadata, key="nullable", default=parts.contains_none),
             unique=get_anyschema_value_by_key(metadata, key="unique", default=False),
             description=get_anyschema_value_by_key(metadata, key="description"),
             metadata=filter_anyschema_metadata(metadata),

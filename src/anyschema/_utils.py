@@ -2,12 +2,20 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, TypeVar
+from types import UnionType
+from typing import TYPE_CHECKING, Any, TypeVar, Union
+
+from typing_extensions import get_origin  # noqa: UP035
 
 if TYPE_CHECKING:
     from typing_extensions import TypeIs
 
 _T = TypeVar("_T")
+
+
+def is_union_type(tp: object) -> bool:
+    """Whether `tp` is a union type: `X | Y`, `Union[X, Y]` or `Optional[X]`."""
+    return get_origin(tp) is Union or isinstance(tp, UnionType)
 
 
 def qualified_type_name(obj: object | type[Any], /) -> str:

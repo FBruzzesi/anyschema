@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from types import NoneType, UnionType
-from typing import TYPE_CHECKING, Union
+from types import NoneType
+from typing import TYPE_CHECKING
 
-from typing_extensions import get_args, get_origin  # noqa: UP035
+from typing_extensions import get_args  # noqa: UP035
 
+from anyschema._utils import is_union_type
 from anyschema.exceptions import UnsupportedDTypeError
 from anyschema.parsers._base import ParserStep
 
@@ -17,7 +18,7 @@ if TYPE_CHECKING:
 class UnionTypeStep(ParserStep):
     """Parser for `T | None`, `Optional[T]` and `Union[T, None]`: parses `T`.
 
-    It does not set field nullability, since it also runs on nested types such as the `T | None` in `list[T | None]`.
+    It does not set field nullability, because it also parses nested types such as the elements of `list[T | None]`.
     [`ParserPipeline.parse_into_field`][anyschema.parsers.ParserPipeline.parse_into_field] sets it from the field-level
     type.
     """
@@ -36,19 +37,16 @@ class UnionTypeStep(ParserStep):
         Raises:
             UnsupportedDTypeError: If the union is not `T | None`.
         """
-        if get_origin(input_type) is Union or isinstance(input_type, UnionType):
-            non_none_type = self._extract_non_none_type(get_args(input_type))
-            return self.pipeline.parse(non_none_type, constraints, metadata, strict=True)
-        return None
+        if not is_union_type(input_type):
+            return None
 
-    def _extract_non_none_type(self, union_args: tuple[FieldType, ...]) -> FieldType:
-        if len(union_args) != 2:  # noqa: PLR2004
+        args = get_args(input_type)
+        if len(args) != 2:  # noqa: PLR2004
             msg = "Union with more than two types is not supported."
             raise UnsupportedDTypeError(msg)
-
-        first, second = union_args
-        if first is not NoneType and second is not NoneType:
+        if NoneType not in args:
             msg = "Union with mixed types is not supported."
             raise UnsupportedDTypeError(msg)
 
-        return second if first is NoneType else first
+        (non_none_type,) = (arg for arg in args if arg is not NoneType)
+        return self.pipeline.parse(non_none_type, constraints, metadata, strict=True)

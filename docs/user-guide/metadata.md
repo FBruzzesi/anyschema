@@ -159,7 +159,8 @@ over individual field dtypes without writing a custom parser.
 
     This means:
 
-    * Type information (like `Optional[int]`) won't affect `nullable` unless explicitly set
+    * Type information (like `Optional[int]`) won't affect `nullable` unless explicitly set (the
+      [`WithAnySchema`](#annotated-markers) marker is the exception: see [Nullability](#nullability))
     * Constraints and annotations are ignored
     * The specified dtype is used exactly as provided
 
@@ -824,10 +825,163 @@ print(schema._nw_schema)
 
 ### TypedDict
 
-!!! info "TypedDict Limitation"
-    TypedDict classes do not support field metadata at the type annotation level.
-    If you need to specify metadata for TypedDict fields, consider using dataclasses, Pydantic models, or attrs classes
-    instead.
+TypedDict fields have no metadata container of their own: use the [`Annotated` markers](#annotated-markers) instead.
+The same applies to plain Python mappings and sequences of tuples.
+
+## Annotated markers
+
+[`WithAnySchema`][anyschema.WithAnySchema] sets a field dtype and metadata through `typing.Annotated`, so it works the
+same way for every spec: Pydantic models, attrs classes, dataclasses, TypedDict and plain mappings.
+
+`WithAnySchema(**keys, custom=...)` takes the [supported metadata keys](#supported-metadata-keys) as keyword
+arguments (`dtype=...`, `unique=True`, `description="..."`, ...), so no `"anyschema"` namespace is needed. Any other
+metadata goes in `custom` and ends up in `AnyField.metadata`, like custom keys in `json_schema_extra` or
+attrs/dataclass `metadata`. `dtype` takes a Narwhals `DType` instance or its string representation and skips type
+parsing for that field.
+
+Everything is validated when the marker is constructed: unknown keywords (so typos fail early), an invalid `dtype`,
+and an `"anyschema"` or `"x-anyschema"` key inside `custom` all raise.
+
+```python exec="true" source="above" result="python" session="annotated-markers"
+from typing import Annotated, TypedDict
+
+import narwhals as nw
+from anyschema import AnySchema, WithAnySchema
+
+
+class Event(TypedDict):
+    id: Annotated[int, WithAnySchema(dtype=nw.Int32())]
+    kind: Annotated[str, WithAnySchema(dtype="Categorical")]
+    payload: Annotated[str, WithAnySchema(description="Raw JSON", custom={"pii": True})]
+
+
+schema = AnySchema(spec=Event)
+print(schema._nw_schema)
+print(schema.fields["payload"])
+```
+
+### Composition
+
+Python flattens nested `Annotated` types, so markers from a reusable alias come first and markers added on top of it
+come last. Markers are applied in that order and **the last value wins for each key**: keyword arguments (`dtype`
+included) are merged one by one, and `custom` keys are shallow-merged.
+
+Whoever writes the final annotation is always in control:
+
+```python exec="true" source="above" result="python" session="annotated-markers-composition"
+from typing import Annotated
+
+from anyschema import AnySchema, WithAnySchema
+from pydantic import BaseModel
+
+# e.g. defined in a shared library
+Email = Annotated[str, WithAnySchema(unique=True, description="An email", custom={"pii": True})]
+SmallId = Annotated[int, WithAnySchema(dtype="Int16")]
+
+
+class User(BaseModel):
+    id: Annotated[SmallId, WithAnySchema(dtype="Int32")]
+    email: Annotated[Email, WithAnySchema(description="Primary email")]
+
+
+schema = AnySchema(spec=User)
+print(schema._nw_schema)
+print(schema.fields["email"])
+```
+
+!!! note "Markers that compare equal"
+    Python caches `Annotated[...]` types and reuses a cached one when its metadata compares equal. Since `1 == True`,
+    `Annotated[int, WithAnySchema(custom={"v": True})]` written after `Annotated[int, WithAnySchema(custom={"v": 1})]`
+    gets the cached marker, with `{"v": 1}`. This only affects `custom` values that are equal across types (such as
+    `1`, `1.0` and `True`): `dtype` and the other keyword arguments are not affected.
+
+### Conflicts with the spec's own metadata
+
+If a marker and the spec's own field metadata set the same key, anyschema raises a `ValueError`, **even if the
+values are equal**. The spec's own metadata includes Pydantic's `json_schema_extra` and `Field(description=...)`,
+attrs and dataclass `metadata`, and the dataclass `doc` on Python 3.14+. Keys under the `"anyschema"` and
+`"x-anyschema"` namespaces of the spec's own metadata are both compared against the marker keyword arguments, and its
+custom keys against `custom`. With Pydantic's `use_attribute_docstrings=True`, an attribute docstring sets
+`description`, so it conflicts with `WithAnySchema(description=...)` too.
+
+```python exec="true" source="above" result="python" session="annotated-markers-conflict"
+from typing import Annotated
+
+from anyschema import AnySchema, WithAnySchema
+from pydantic import BaseModel, Field
+
+
+class Product(BaseModel):
+    name: Annotated[str, WithAnySchema(description="From the marker")] = Field(description="From pydantic")
+
+
+try:
+    AnySchema(spec=Product)
+except ValueError as exc:
+    print(exc)
+```
+
+Keys set by only one of the two sources are merged without errors.
+
+### Placement
+
+Markers are read at the **field level**: in the `Annotated` layers of a field type, optionally wrapped in a single
+`| None` (for Pydantic, this includes the outermost `Annotated` extras that Pydantic stores as field metadata). All of
+these are equivalent:
+
+```python
+Annotated[int, WithAnySchema(dtype="Int32")] | None
+Optional[Annotated[int, WithAnySchema(dtype="Int32")]]
+Annotated[int | None, WithAnySchema(dtype="Int32")]
+```
+
+Deeper than that, e.g. inside `list[...]` or in the fields of a nested model, dataclass or TypedDict:
+
+* `dtype` sets the dtype of that inner element.
+* A marker setting anything other than `dtype` raises a `NotImplementedError`, since nested elements have no field
+    metadata.
+
+Markers inside a forward reference (a string annotation) that is still unresolved when anyschema reads the field
+count as nested too. Resolve it first, e.g. with `Model.model_rebuild()` for Pydantic.
+
+```python exec="true" source="above" result="python" session="annotated-markers-nested"
+from typing import Annotated
+
+from anyschema import AnySchema, WithAnySchema
+
+schema = AnySchema(spec={"tags": list[Annotated[str, WithAnySchema(dtype="Categorical")]]})
+print(schema._nw_schema)
+
+try:
+    AnySchema(spec={"tags": list[Annotated[str, WithAnySchema(custom={"pii": True})]]})
+except NotImplementedError as exc:
+    print(type(exc).__name__)
+```
+
+### Nullability
+
+A field-level marker setting `dtype` on a field typed `T | None` gives a nullable field,
+unless `nullable` is set explicitly. This differs from the `dtype` set via the spec's own metadata, which does not
+infer nullability (see [`dtype`](#dtype)).
+
+```python exec="true" source="above" result="python" session="annotated-markers-nullable"
+from typing import Annotated, Optional
+
+from anyschema import AnySchema, WithAnySchema
+
+schema = AnySchema(
+    spec={
+        "a": Optional[Annotated[int, WithAnySchema(dtype="Int32")]],
+        "b": Annotated[Optional[int], WithAnySchema(dtype="Int32"), WithAnySchema(nullable=False)],
+        "c": Annotated[int, WithAnySchema(dtype="Int32")],
+    }
+)
+print({name: field.nullable for name, field in schema.fields.items()})
+```
+
+!!! info "SQLAlchemy"
+    SQLAlchemy columns are parsed from their column type, not from a Python annotation, so markers never reach
+    anyschema. Use the column `info` parameter instead (see [SQLAlchemy Tables](#sqlalchemy-tables)).
 
 ## Custom Metadata
 

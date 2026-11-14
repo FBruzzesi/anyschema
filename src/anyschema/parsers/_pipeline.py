@@ -3,21 +3,26 @@ from __future__ import annotations
 from itertools import chain
 from typing import TYPE_CHECKING, Literal, overload
 
-from narwhals.dtypes import DType
 from typing_extensions import Self, TypeIs
 
 from anyschema._dependencies import ANNOTATED_TYPES_AVAILABLE, ATTRS_AVAILABLE, PYDANTIC_AVAILABLE, SQLALCHEMY_AVAILABLE
-from anyschema._metadata import filter_anyschema_metadata, get_anyschema_value_by_key
+from anyschema._metadata import (
+    ensure_dtype,
+    filter_anyschema_metadata,
+    get_anyschema_value_by_key,
+    merge_field_markers,
+)
 from anyschema._utils import qualified_type_name
-from anyschema.parsers._annotated import AnnotatedStep
+from anyschema.parsers._annotated import AnnotatedStep, split_field_markers
 from anyschema.parsers._base import ParserStep
 from anyschema.parsers._builtin import PyTypeStep
 from anyschema.parsers._forward_ref import ForwardRefStep
 from anyschema.parsers._union import UnionTypeStep
-from anyschema.serde import deserialize_dtype
 
 if TYPE_CHECKING:
     from collections.abc import Generator, Sequence
+
+    from narwhals.dtypes import DType
 
     from anyschema._anyschema import AnyField
     from anyschema.typing import IntoParserPipeline
@@ -255,6 +260,10 @@ class ParserPipeline:
         `{"anyschema": {"nullable": True}}` for `Optional[T]` types), ensuring that forward references
         are properly evaluated and avoiding code duplication.
 
+        Field-level [`WithAnySchema`][anyschema.WithAnySchema] markers (in the `Annotated` layers of `input_type`,
+        optionally wrapped in a single `| None`) are merged into `metadata` in order, the last value winning per key.
+        A marker `dtype` on a `T | None` field makes it nullable unless `nullable` is set explicitly.
+
         Arguments:
             name: The name of the field.
             input_type: The type to parse.
@@ -264,6 +273,9 @@ class ParserPipeline:
 
         Returns:
             A [`AnyField`][anyschema.AnyField] instance containing the parsed dtype and field-level metadata.
+
+        Raises:
+            ValueError: If a marker sets a key that `metadata` also sets.
 
         Examples:
             >>> from anyschema.parsers import make_pipeline
@@ -287,17 +299,12 @@ class ParserPipeline:
         """
         from anyschema._anyschema import AnyField
 
+        input_type, markers, is_optional = split_field_markers(input_type)
+        if markers:
+            metadata = merge_field_markers(name, metadata, markers, is_optional=is_optional)
+
         if (into_dtype := get_anyschema_value_by_key(metadata, key="dtype")) is not None:
-            if isinstance(into_dtype, DType):
-                dtype = into_dtype
-            elif isinstance(into_dtype, str):  # pyright: ignore[reportUnnecessaryIsInstance]
-                dtype = deserialize_dtype(into_dtype=into_dtype)
-            else:
-                msg = (
-                    f"Expected `dtype` value to be of type `narwhals.dtypes.DType` or `str`, \n"
-                    f"found '{qualified_type_name(into_dtype)}' instead."
-                )
-                raise TypeError(msg)
+            dtype = ensure_dtype(into_dtype)
         else:
             dtype = self.parse(input_type, constraints, metadata, strict=True)
 

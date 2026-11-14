@@ -3,7 +3,7 @@ from __future__ import annotations
 import sys
 from dataclasses import dataclass, make_dataclass
 from dataclasses import field as dc_field
-from typing import TYPE_CHECKING, Annotated, Any, Literal, Optional, cast
+from typing import TYPE_CHECKING, Annotated, Any, ForwardRef, Literal, Optional, cast
 
 import attrs
 import narwhals as nw
@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field, create_model
 from typing_extensions import TypedDict
 
 from anyschema import AnyField, AnySchema, WithAnySchema
+from anyschema.parsers import make_pipeline
 
 if TYPE_CHECKING:
     from narwhals.dtypes import DType
@@ -215,6 +216,36 @@ def test_dtype_explicit_nullable_wins(kind: SpecKind, *, nullable: bool) -> None
 def test_explicit_not_nullable_wins_without_dtype(kind: SpecKind) -> None:
     tp = Annotated[int | None, WithAnySchema(nullable=False)]
     assert field_of(make_spec(kind, tp)) == AnyField(name="x", dtype=nw.Int64(), nullable=False)
+
+
+@pytest.mark.parametrize(
+    ("annotation", "expected"),
+    [
+        (
+            "Annotated[Optional[int], WithAnySchema(dtype='Int32')]",
+            AnyField(name="x", dtype=nw.Int32(), nullable=True),
+        ),
+        (
+            "Optional[Annotated[int, WithAnySchema(dtype='Int32')]]",
+            AnyField(name="x", dtype=nw.Int32(), nullable=True),
+        ),
+        (
+            "Annotated[int, WithAnySchema(unique=True, custom={'foo': 1})]",
+            AnyField(name="x", dtype=nw.Int64(), unique=True, metadata={"foo": 1}),
+        ),
+    ],
+)
+def test_forward_ref_markers_are_field_level(annotation: str, expected: AnyField) -> None:
+    assert field_of({"x": ForwardRef(annotation)}) == expected
+
+
+def test_unresolvable_forward_ref_with_spec_dtype_override() -> None:
+    # The spec's own `dtype` skips parsing, so an unresolvable forward ref does not raise.
+    field = make_pipeline().parse_into_field("x", ForwardRef("Missing"), (), {"anyschema": {"dtype": "Int32"}})
+    assert field == AnyField(name="x", dtype=nw.Int32())
+
+    with pytest.raises(NotImplementedError, match="Failed to resolve ForwardRef 'Missing'"):
+        AnySchema(spec={"x": ForwardRef("Missing")})
 
 
 @pytest.mark.parametrize("kind", KINDS_WITH_METADATA)

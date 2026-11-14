@@ -236,10 +236,11 @@ The pipeline processes this as:
 
 [`WithAnySchema`][anyschema.WithAnySchema] markers are handled in two places:
 
-1. `ParserPipeline.parse_into_field` strips the **field-level** markers (the `Annotated` layers of the field type,
-    optionally wrapped in a single `| None`), merges them in order (last wins), raises if they set a key that the
-    adapter metadata also sets, and adds them to the metadata. The existing `dtype` override then runs on the
-    stripped type.
+1. `ParserPipeline.parse_into_field` first resolves a field type that is a `ForwardRef` (with the pipeline's
+    `ForwardRefStep`, keeping it unresolved if that fails). It then strips the **field-level** markers (the
+    `Annotated` layers of the field type, optionally wrapped in a single `| None`), merges them in order (last wins),
+    raises if they set a key that the adapter metadata also sets, and adds them to the metadata. The existing `dtype`
+    override then runs on the stripped type.
 2. `AnnotatedStep` handles **nested** markers: the last `dtype` sets the dtype of that element, and a marker
     setting any other key raises `NotImplementedError`, since nested elements have no field metadata. Markers never
     reach the steps that follow.

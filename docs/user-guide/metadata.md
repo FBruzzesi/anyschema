@@ -941,8 +941,8 @@ Deeper than that, e.g. inside `list[...]` or in the fields of a nested model, da
 * A marker setting anything other than `dtype` raises a `NotImplementedError`, since nested elements have no field
     metadata.
 
-Markers inside a forward reference (a string annotation) that is still unresolved when anyschema reads the field
-count as nested too. Resolve it first, e.g. with `Model.model_rebuild()` for Pydantic.
+A field type that is still a forward reference (a string annotation) when anyschema reads it is resolved first, with
+the namespace of the pipeline's `ForwardRefStep`, so the same placement rules apply inside it.
 
 ```python exec="true" source="above" result="python" session="annotated-markers-nested"
 from typing import Annotated

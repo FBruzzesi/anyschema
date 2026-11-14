@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from contextlib import suppress
 from itertools import chain
-from typing import TYPE_CHECKING, Literal, overload
+from typing import TYPE_CHECKING, ForwardRef, Literal, overload
 
 from typing_extensions import Self, TypeIs
 
@@ -262,7 +263,9 @@ class ParserPipeline:
 
         Field-level [`WithAnySchema`][anyschema.WithAnySchema] markers (in the `Annotated` layers of `input_type`,
         optionally wrapped in a single `| None`) are merged into `metadata` in order, the last value winning per key.
-        A marker `dtype` on a `T | None` field makes it nullable unless `nullable` is set explicitly.
+        A marker `dtype` on a `T | None` field makes it nullable unless `nullable` is set explicitly. If `input_type`
+        is a `ForwardRef`, the pipeline's `ForwardRefStep` resolves it first, so that markers inside it are field
+        level too.
 
         Arguments:
             name: The name of the field.
@@ -298,6 +301,14 @@ class ParserPipeline:
             True
         """
         from anyschema._anyschema import AnyField
+
+        if isinstance(input_type, ForwardRef) and (
+            forward_ref_step := next((step for step in self.steps if isinstance(step, ForwardRefStep)), None)
+        ):
+            # Resolve first so that markers inside string annotations are field level. On failure, keep the
+            # unresolved type: it only raises if it needs parsing (a `dtype` override skips that).
+            with suppress(NotImplementedError):
+                input_type = forward_ref_step.resolve(input_type)
 
         input_type, markers, is_optional = split_field_markers(input_type)
         if markers:

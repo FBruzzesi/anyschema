@@ -98,8 +98,7 @@ class AnnotatedStep(ParserStep):
                 "Nested `WithAnySchema` markers can only set `dtype`: other metadata is only supported at the field "
                 "level, i.e. in the `Annotated` layers of a field type, optionally wrapped in a single `| None`. "
                 f"Found it nested in {input_type!r}.\n\n"
-                "Fields of nested structs (models, dataclasses, TypedDicts, ...) count as nested, and so do "
-                "unresolved forward references: resolve those first (e.g. with `Model.model_rebuild()`)."
+                "Fields of nested structs (models, dataclasses, TypedDicts, ...) count as nested."
             )
             raise NotImplementedError(msg)
         if dtypes := [dtype for marker in markers if (dtype := marker.dtype) is not None]:

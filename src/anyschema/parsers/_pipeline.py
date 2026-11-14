@@ -253,8 +253,9 @@ class ParserPipeline:
         optionally wrapped in a single `| None`) are merged into `metadata` in order, the last value winning per key.
         Forward references in those layers are resolved first with the pipeline's `ForwardRefStep`.
 
-        `nullable` comes from the metadata if set. Otherwise the field is nullable if its field-level type contains
-        `None`, whether or not `dtype` is overridden. `list[T | None]` is not nullable: only its elements are.
+        `nullable` comes from the metadata if set and not `None`. Otherwise the field is nullable if its field-level
+        type contains `None`, with or without a `dtype` override. `list[T | None]` is not nullable, only its elements
+        are.
 
         Arguments:
             name: The name of the field.
@@ -303,10 +304,12 @@ class ParserPipeline:
         else:
             dtype = self.parse(parts.field_type, constraints, metadata, strict=True)
 
+        # Read after parsing: a custom step may set it. An explicit `None` counts as unset.
+        nullable = get_anyschema_value_by_key(metadata, key="nullable")
         return AnyField(
             name=name,
             dtype=dtype,
-            nullable=get_anyschema_value_by_key(metadata, key="nullable", default=parts.contains_none),
+            nullable=parts.contains_none if nullable is None else nullable,
             unique=get_anyschema_value_by_key(metadata, key="unique", default=False),
             description=get_anyschema_value_by_key(metadata, key="description"),
             metadata=filter_anyschema_metadata(metadata),

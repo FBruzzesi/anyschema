@@ -274,6 +274,13 @@ def test_dtype_spec_nullable_wins(kind: SpecKind) -> None:
     assert field_of(spec) == AnyField(name="x", dtype=nw.Int32(), nullable=False)
 
 
+@pytest.mark.parametrize("kind", KINDS_WITH_METADATA)
+@pytest.mark.parametrize(("tp", "expected_nullable"), [(int | None, True), (int, False)])
+def test_spec_nullable_none_is_unset(kind: SpecKind, tp: Any, *, expected_nullable: bool) -> None:
+    spec = make_spec(kind, tp, metadata={"anyschema": {"nullable": None}})
+    assert field_of(spec) == AnyField(name="x", dtype=nw.Int64(), nullable=expected_nullable)
+
+
 @pytest.mark.parametrize("kind", ALL_KINDS)
 def test_optional_without_dtype(kind: SpecKind) -> None:
     tp = Annotated[Annotated[int, Gt(0)] | None, WithAnySchema(custom={"foo": 1})]

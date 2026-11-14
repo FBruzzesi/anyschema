@@ -421,6 +421,12 @@ def test_parse_into_field_dtype_override_optional_nullable(
     assert field.nullable is expected_nullable
 
 
+@pytest.mark.parametrize(("py_type", "expected_nullable"), [(Optional[int], True), (int, False)])
+def test_parse_into_field_explicit_nullable_none_follows_type(py_type: Any, *, expected_nullable: bool) -> None:
+    field = make_pipeline().parse_into_field("x", py_type, (), {"anyschema": {"nullable": None}})
+    assert field.nullable is expected_nullable
+
+
 @pytest.mark.parametrize(
     ("py_type", "expected"),
     [

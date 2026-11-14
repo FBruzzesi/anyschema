@@ -12,7 +12,8 @@ from pydantic import Field as PydanticField
 from sqlalchemy import Column, Integer, MetaData, String, Table
 
 from anyschema import AnyField, AnySchema
-from anyschema.parsers import PyTypeStep, UnionTypeStep, make_pipeline
+from anyschema._metadata import set_anyschema_meta
+from anyschema.parsers import ParserStep, PyTypeStep, UnionTypeStep, make_pipeline
 from anyschema.serde import serialize_dtype
 from tests.conftest import AttrsBookWithMetadata, AttrsPerson, user_table
 
@@ -21,7 +22,7 @@ if TYPE_CHECKING:
 
     from narwhals.dtypes import DType
 
-    from anyschema.typing import AnySchemaNamespaceKey
+    from anyschema.typing import AnySchemaNamespaceKey, FieldConstraints, FieldMetadata, FieldType
 
 
 @pytest.mark.parametrize(
@@ -445,6 +446,30 @@ def test_parse_into_field_nested_optional_does_not_mutate_metadata() -> None:
     metadata: dict[str, Any] = {}
     make_pipeline().parse_into_field("x", Optional[list[Optional[int]]], (), metadata)
     assert metadata == {}
+
+
+class OptionalIntAlias:
+    """Stands for a user type that a custom step unwraps into `int | None`."""
+
+
+class OptionalIntAliasStep(ParserStep):
+    def __init__(self, *, set_nullable: bool) -> None:
+        self.set_nullable = set_nullable
+
+    def parse(self, input_type: FieldType, constraints: FieldConstraints, metadata: FieldMetadata) -> DType | None:
+        if input_type is not OptionalIntAlias:
+            return None
+        if self.set_nullable:
+            set_anyschema_meta(metadata, key="nullable", value=True)
+        return self.pipeline.parse(Optional[int], constraints, metadata, strict=True)
+
+
+@pytest.mark.parametrize("set_nullable", [True, False])
+def test_parse_into_field_custom_step_sets_nullable(*, set_nullable: bool) -> None:
+    # Only the field-level type or the `nullable` key set during parsing make the field nullable.
+    pipeline = make_pipeline([OptionalIntAliasStep(set_nullable=set_nullable), UnionTypeStep(), PyTypeStep()])
+    field = pipeline.parse_into_field("x", OptionalIntAlias, (), {})
+    assert field == AnyField(name="x", dtype=nw.Int64(), nullable=set_nullable)
 
 
 def test_parse_into_field_without_forward_ref_step_is_nullable() -> None:

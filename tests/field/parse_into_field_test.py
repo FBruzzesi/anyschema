@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from dataclasses import field as dc_field
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Annotated, Any, Optional, Union
 
 import narwhals as nw
 import pytest
@@ -12,7 +12,7 @@ from pydantic import Field as PydanticField
 from sqlalchemy import Column, Integer, MetaData, String, Table
 
 from anyschema import AnyField, AnySchema
-from anyschema.parsers import make_pipeline
+from anyschema.parsers import PyTypeStep, UnionTypeStep, make_pipeline
 from anyschema.serde import serialize_dtype
 from tests.conftest import AttrsBookWithMetadata, AttrsPerson, user_table
 
@@ -439,6 +439,28 @@ def test_parse_into_field_nested_optional_does_not_mutate_metadata() -> None:
     metadata: dict[str, Any] = {}
     make_pipeline().parse_into_field("x", Optional[list[Optional[int]]], (), metadata)
     assert metadata == {}
+
+
+def test_parse_into_field_without_forward_ref_step_is_nullable() -> None:
+    pipeline = make_pipeline([UnionTypeStep(), PyTypeStep()])
+    field = pipeline.parse_into_field("x", Optional["int"], (), {"anyschema": {"dtype": "Int32"}})
+    assert field == AnyField(name="x", dtype=nw.Int32(), nullable=True)
+
+
+@pytest.mark.parametrize(
+    ("py_type", "anyschema_meta", "expected"),
+    [
+        (Annotated["int | None", "meta"], {}, AnyField(name="x", dtype=nw.Int64(), nullable=True)),
+        (Annotated["Optional[int]", Gt(0)], {}, AnyField(name="x", dtype=nw.UInt64(), nullable=True)),
+        (Optional["int"], {}, AnyField(name="x", dtype=nw.Int64(), nullable=True)),
+        (Union[int, str, None], {"dtype": "String"}, AnyField(name="x", dtype=nw.String(), nullable=True)),
+        (Union[int, str], {"dtype": "String"}, AnyField(name="x", dtype=nw.String(), nullable=False)),
+    ],
+)
+def test_parse_into_field_field_level_none_is_nullable(
+    py_type: Any, anyschema_meta: dict[str, Any], expected: AnyField
+) -> None:
+    assert make_pipeline().parse_into_field("x", py_type, (), {"anyschema": anyschema_meta}) == expected
 
 
 @pytest.mark.parametrize(

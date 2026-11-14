@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from types import NoneType, UnionType
-from typing import TYPE_CHECKING, Annotated, Union
+from typing import TYPE_CHECKING, Annotated, ForwardRef, Union
 
 from typing_extensions import get_args, get_origin  # noqa: UP035
 
@@ -9,21 +9,29 @@ from anyschema._metadata import partition_markers
 from anyschema.parsers._base import ParserStep
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from narwhals.dtypes import DType
 
     from anyschema._metadata import WithAnySchema
     from anyschema.typing import FieldConstraints, FieldMetadata, FieldType
 
 
-def split_field_markers(input_type: FieldType) -> tuple[FieldType, tuple[WithAnySchema, ...], bool]:
+def split_field_markers(
+    input_type: FieldType, resolve_forward_ref: Callable[[ForwardRef], FieldType] | None = None
+) -> tuple[FieldType, tuple[WithAnySchema, ...], bool]:
     """Split the field-level `Annotated` markers off a field type.
 
-    Field-level markers sit in the `Annotated` layers of the type, optionally wrapped in a single `T | None`. Deeper
+    Field-level markers sit in the `Annotated` layers of the type, optionally wrapped in a single `| None`. Deeper
     markers (e.g. inside `list[...]`) stay in place for `AnnotatedStep`.
 
+    Arguments:
+        input_type: The field type.
+        resolve_forward_ref: Resolves a forward reference met at the field level, so that its markers and `| None` are
+            field level too. An unresolvable one is kept as is.
+
     Returns:
-        A tuple of `(type without field-level markers, markers innermost first, whether the type is optional)`. The
-        input type is returned unchanged when it has no field-level markers.
+        `(type without field-level markers, markers innermost first, whether the field-level type contains None)`.
 
     Examples:
         >>> from typing import Annotated, Optional
@@ -33,15 +41,28 @@ def split_field_markers(input_type: FieldType) -> tuple[FieldType, tuple[WithAny
         >>> input_type == Optional[int], markers, is_optional
         (True, (WithAnySchema(unique=True),), True)
     """
-    return _split_field_markers(input_type, inside_optional=False)
+    return _split_field_markers(input_type, resolve_forward_ref, inside_optional=False)
 
 
 def _split_field_markers(
-    input_type: FieldType, *, inside_optional: bool
+    input_type: FieldType,
+    resolve_forward_ref: Callable[[ForwardRef], FieldType] | None,
+    *,
+    inside_optional: bool,
 ) -> tuple[FieldType, tuple[WithAnySchema, ...], bool]:
+    if isinstance(input_type, ForwardRef) and resolve_forward_ref is not None:
+        try:
+            resolved_type = resolve_forward_ref(input_type)
+        except NotImplementedError:
+            # Keep it unresolved: parsing it raises later, unless a `dtype` override skips parsing.
+            return input_type, (), inside_optional
+        return _split_field_markers(resolved_type, resolve_forward_ref, inside_optional=inside_optional)
+
     if get_origin(input_type) is Annotated:
         base_type, *extras = get_args(input_type)
-        inner_type, inner_markers, is_optional = _split_field_markers(base_type, inside_optional=inside_optional)
+        inner_type, inner_markers, is_optional = _split_field_markers(
+            base_type, resolve_forward_ref, inside_optional=inside_optional
+        )
         markers, other_extras = partition_markers(extras)
         if not (markers or inner_markers):
             return input_type, (), is_optional
@@ -51,9 +72,11 @@ def _split_field_markers(
     args = get_args(input_type)
     is_union = get_origin(input_type) is Union or isinstance(input_type, UnionType)
     # Only the first `| None` layer is field level: stop at a second one.
-    if not inside_optional and is_union and len(args) == 2 and NoneType in args:  # noqa: PLR2004
-        (non_none_type,) = (arg for arg in args if arg is not NoneType)
-        inner_type, markers, _ = _split_field_markers(non_none_type, inside_optional=True)
+    if not inside_optional and is_union and NoneType in args:
+        non_none_types = [arg for arg in args if arg is not NoneType]
+        if len(non_none_types) > 1:  # e.g. `int | str | None`: no markers to unwrap, but the field is nullable
+            return input_type, (), True
+        inner_type, markers, _ = _split_field_markers(non_none_types[0], resolve_forward_ref, inside_optional=True)
         # `Union[...]` rather than `|`, which fails on ForwardRef
         stripped_type = Union[(inner_type, None)] if markers else input_type  # noqa: UP007  # pyrefly: ignore[not-a-type]
         return stripped_type, markers, True

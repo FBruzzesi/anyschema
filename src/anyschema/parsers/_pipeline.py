@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from contextlib import suppress
 from itertools import chain
-from typing import TYPE_CHECKING, ForwardRef, Literal, overload
+from typing import TYPE_CHECKING, Literal, overload
 
 from typing_extensions import Self, TypeIs
 
@@ -258,11 +257,10 @@ class ParserPipeline:
 
         Field-level [`WithAnySchema`][anyschema.WithAnySchema] markers (in the `Annotated` layers of `input_type`,
         optionally wrapped in a single `| None`) are merged into `metadata` in order, the last value winning per key.
-        If `input_type` is a `ForwardRef`, the pipeline's `ForwardRefStep` resolves it first, so that markers inside it
-        are field level too.
+        Forward references in those layers are resolved first with the pipeline's `ForwardRefStep`.
 
-        `nullable` comes from the metadata if set. Otherwise the field is nullable if its field-level type is
-        `T | None`, whether or not `dtype` is overridden. `list[T | None]` is not nullable: only its elements are.
+        `nullable` comes from the metadata if set. Otherwise the field is nullable if its field-level type contains
+        `None`, whether or not `dtype` is overridden. `list[T | None]` is not nullable: only its elements are.
 
         Arguments:
             name: The name of the field.
@@ -301,15 +299,10 @@ class ParserPipeline:
             )
             raise ValueError(msg)
 
-        if isinstance(input_type, ForwardRef) and (
-            forward_ref_step := next((step for step in self.steps if isinstance(step, ForwardRefStep)), None)
-        ):
-            # Resolve first so that markers inside string annotations are field level. On failure, keep the
-            # unresolved type: it only raises if it needs parsing (a `dtype` override skips that).
-            with suppress(NotImplementedError):
-                input_type = forward_ref_step.resolve(input_type)
-
-        input_type, markers, is_optional = split_field_markers(input_type)
+        forward_ref_step = next((step for step in self.steps if isinstance(step, ForwardRefStep)), None)
+        input_type, markers, is_optional = split_field_markers(
+            input_type, resolve_forward_ref=forward_ref_step.resolve if forward_ref_step else None
+        )
         if markers:
             metadata = merge_field_markers(name, metadata, markers)
 

@@ -240,6 +240,17 @@ def test_forward_ref_markers_are_field_level(annotation: str, expected: AnyField
     assert field_of({"x": ForwardRef(annotation)}) == expected
 
 
+@pytest.mark.parametrize(
+    "tp",
+    [
+        Annotated["Optional[int]", WithAnySchema(unique=True)],
+        Optional["Annotated[int, WithAnySchema(unique=True)]"],
+    ],
+)
+def test_forward_ref_inside_field_level_layers(tp: Any) -> None:
+    assert field_of({"x": tp}) == AnyField(name="x", dtype=nw.Int64(), nullable=True, unique=True)
+
+
 def test_unresolvable_forward_ref_with_spec_dtype_override() -> None:
     # The spec's own `dtype` skips parsing, so an unresolvable forward ref does not raise.
     field = make_pipeline().parse_into_field("x", ForwardRef("Missing"), (), {"anyschema": {"dtype": "Int32"}})
@@ -247,6 +258,12 @@ def test_unresolvable_forward_ref_with_spec_dtype_override() -> None:
 
     with pytest.raises(NotImplementedError, match="Failed to resolve ForwardRef 'Missing'"):
         AnySchema(spec={"x": ForwardRef("Missing")})
+
+
+def test_unresolvable_forward_ref_inside_optional_with_spec_dtype_override() -> None:
+    tp: Any = Optional[ForwardRef("Missing")]  # pyrefly: ignore[invalid-annotation]
+    field = make_pipeline().parse_into_field("x", tp, (), {"anyschema": {"dtype": "Int32"}})
+    assert field == AnyField(name="x", dtype=nw.Int32(), nullable=True)
 
 
 @pytest.mark.parametrize("kind", KINDS_WITH_METADATA)
@@ -270,7 +287,7 @@ def test_nested_optional_is_not_nullable(kind: SpecKind, tp: Any) -> None:
 
 
 @pytest.mark.parametrize("kind", KINDS_WITH_METADATA)
-@pytest.mark.parametrize("tp", [int | None])
+@pytest.mark.parametrize("tp", [int | None, int | str | None])
 def test_spec_dtype_override_and_optional_is_nullable(kind: SpecKind, tp: Any) -> None:
     # Same rule as a marker `dtype`: a field-level `| None` makes the field nullable.
     spec = make_spec(kind, tp, metadata={"anyschema": {"dtype": "Int32"}})

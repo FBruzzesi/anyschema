@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Annotated, Any, ForwardRef, Literal, Optional,
 import attrs
 import narwhals as nw
 import pytest
-from annotated_types import Gt
+from annotated_types import Gt, MinLen
 from pydantic import BaseModel, Field, create_model
 from typing_extensions import TypedDict
 
@@ -36,7 +36,8 @@ def make_spec(kind: SpecKind, tp: Any, metadata: dict[str, Any] | None = None, n
     if kind == "dataclass":
         return make_dataclass("DC", [(name, tp, dc_field(metadata=metadata or {}))])
     if kind == "attrs":
-        return attrs.make_class("AT", {name: attrs.field(type=tp, metadata=metadata or {})})
+        # `attrs.field(type=...)` needs attrs>=22.2: declare the type as an annotation instead.
+        return attrs.define(type("AT", (), {"__annotations__": {name: tp}, name: attrs.field(metadata=metadata or {})}))
     return cast("Any", create_model)("PD", **{name: (tp, Field(json_schema_extra=metadata))})
 
 
@@ -299,7 +300,7 @@ INNER_STRUCT = nw.Struct({"a": nw.Int8(), "b": nw.Categorical()})
         (list[Annotated[int, Gt(0), WithAnySchema(dtype="Int8")]], nw.List(nw.Int8())),
         (list[Annotated[int, WithAnySchema(dtype="Int8"), WithAnySchema(dtype="Int16")]], nw.List(nw.Int16())),
         (list[Annotated[int, WithAnySchema(dtype="Int8"), WithAnySchema()]], nw.List(nw.Int8())),
-        (Annotated[list[Annotated[str, WithAnySchema(dtype=nw.Categorical())]], Gt(0)], nw.List(nw.Categorical())),
+        (Annotated[list[Annotated[str, WithAnySchema(dtype=nw.Categorical())]], MinLen(1)], nw.List(nw.Categorical())),
         (InnerTD, INNER_STRUCT),
         (InnerModel, INNER_STRUCT),
         (InnerDC, INNER_STRUCT),

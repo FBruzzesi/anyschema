@@ -323,7 +323,7 @@ def merge_field_markers(field_name: str, metadata: FieldMetadata, markers: Itera
     Raises:
         ValueError: If a marker and the spec's own metadata set the same key, even to the same value.
     """
-    marker_anyschema: dict[str, Any] = {}
+    marker_anyschema: AnySchemaMetadata = {}
     marker_custom: dict[str, Any] = {}
     for marker in markers:
         marker_anyschema.update(marker.anyschema)

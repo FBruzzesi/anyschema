@@ -37,19 +37,18 @@ class UnionTypeStep(ParserStep):
             UnsupportedDTypeError: If the union is not `T | None`.
         """
         if get_origin(input_type) is Union or isinstance(input_type, UnionType):
-            args = get_args(input_type)
-            extracted_type = self._parse_union(args)
-            return self.pipeline.parse(extracted_type, constraints, metadata, strict=True)
+            non_none_type = self._extract_non_none_type(get_args(input_type))
+            return self.pipeline.parse(non_none_type, constraints, metadata, strict=True)
         return None
 
-    def _parse_union(self, union: tuple[FieldType, ...]) -> FieldType:
-        if len(union) != 2:  # noqa: PLR2004
+    def _extract_non_none_type(self, union_args: tuple[FieldType, ...]) -> FieldType:
+        if len(union_args) != 2:  # noqa: PLR2004
             msg = "Union with more than two types is not supported."
             raise UnsupportedDTypeError(msg)
 
-        field0, field1 = union
-        if field0 is not NoneType and field1 is not NoneType:
+        first, second = union_args
+        if first is not NoneType and second is not NoneType:
             msg = "Union with mixed types is not supported."
             raise UnsupportedDTypeError(msg)
 
-        return field1 if field0 is NoneType else field0
+        return second if first is NoneType else first

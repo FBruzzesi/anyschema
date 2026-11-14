@@ -25,12 +25,6 @@ if TYPE_CHECKING:
     from narwhals.dtypes import DType
 
     from anyschema._anyschema import AnyField
-    from anyschema.typing import IntoParserPipeline
-
-
-if TYPE_CHECKING:
-    from collections.abc import Sequence
-
     from anyschema.typing import FieldConstraints, FieldMetadata, FieldType, IntoParserPipeline
 
 
@@ -306,8 +300,8 @@ class ParserPipeline:
         if markers:
             metadata = merge_field_markers(name, metadata, markers)
 
-        if (into_dtype := get_anyschema_value_by_key(metadata, key="dtype")) is not None:
-            dtype = ensure_dtype(into_dtype)
+        if (dtype_override := get_anyschema_value_by_key(metadata, key="dtype")) is not None:
+            dtype = ensure_dtype(dtype_override)
         else:
             dtype = self.parse(input_type, constraints, metadata, strict=True)
 

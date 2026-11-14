@@ -209,6 +209,9 @@ Specifies whether the field can contain null values.
 
 Only the field-level type counts: in `list[int | None]` the elements can be null, but the field cannot.
 
+A forward reference that cannot be resolved (e.g. `"Missing | None"` together with a `dtype` override) hides its
+`None`, so set `nullable` explicitly in that case.
+
 Let's take a look at an example:
 
 ```python exec="true" source="above" result="python" session="nullable-example"

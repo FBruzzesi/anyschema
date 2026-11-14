@@ -252,9 +252,10 @@ See [Annotated markers](user-guide/metadata.md#annotated-markers) for the user-f
 
 ### Nullability
 
-`ParserPipeline.parse_into_field` sets `AnyField.nullable` from the `nullable` metadata key if present. Otherwise the
-field is nullable if its field-level type (the same layers as for markers) contains `None`. Parser steps never set it:
-`UnionTypeStep` also runs on nested types, and the `| None` in `list[T | None]` belongs to the elements, not the field.
+`ParserPipeline.parse_into_field` sets `AnyField.nullable` from the `nullable` metadata key, read after parsing. If the
+key is missing or `None`, the field is nullable when its field-level type (the same layers as for markers) contains
+`None`. The built-in steps never set the key: `UnionTypeStep` also parses nested types, and the `| None` in
+`list[T | None]` belongs to the elements, not the field. A custom step may still set it.
 
 ## Recursion and Nested Types
 

@@ -94,7 +94,7 @@ Documentation uses MkDocs with mkdocstrings for API reference generation.
 
 ### Python Style
 
-- **Python version**: Minimum 3.10, test on 3.10-3.14
+- **Python version**: Minimum 3.10, test on 3.10-3.15
 - **Formatting**: Ruff (120 line length, Google docstring convention)
 - **Imports**: Every file must start with `from __future__ import annotations`
 - **Type hints**: Fully typed codebase (`disallow_untyped_defs = true`)

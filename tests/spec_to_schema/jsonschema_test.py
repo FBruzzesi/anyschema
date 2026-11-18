@@ -101,6 +101,7 @@ def test_non_string_enum_const_convert_to_backends(
 ) -> None:
     # Non-string `enum`/`const` must degrade to a scalar dtype: a non-string `Enum` cannot be lowered to any
     # backend. These conversions would raise if the field were mapped to `Enum([...])`.
+    pytest.importorskip("polars")
     schema = AnySchema(spec=json_object_schema({"x": json_schema}))
     assert schema._nw_schema == nw.Schema({"x": expected_dtype})
     schema.to_arrow()
@@ -109,7 +110,7 @@ def test_non_string_enum_const_convert_to_backends(
 
 def test_string_enum_is_polars_enum() -> None:
     # String choices stay categorical (a Narwhals `Enum`), which Polars can lower.
-    import polars as pl
+    pl = pytest.importorskip("polars")
 
     schema = AnySchema(spec=json_object_schema({"role": {"enum": ["admin", "user"]}}))
     assert schema._nw_schema == nw.Schema({"role": nw.Enum(["admin", "user"])})

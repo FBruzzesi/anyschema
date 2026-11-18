@@ -158,14 +158,8 @@ over individual field dtypes without writing a custom parser.
 
     When you specify a `dtype` override, the parser pipeline is **completely bypassed** for that field.
 
-    This means:
-
-    * Type information (like `Optional[int]`) won't affect `nullable` unless explicitly set (the
-      [`WithAnySchema`](#annotated-markers) marker is the exception: see [Nullability](#nullability))
-    * Constraints and annotations are ignored
-    * The specified dtype is used exactly as provided
-
-    If you need nullable or other metadata, set them explicitly alongside `dtype`.
+    Constraints and annotations are ignored and the dtype is used exactly as provided. Nullability still follows the
+    type: a field-level `Optional[int]` makes the field nullable unless `nullable` is set (see [`nullable`](#nullable)).
 
 #### When to override dtype vs writing a custom parser
 
@@ -191,15 +185,16 @@ class ProductWithOverrides(BaseModel):
     # Parse as Int32 instead of default Int64
     quantity: int = Field(json_schema_extra={"anyschema": {"dtype": "Int32"}})
 
-    # Without explicit nullable, Optional[int] won't make this nullable
+    # Optional[int] still makes this nullable
     price: Optional[int] = Field(json_schema_extra={"anyschema": {"dtype": "UInt32"}})
 
-    # Explicitly set nullable=True along with dtype override
-    name: Optional[str] = Field(json_schema_extra={"anyschema": {"dtype": "String", "nullable": True}})
+    # nullable=False overrides the Optional
+    name: Optional[str] = Field(json_schema_extra={"anyschema": {"dtype": "String", "nullable": False}})
 
 
 schema = AnySchema(spec=ProductWithOverrides)
 print(schema._nw_schema)
+print(schema.nullables(named=True))
 ```
 
 ### `nullable`
@@ -208,9 +203,14 @@ Specifies whether the field can contain null values.
 
 **Precedence rules** (highest to lowest):
 
-1. Explicit `nullable` metadata key
-2. Type inference (`Optional[T]` or `T | None`)
-3. Default: `False` (non-nullable by default)
+1. The `nullable` metadata key, from the spec or a [`WithAnySchema`](#annotated-markers) marker
+2. Type inference: the field-level type contains `None` (`Optional[T]`, `T | None`), also when `dtype` is overridden
+3. Default: `False`
+
+Only the field-level type counts: in `list[int | None]` the elements can be null, but the field cannot.
+
+A forward reference that cannot be resolved (e.g. `"Missing | None"` together with a `dtype` override) hides its
+`None`, so set `nullable` explicitly in that case.
 
 Let's take a look at an example:
 
@@ -223,6 +223,7 @@ class User(BaseModel):
     id: int = Field(json_schema_extra={"anyschema": {"nullable": False}})
     username: str
     email: str | None
+    scores: list[int | None]  # Only the elements are nullable
 
 
 schema = AnySchema(spec=User)
@@ -942,8 +943,8 @@ Deeper than that, e.g. inside `list[...]` or in the fields of a nested model, da
 * A marker setting anything other than `dtype` raises a `NotImplementedError`, since nested elements have no field
     metadata.
 
-A field type that is still a forward reference (a string annotation) when anyschema reads it is resolved first, with
-the namespace of the pipeline's `ForwardRefStep`, so the same placement rules apply inside it.
+Forward references (string annotations) in the field-level layers are resolved first, with the namespace of the
+pipeline's `ForwardRefStep`, so the same placement rules apply inside them.
 
 ```python exec="true" source="above" result="python" session="annotated-markers-nested"
 from typing import Annotated
@@ -957,27 +958,6 @@ try:
     AnySchema(spec={"tags": list[Annotated[str, WithAnySchema(custom={"pii": True})]]})
 except NotImplementedError as exc:
     print(type(exc).__name__)
-```
-
-### Nullability
-
-A field-level marker setting `dtype` on a field typed `T | None` gives a nullable field,
-unless `nullable` is set explicitly. This differs from the `dtype` set via the spec's own metadata, which does not
-infer nullability (see [`dtype`](#dtype)).
-
-```python exec="true" source="above" result="python" session="annotated-markers-nullable"
-from typing import Annotated, Optional
-
-from anyschema import AnySchema, WithAnySchema
-
-schema = AnySchema(
-    spec={
-        "a": Optional[Annotated[int, WithAnySchema(dtype="Int32")]],
-        "b": Annotated[Optional[int], WithAnySchema(dtype="Int32"), WithAnySchema(nullable=False)],
-        "c": Annotated[int, WithAnySchema(dtype="Int32")],
-    }
-)
-print({name: field.nullable for name, field in schema.fields.items()})
 ```
 
 !!! info "SQLAlchemy"

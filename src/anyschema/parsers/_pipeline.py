@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from contextlib import suppress
 from itertools import chain
-from typing import TYPE_CHECKING, ForwardRef, Literal, overload
+from typing import TYPE_CHECKING, Literal, overload
 
 from typing_extensions import Self, TypeIs
 
@@ -26,12 +25,6 @@ if TYPE_CHECKING:
     from narwhals.dtypes import DType
 
     from anyschema._anyschema import AnyField
-    from anyschema.typing import IntoParserPipeline
-
-
-if TYPE_CHECKING:
-    from collections.abc import Sequence
-
     from anyschema.typing import FieldConstraints, FieldMetadata, FieldType, IntoParserPipeline
 
 
@@ -251,30 +244,27 @@ class ParserPipeline:
         constraints: FieldConstraints,
         metadata: FieldMetadata,
     ) -> AnyField:
-        """Parse a field specification into a AnyField object.
+        """Parse a field specification into an [`AnyField`][anyschema.AnyField].
 
-        This is the recommended method for parsing field specifications at the top level.
-        It wraps the DType parsing with additional field-level information like nullability,
-        uniqueness, and custom metadata.
-
-        Parsing fills field-level metadata into a copy of `metadata` (e.g. `UnionTypeStep` sets
-        `{"anyschema": {"nullable": True}}` for `Optional[T]`), so forward references are resolved before
-        nullability is read. The caller's dict, and any nested dict it holds, is never modified.
+        Unlike [`parse`][anyschema.parsers.ParserPipeline.parse], it also sets the field-level information:
+        nullability, uniqueness, description and custom metadata.
 
         Field-level [`WithAnySchema`][anyschema.WithAnySchema] markers (in the `Annotated` layers of `input_type`,
         optionally wrapped in a single `| None`) are merged into `metadata` in order, the last value winning per key.
-        A marker `dtype` on a `T | None` field makes it nullable unless `nullable` is set explicitly. If `input_type`
-        is a `ForwardRef`, the pipeline's `ForwardRefStep` resolves it first, so that markers inside it are field
-        level too.
+        Forward references in those layers are resolved first with the pipeline's `ForwardRefStep`.
+
+        `nullable` comes from the metadata if set and not `None`. Otherwise the field is nullable if its field-level
+        type contains `None`, with or without a `dtype` override. `list[T | None]` is not nullable, only its elements
+        are.
 
         Arguments:
             name: The name of the field.
             input_type: The type to parse.
             constraints: Constraints associated with the type.
-            metadata: Custom metadata dictionary. It is not modified, so one dict may be shared across fields.
+            metadata: The field metadata. It is not modified, so one dict may be shared across fields.
 
         Returns:
-            A [`AnyField`][anyschema.AnyField] instance containing the parsed dtype and field-level metadata.
+            The parsed field.
 
         Raises:
             ValueError: If `metadata` has both an `"anyschema"` and an `"x-anyschema"` key, or if a marker sets a key
@@ -287,18 +277,13 @@ class ParserPipeline:
             >>> field
             AnyField(name='age', dtype=Int64, nullable=False, unique=False, description=None, metadata={})
 
-            With nullable=True metadata:
-
-            >>> field = pipeline.parse_into_field("email", str, (), {"anyschema": {"nullable": True}})
-            >>> field.nullable
-            True
-
-            With Optional type (auto-detected as nullable):
-
             >>> from typing import Optional
-            >>> field = pipeline.parse_into_field("email", Optional[str], (), {})
-            >>> field.nullable
+            >>> pipeline.parse_into_field("email", Optional[str], (), {}).nullable
             True
+            >>> pipeline.parse_into_field("email", Optional[str], (), {"anyschema": {"nullable": False}}).nullable
+            False
+            >>> pipeline.parse_into_field("tags", list[Optional[str]], (), {}).nullable
+            False
         """
         from anyschema._anyschema import AnyField
 
@@ -309,29 +294,24 @@ class ParserPipeline:
             )
             raise ValueError(msg)
 
-        if isinstance(input_type, ForwardRef) and (
-            forward_ref_step := next((step for step in self.steps if isinstance(step, ForwardRefStep)), None)
-        ):
-            # Resolve first so that markers inside string annotations are field level. On failure, keep the
-            # unresolved type: it only raises if it needs parsing (a `dtype` override skips that).
-            with suppress(NotImplementedError):
-                input_type = forward_ref_step.resolve(input_type)
+        forward_ref_step = next((step for step in self.steps if isinstance(step, ForwardRefStep)), None)
+        parts = split_field_markers(input_type, forward_ref_step.resolve if forward_ref_step else None)
+        if parts.markers:
+            metadata = merge_field_markers(name, metadata, parts.markers)
 
-        input_type, markers, is_optional = split_field_markers(input_type)
-        if markers:
-            metadata = merge_field_markers(name, metadata, markers, is_optional=is_optional)
-
-        # Steps write into `metadata` (e.g. `nullable` for Optional), so work on a copy.
+        # Custom steps may write into `metadata` (e.g. `nullable`), so work on a copy.
         metadata = dict(metadata)
-        if (into_dtype := get_anyschema_value_by_key(metadata, key="dtype")) is not None:
-            dtype = ensure_dtype(into_dtype)
+        if (dtype_override := get_anyschema_value_by_key(metadata, key="dtype")) is not None:
+            dtype = ensure_dtype(dtype_override)
         else:
-            dtype = self.parse(input_type, constraints, metadata, strict=True)
+            dtype = self.parse(parts.field_type, constraints, metadata, strict=True)
 
+        # Read after parsing: a custom step may set it. An explicit `None` counts as unset.
+        nullable = get_anyschema_value_by_key(metadata, key="nullable")
         return AnyField(
             name=name,
             dtype=dtype,
-            nullable=get_anyschema_value_by_key(metadata, key="nullable", default=False),
+            nullable=parts.contains_none if nullable is None else nullable,
             unique=get_anyschema_value_by_key(metadata, key="unique", default=False),
             description=get_anyschema_value_by_key(metadata, key="description"),
             metadata=filter_anyschema_metadata(metadata),

@@ -232,7 +232,7 @@ The pipeline processes this as:
 2. `AnnotatedStep` extracts constraints: `(Gt(gt=0),)` and passes through
 3. `AnnotatedTypesStep` refines based on constraints and converts to `UInt64` (instead of `Int64`)
 
-Steps may write field-level keys into `metadata`, e.g. `UnionTypeStep` sets `nullable` for `Optional[T]`.
+Custom steps may write field-level keys into `metadata`, e.g. `nullable` (see [Nullability](#nullability)).
 `parse_into_field` hands the steps a shallow copy of the field metadata, and the nested `anyschema` dict is replaced
 rather than edited, so the user's spec is never modified and fields that share one metadata dict stay independent.
 
@@ -240,11 +240,11 @@ rather than edited, so the user's spec is never modified and fields that share o
 
 [`WithAnySchema`][anyschema.WithAnySchema] markers are handled in two places:
 
-1. `ParserPipeline.parse_into_field` first resolves a field type that is a `ForwardRef` (with the pipeline's
-    `ForwardRefStep`, keeping it unresolved if that fails). It then strips the **field-level** markers (the
-    `Annotated` layers of the field type, optionally wrapped in a single `| None`), merges them in order (last wins),
-    raises if they set a key that the adapter metadata also sets, and adds them to the metadata. The existing `dtype`
-    override then runs on the stripped type.
+1. `ParserPipeline.parse_into_field` strips the **field-level** markers (the `Annotated` layers of the field type,
+    optionally wrapped in a single `| None`), merges them in order (last wins), raises if they set a key that the
+    adapter metadata also sets, and adds them to the metadata. Forward references in those layers are resolved first
+    with the pipeline's `ForwardRefStep`, and kept unresolved if that fails. The `dtype` override then runs on the
+    stripped type.
 2. `AnnotatedStep` handles **nested** markers: the last `dtype` sets the dtype of that element, and a marker
     setting any other key raises `NotImplementedError`, since nested elements have no field metadata. Markers never
     reach the steps that follow.
@@ -253,6 +253,13 @@ Pydantic moves the outermost `Annotated` extras of a field into `FieldInfo.metad
 markers back into the field type. Both places above then see Pydantic fields like any other spec.
 
 See [Annotated markers](user-guide/metadata.md#annotated-markers) for the user-facing rules.
+
+### Nullability
+
+`ParserPipeline.parse_into_field` sets `AnyField.nullable` from the `nullable` metadata key, read after parsing. If the
+key is missing or `None`, the field is nullable when its field-level type (the same layers as for markers) contains
+`None`. The built-in steps never set the key: `UnionTypeStep` also parses nested types, and the `| None` in
+`list[T | None]` belongs to the elements, not the field. A custom step may still set it.
 
 ## Recursion and Nested Types
 
@@ -337,7 +344,7 @@ Complete processing flow:
         * `AnnotatedTypesStep`: No metadata -> returns `None`
         * `PydanticTypeStep`: Not a Pydantic type -> returns `None`
         * `PyTypeStep`: `list[str]` -> recursively parse `str` (within the generic) -> returns `List(String())`
-        * **Result**: `List(String())` (nullable)
+        * **Result**: `List(String())`, and `parse_into_field` marks the field nullable (field-level `| None`)
 
 5. Final Schema:
 

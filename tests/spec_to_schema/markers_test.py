@@ -240,6 +240,23 @@ def test_forward_ref_markers_are_field_level(annotation: str, expected: AnyField
     assert field_of({"x": ForwardRef(annotation)}) == expected
 
 
+@pytest.mark.parametrize(
+    "tp",
+    [
+        Annotated["Optional[int]", WithAnySchema(unique=True)],
+        Optional["Annotated[int, WithAnySchema(unique=True)]"],
+    ],
+)
+def test_forward_ref_inside_field_level_layers(tp: Any) -> None:
+    assert field_of({"x": tp}) == AnyField(name="x", dtype=nw.Int64(), nullable=True, unique=True)
+
+
+def test_forward_ref_second_optional_layer_is_nested() -> None:
+    tp: Any = Optional["Optional[Annotated[int, WithAnySchema(unique=True)]]"]
+    with pytest.raises(NotImplementedError, match="Nested `WithAnySchema` markers"):
+        field_of({"x": tp})
+
+
 def test_unresolvable_forward_ref_with_spec_dtype_override() -> None:
     # The spec's own `dtype` skips parsing, so an unresolvable forward ref does not raise.
     field = make_pipeline().parse_into_field("x", ForwardRef("Missing"), (), {"anyschema": {"dtype": "Int32"}})
@@ -247,6 +264,18 @@ def test_unresolvable_forward_ref_with_spec_dtype_override() -> None:
 
     with pytest.raises(NotImplementedError, match="Failed to resolve ForwardRef 'Missing'"):
         AnySchema(spec={"x": ForwardRef("Missing")})
+
+
+def test_unresolvable_forward_ref_inside_optional_with_spec_dtype_override() -> None:
+    tp: Any = Optional[ForwardRef("Missing")]  # pyrefly: ignore[invalid-annotation]
+    field = make_pipeline().parse_into_field("x", tp, (), {"anyschema": {"dtype": "Int32"}})
+    assert field == AnyField(name="x", dtype=nw.Int32(), nullable=True)
+
+
+def test_unresolvable_forward_ref_hides_none() -> None:
+    # Known limit: the `None` inside a forward ref that cannot be resolved is not seen.
+    field = make_pipeline().parse_into_field("x", ForwardRef("Missing | None"), (), {"anyschema": {"dtype": "Int32"}})
+    assert field == AnyField(name="x", dtype=nw.Int32(), nullable=False)
 
 
 @pytest.mark.parametrize("kind", KINDS_WITH_METADATA)
@@ -257,17 +286,31 @@ def test_dtype_spec_nullable_wins(kind: SpecKind) -> None:
     assert field_of(spec) == AnyField(name="x", dtype=nw.Int32(), nullable=False)
 
 
+@pytest.mark.parametrize("kind", KINDS_WITH_METADATA)
+@pytest.mark.parametrize(("tp", "expected_nullable"), [(int | None, True), (int, False)])
+def test_spec_nullable_none_is_unset(kind: SpecKind, tp: Any, *, expected_nullable: bool) -> None:
+    spec = make_spec(kind, tp, metadata={"anyschema": {"nullable": None}})
+    assert field_of(spec) == AnyField(name="x", dtype=nw.Int64(), nullable=expected_nullable)
+
+
 @pytest.mark.parametrize("kind", ALL_KINDS)
 def test_optional_without_dtype(kind: SpecKind) -> None:
     tp = Annotated[Annotated[int, Gt(0)] | None, WithAnySchema(custom={"foo": 1})]
     assert field_of(make_spec(kind, tp)) == AnyField(name="x", dtype=nw.UInt64(), nullable=True, metadata={"foo": 1})
 
 
+@pytest.mark.parametrize("kind", ALL_KINDS)
+@pytest.mark.parametrize("tp", [list[int | None], tuple[int | None, ...]])
+def test_nested_optional_is_not_nullable(kind: SpecKind, tp: Any) -> None:
+    assert field_of(make_spec(kind, tp)) == AnyField(name="x", dtype=nw.List(nw.Int64()))
+
+
 @pytest.mark.parametrize("kind", KINDS_WITH_METADATA)
-def test_spec_dtype_override_does_not_infer_nullable(kind: SpecKind) -> None:
-    # Existing `dtype` override from the spec's own metadata is unchanged: no nullability inference.
-    spec = make_spec(kind, int | None, metadata={"anyschema": {"dtype": "Int32"}})
-    assert field_of(spec) == AnyField(name="x", dtype=nw.Int32(), nullable=False)
+@pytest.mark.parametrize("tp", [int | None, int | str | None])
+def test_spec_dtype_override_and_optional_is_nullable(kind: SpecKind, tp: Any) -> None:
+    # Same rule as a marker `dtype`: a field-level `| None` makes the field nullable.
+    spec = make_spec(kind, tp, metadata={"anyschema": {"dtype": "Int32"}})
+    assert field_of(spec) == AnyField(name="x", dtype=nw.Int32(), nullable=True)
 
 
 # --- Nested markers ----------------------------------------------------------------------------------------------

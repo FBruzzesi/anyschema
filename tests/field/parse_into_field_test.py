@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from dataclasses import field as dc_field
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Annotated, Any, Optional, Union
 
 import narwhals as nw
 import pytest
@@ -12,7 +12,8 @@ from pydantic import Field as PydanticField
 from sqlalchemy import Column, Integer, MetaData, String, Table
 
 from anyschema import AnyField, AnySchema
-from anyschema.parsers import make_pipeline
+from anyschema._metadata import set_anyschema_meta
+from anyschema.parsers import ParserStep, PyTypeStep, UnionTypeStep, make_pipeline
 from anyschema.serde import serialize_dtype
 from tests.conftest import AttrsBookWithMetadata, AttrsPerson, user_table
 
@@ -21,7 +22,7 @@ if TYPE_CHECKING:
 
     from narwhals.dtypes import DType
 
-    from anyschema.typing import AnySchemaNamespaceKey
+    from anyschema.typing import AnySchemaNamespaceKey, FieldConstraints, FieldMetadata, FieldType
 
 
 @pytest.mark.parametrize(
@@ -405,17 +406,92 @@ def test_parse_into_field_dtype_override_with_nullable() -> None:
     assert field.unique is True
 
 
-def test_parse_into_field_dtype_override_bypasses_pipeline() -> None:
-    pipeline = make_pipeline()
-
-    field = pipeline.parse_into_field("test", Optional[int], (), {"anyschema": {"dtype": "Float32"}})
+@pytest.mark.parametrize(
+    ("anyschema_meta", "expected_nullable"),
+    [
+        ({"dtype": "Float32"}, True),
+        ({"dtype": "Float32", "nullable": True}, True),
+        ({"dtype": "Float32", "nullable": False}, False),
+    ],
+)
+def test_parse_into_field_dtype_override_optional_nullable(
+    anyschema_meta: dict[str, Any], *, expected_nullable: bool
+) -> None:
+    field = make_pipeline().parse_into_field("test", Optional[int], (), {"anyschema": anyschema_meta})
     assert field.dtype == nw.Float32()
-    assert field.nullable is False  # Pipeline bypassed, so nullable not detected
+    assert field.nullable is expected_nullable
 
-    # To have both dtype override and nullable, set both explicitly
-    field = pipeline.parse_into_field("test", Optional[int], (), {"anyschema": {"dtype": "Float32", "nullable": True}})
-    assert field.dtype == nw.Float32()
-    assert field.nullable is True
+
+@pytest.mark.parametrize(("py_type", "expected_nullable"), [(Optional[int], True), (int, False)])
+def test_parse_into_field_explicit_nullable_none_follows_type(py_type: Any, *, expected_nullable: bool) -> None:
+    field = make_pipeline().parse_into_field("x", py_type, (), {"anyschema": {"nullable": None}})
+    assert field.nullable is expected_nullable
+
+
+@pytest.mark.parametrize(
+    ("py_type", "expected"),
+    [
+        (list[Optional[int]], AnyField(name="x", dtype=nw.List(nw.Int64()), nullable=False)),
+        (tuple[Optional[int], ...], AnyField(name="x", dtype=nw.List(nw.Int64()), nullable=False)),
+        (tuple[Optional[int], Optional[int]], AnyField(name="x", dtype=nw.Array(nw.Int64(), 2), nullable=False)),
+        (list[list[Optional[int]]], AnyField(name="x", dtype=nw.List(nw.List(nw.Int64())), nullable=False)),
+        (Optional[list[Optional[int]]], AnyField(name="x", dtype=nw.List(nw.Int64()), nullable=True)),
+    ],
+)
+def test_parse_into_field_nested_optional_not_nullable(py_type: Any, expected: AnyField) -> None:
+    assert make_pipeline().parse_into_field("x", py_type, (), {}) == expected
+
+
+def test_parse_into_field_nested_optional_does_not_mutate_metadata() -> None:
+    metadata: dict[str, Any] = {}
+    make_pipeline().parse_into_field("x", Optional[list[Optional[int]]], (), metadata)
+    assert metadata == {}
+
+
+class OptionalIntAlias:
+    """Stands for a user type that a custom step unwraps into `int | None`."""
+
+
+class OptionalIntAliasStep(ParserStep):
+    def __init__(self, *, set_nullable: bool) -> None:
+        self.set_nullable = set_nullable
+
+    def parse(self, input_type: FieldType, constraints: FieldConstraints, metadata: FieldMetadata) -> DType | None:
+        if input_type is not OptionalIntAlias:
+            return None
+        if self.set_nullable:
+            set_anyschema_meta(metadata, key="nullable", value=True)
+        return self.pipeline.parse(Optional[int], constraints, metadata, strict=True)
+
+
+@pytest.mark.parametrize("set_nullable", [True, False])
+def test_parse_into_field_custom_step_sets_nullable(*, set_nullable: bool) -> None:
+    # Only the field-level type or the `nullable` key set during parsing make the field nullable.
+    pipeline = make_pipeline([OptionalIntAliasStep(set_nullable=set_nullable), UnionTypeStep(), PyTypeStep()])
+    field = pipeline.parse_into_field("x", OptionalIntAlias, (), {})
+    assert field == AnyField(name="x", dtype=nw.Int64(), nullable=set_nullable)
+
+
+def test_parse_into_field_without_forward_ref_step_is_nullable() -> None:
+    pipeline = make_pipeline([UnionTypeStep(), PyTypeStep()])
+    field = pipeline.parse_into_field("x", Optional["int"], (), {"anyschema": {"dtype": "Int32"}})
+    assert field == AnyField(name="x", dtype=nw.Int32(), nullable=True)
+
+
+@pytest.mark.parametrize(
+    ("py_type", "anyschema_meta", "expected"),
+    [
+        (Annotated["int | None", "meta"], {}, AnyField(name="x", dtype=nw.Int64(), nullable=True)),
+        (Annotated["Optional[int]", Gt(0)], {}, AnyField(name="x", dtype=nw.UInt64(), nullable=True)),
+        (Optional["int"], {}, AnyField(name="x", dtype=nw.Int64(), nullable=True)),
+        (Union[int, str, None], {"dtype": "String"}, AnyField(name="x", dtype=nw.String(), nullable=True)),
+        (Union[int, str], {"dtype": "String"}, AnyField(name="x", dtype=nw.String(), nullable=False)),
+    ],
+)
+def test_parse_into_field_field_level_none_is_nullable(
+    py_type: Any, anyschema_meta: dict[str, Any], expected: AnyField
+) -> None:
+    assert make_pipeline().parse_into_field("x", py_type, (), {"anyschema": anyschema_meta}) == expected
 
 
 @pytest.mark.parametrize(

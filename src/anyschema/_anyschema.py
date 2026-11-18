@@ -68,10 +68,9 @@ class AnyField:
         name: The name of the field.
         dtype: The Narwhals data type of the field.
         nullable: Whether the field can contain null values. Defaults to False.
-            Parsing a type specification will flag this as True if:
-
-            - The `{"anyschema": {"nullable": True}}` metadata key is explicitly set to True, or
-            - The type is `Optional[T]` or `T | None` (which automatically sets the metadata)
+            When parsing a spec, the `{"anyschema": {"nullable": ...}}` metadata key wins if set. Otherwise the field
+            is nullable if its field-level type contains `None` (e.g. `T | None`, but not `list[T | None]`), whether
+            or not `dtype` is overridden.
         unique: Whether all values in this field must be unique. Defaults to False.
             Determined by the `{"anyschema": {"unique": ...}}` metadata key or SQLAlchemy column unique argument.
         description: Human-readable field description.

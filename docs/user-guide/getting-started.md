@@ -467,7 +467,8 @@ print(schema.to_polars())
 print(schema.fields["email"].unique)
 ```
 
-See [Annotated markers](metadata.md#annotated-markers) for composition, conflict and nullability rules.
+See [Annotated markers](metadata.md#annotated-markers) for composition, conflict and placement rules, and
+[`nullable`](metadata.md#nullable) for how nullability is derived.
 
 ## Supported Pydantic Types
 

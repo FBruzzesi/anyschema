@@ -1,6 +1,8 @@
 # ruff: noqa: ARG002
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
+from threading import Barrier
 from typing import TYPE_CHECKING, Any, Literal
 
 import narwhals as nw
@@ -58,6 +60,29 @@ def test_pipeline_set_valid() -> None:
     pipeline = ParserPipeline([step])
 
     assert step.pipeline is pipeline
+
+
+@pytest.mark.thread_unsafe(reason="spawns and synchronizes its own threads")
+def test_pipeline_set_once_across_threads() -> None:
+    """Threads racing to attach the same step: exactly one pipeline claims it, all the others get TypeError."""
+    n_threads, n_rounds = 8, 200
+
+    for _ in range(n_rounds):
+        step = AlwaysNoneStep()
+        barrier = Barrier(n_threads)
+
+        def claim(step: ParserStep = step, barrier: Barrier = barrier) -> ParserPipeline | None:
+            barrier.wait()
+            try:
+                return ParserPipeline([step])
+            except TypeError:
+                return None
+
+        with ThreadPoolExecutor(max_workers=n_threads) as pool:
+            winners = [p for p in pool.map(lambda _: claim(), range(n_threads)) if p is not None]
+
+        assert len(winners) == 1
+        assert step.pipeline is winners[0]
 
 
 def test_pipeline_set_invalid_type() -> None:

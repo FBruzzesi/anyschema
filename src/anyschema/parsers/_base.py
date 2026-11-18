@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from copy import copy
+from threading import Lock
 from typing import TYPE_CHECKING
 
 from anyschema.exceptions import UnavailablePipelineError
@@ -14,6 +15,9 @@ if TYPE_CHECKING:
     from anyschema.typing import FieldConstraints, FieldMetadata, FieldType
 
 __all__ = ("ParserStep",)
+
+# Makes the check-and-set in `ParserStep.pipeline` atomic: only one pipeline may claim a step, even across threads.
+_SET_PIPELINE_LOCK = Lock()
 
 
 class ParserStep(ABC):
@@ -102,14 +106,15 @@ class ParserStep(ABC):
             msg = f"Expected `ParserPipeline` object, found {type(pipeline)}"
             raise TypeError(msg)
 
-        if self._pipeline is not None:
-            msg = (
-                "`pipeline` can only be set once.\nYou should make a clone first, and then set a pipeline:\n\n"
-                "`cloned = step.clone();cloned.pipeline = pipeline`"
-            )
-            raise TypeError(msg)
+        with _SET_PIPELINE_LOCK:
+            if self._pipeline is not None:
+                msg = (
+                    "`pipeline` can only be set once.\nYou should make a clone first, and then set a pipeline:\n\n"
+                    "`cloned = step.clone();cloned.pipeline = pipeline`"
+                )
+                raise TypeError(msg)
 
-        self._pipeline = pipeline
+            self._pipeline = pipeline
 
     @abstractmethod
     def parse(self, input_type: FieldType, constraints: FieldConstraints, metadata: FieldMetadata) -> DType | None:

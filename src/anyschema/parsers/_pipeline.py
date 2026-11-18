@@ -287,6 +287,8 @@ class ParserPipeline:
         """
         from anyschema._anyschema import AnyField
 
+        # Steps write into `metadata` (e.g. `nullable` for Optional); a private copy keeps the caller's dict untouched.
+        metadata = dict(metadata)
         if (into_dtype := get_anyschema_value_by_key(metadata, key="dtype")) is not None:
             if isinstance(into_dtype, DType):
                 dtype = into_dtype

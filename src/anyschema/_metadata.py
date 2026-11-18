@@ -140,7 +140,8 @@ def set_anyschema_meta(
 ) -> None:
     """Set a specific anyschema metadata value in the nested structure.
 
-    Creates the nested dictionary if it doesn't exist. Modifies the metadata dict in-place.
+    Writes to `metadata` in place. The nested namespace dict is replaced by an updated copy instead of being
+    edited, because the user's spec may share it (e.g. a Pydantic `json_schema_extra`).
 
     Arguments:
         metadata: The field metadata dictionary to modify.
@@ -161,13 +162,8 @@ def set_anyschema_meta(
         otherwise "anyschema" is used (the default). This preserves the user's
         choice of namespace key.
     """
-    # Preserve existing key if present, otherwise default to "anyschema"
-    anyschema_key: AnySchemaNamespaceKey = "x-anyschema" if "x-anyschema" in metadata else "anyschema"
-    if anyschema_key not in metadata:
-        namespace: AnySchemaMetadata = {}
-        metadata[anyschema_key] = namespace
-
-    metadata[anyschema_key][key] = value
+    namespace_key: AnySchemaNamespaceKey = "x-anyschema" if "x-anyschema" in metadata else "anyschema"
+    metadata[namespace_key] = {**metadata.get(namespace_key, {}), key: value}
 
 
 def filter_anyschema_metadata(metadata: Mapping[str, Any]) -> FieldMetadata:

@@ -232,6 +232,10 @@ The pipeline processes this as:
 2. `AnnotatedStep` extracts constraints: `(Gt(gt=0),)` and passes through
 3. `AnnotatedTypesStep` refines based on constraints and converts to `UInt64` (instead of `Int64`)
 
+Steps may write field-level keys into `metadata`, e.g. `UnionTypeStep` sets `nullable` for `Optional[T]`.
+`parse_into_field` hands the steps a shallow copy of the field metadata, and the nested `anyschema` dict is replaced
+rather than edited, so the user's spec is never modified and fields that share one metadata dict stay independent.
+
 ### `Annotated` markers
 
 [`WithAnySchema`][anyschema.WithAnySchema] markers are handled in two places:

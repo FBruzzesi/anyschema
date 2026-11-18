@@ -2,13 +2,17 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import duckdb
 import narwhals as nw
-import polars as pl
 import pytest
 
 from anyschema import AnySchema
 from anyschema.exceptions import UnsupportedDTypeError
+
+pytest.importorskip("duckdb")
+pytest.importorskip("polars")
+
+import duckdb
+import polars as pl
 
 if TYPE_CHECKING:
     from narwhals.typing import IntoDType
@@ -74,15 +78,16 @@ def test_to_duckdb_special_dtypes(dtype: IntoDType, expected: str) -> None:
     result = AnySchema(spec=nw.Schema({"x": dtype})).to_duckdb()["x"]
 
     assert str(result) == expected
-    duckdb.sql(f"select null::{result} as x")  # the type must be valid DuckDB SQL
+    # A connection per call: DuckDB connections are not shared across threads (pytest-run-parallel).
+    duckdb.connect().sql(f"select null::{result} as x")  # the type must be valid DuckDB SQL
 
 
 def test_to_duckdb_array_shape_roundtrip() -> None:
     result = AnySchema(spec=nw.Schema({"x": nw.Array(nw.Int32(), (2, 3))})).to_duckdb()["x"]
-    rel = duckdb.sql(f"select [[1, 2, 3], [4, 5, 6]]::{result} as x")
+    rel = duckdb.connect().sql(f"select [[1, 2, 3], [4, 5, 6]]::{result} as x")
 
     # DuckDB's own export is the reference: narwhals reads DuckDB multi-dim arrays with a transposed shape.
-    assert rel.pl().schema["x"] == pl.Array(pl.Int32, (2, 3))  # type: ignore[union-attr]
+    assert rel.pl().schema["x"] == pl.Array(pl.Int32, (2, 3))
 
 
 def test_to_duckdb_tz_aware_non_us_raises() -> None:

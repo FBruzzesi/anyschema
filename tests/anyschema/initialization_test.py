@@ -54,7 +54,7 @@ def test_anyschema_with_unknown_spec_and_custom_adapter() -> None:
         yield "field2", int, (), {}
 
     schema = AnySchema(spec=CustomSpec, adapter=custom_adapter)
-    result = schema.to_polars()
+    result = schema._nw_schema
 
     assert "field1" in result
     assert "field2" in result
@@ -70,7 +70,7 @@ def test_anyschema_with_dict_spec() -> None:
     spec = {"name": str, "age": int}
 
     schema = AnySchema(spec=spec)
-    result = schema.to_polars()
+    result = schema._nw_schema
 
     assert "name" in result
     assert "age" in result

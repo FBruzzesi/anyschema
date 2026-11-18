@@ -1,6 +1,7 @@
 # ruff: noqa: ARG002
 from __future__ import annotations
 
+import time
 from concurrent.futures import ThreadPoolExecutor
 from threading import Barrier
 from typing import TYPE_CHECKING, Any, Literal
@@ -62,27 +63,41 @@ def test_pipeline_set_valid() -> None:
     assert step.pipeline is pipeline
 
 
+class SlowClaimStep(AlwaysNoneStep):
+    """Returns a stale `_pipeline` after a delay, so an unguarded check-then-set in the `pipeline` setter races."""
+
+    _claimed: ParserPipeline | None = None
+
+    @property
+    def _pipeline(self) -> ParserPipeline | None:
+        pipeline = self._claimed
+        time.sleep(0.01)
+        return pipeline
+
+    @_pipeline.setter
+    def _pipeline(self, value: ParserPipeline | None) -> None:  # pyright: ignore[reportIncompatibleVariableOverride]
+        self._claimed = value
+
+
 @pytest.mark.thread_unsafe(reason="spawns and synchronizes its own threads")
 def test_pipeline_set_once_across_threads() -> None:
-    """Threads racing to attach the same step: exactly one pipeline claims it, all the others get TypeError."""
-    n_threads, n_rounds = 8, 200
+    """Threads racing to attach one step: exactly one pipeline claims it, the others get TypeError."""
+    n_threads = 8
+    step = SlowClaimStep()
+    barrier = Barrier(n_threads)
 
-    for _ in range(n_rounds):
-        step = AlwaysNoneStep()
-        barrier = Barrier(n_threads)
+    def claim(_: int) -> ParserPipeline | None:
+        barrier.wait()
+        try:
+            return ParserPipeline([step])
+        except TypeError:
+            return None
 
-        def claim(step: ParserStep = step, barrier: Barrier = barrier) -> ParserPipeline | None:
-            barrier.wait()
-            try:
-                return ParserPipeline([step])
-            except TypeError:
-                return None
+    with ThreadPoolExecutor(max_workers=n_threads) as pool:
+        winners = [pipeline for pipeline in pool.map(claim, range(n_threads)) if pipeline is not None]
 
-        with ThreadPoolExecutor(max_workers=n_threads) as pool:
-            winners = [p for p in pool.map(lambda _: claim(), range(n_threads)) if p is not None]
-
-        assert len(winners) == 1
-        assert step.pipeline is winners[0]
+    assert len(winners) == 1
+    assert step.pipeline is winners[0]
 
 
 def test_pipeline_set_invalid_type() -> None:

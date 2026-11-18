@@ -4,8 +4,24 @@ from datetime import date, datetime
 from typing import Any
 
 import narwhals as nw
+import pydantic
 import pytest
-from pydantic import AwareDatetime, BaseModel, FutureDate, FutureDatetime, NaiveDatetime, PastDate, PastDatetime
+from pydantic import (
+    AwareDatetime,
+    BaseModel,
+    DirectoryPath,
+    FilePath,
+    FutureDate,
+    FutureDatetime,
+    HttpUrl,
+    NaiveDatetime,
+    PastDate,
+    PastDatetime,
+    PostgresDsn,
+    SecretBytes,
+    SecretStr,
+    networks,
+)
 
 from anyschema.exceptions import UnsupportedDTypeError
 from anyschema.parsers import ParserPipeline
@@ -187,3 +203,58 @@ def test_parse_naive_datetime_with_timezone_raises(pydantic_parser: PydanticType
     expected_msg = "pydantic NaiveDatetime should not specify a timezone, found UTC."
     with pytest.raises(UnsupportedDTypeError, match=expected_msg):
         pydantic_parser.parse(NaiveDatetime, constraints=(), metadata={"anyschema": {"time_zone": "UTC"}})
+
+
+# URL/DSN names differ across pydantic versions, discover them so new ones are covered too.
+_NETWORK_TYPE_NAMES = sorted(
+    {name for name in networks.__all__ if name.endswith(("Url", "Dsn"))}
+    | {"EmailStr", "NameEmail", "IPvAnyAddress", "IPvAnyInterface", "IPvAnyNetwork"}
+)
+
+
+@pytest.mark.parametrize("name", _NETWORK_TYPE_NAMES)
+def test_parse_pydantic_network_types(auto_pipeline: ParserPipeline, name: str) -> None:
+    # Goes through the full pipeline: in pydantic<2.10 URL types are `Annotated[pydantic_core.Url, ...]`
+    result = auto_pipeline.parse(getattr(pydantic, name), constraints=(), metadata={})
+    assert result == nw.String()
+
+
+@pytest.mark.parametrize(
+    ("input_type", "expected"),
+    [
+        (SecretStr, nw.String()),
+        (SecretBytes, nw.Binary()),
+        (FilePath, nw.String()),
+        (DirectoryPath, nw.String()),
+        (pydantic.UUID4, nw.String()),
+    ],
+)
+def test_parse_pydantic_secret_and_annotated_types(
+    auto_pipeline: ParserPipeline, input_type: Any, expected: nw.dtypes.DType
+) -> None:
+    result = auto_pipeline.parse(input_type, constraints=(), metadata={})
+    assert result == expected
+
+
+def test_parse_model_with_pydantic_types(auto_pipeline: ParserPipeline) -> None:
+    class Config(BaseModel):
+        homepage: HttpUrl
+        database_url: PostgresDsn
+        password: SecretStr
+        api_key: SecretBytes
+        config_file: FilePath
+        tags: list[HttpUrl]
+
+    result = auto_pipeline.parse(Config, constraints=(), metadata={})
+
+    expected = nw.Struct(
+        [
+            nw.Field(name="homepage", dtype=nw.String()),
+            nw.Field(name="database_url", dtype=nw.String()),
+            nw.Field(name="password", dtype=nw.String()),
+            nw.Field(name="api_key", dtype=nw.Binary()),
+            nw.Field(name="config_file", dtype=nw.String()),
+            nw.Field(name="tags", dtype=nw.List(nw.String())),
+        ]
+    )
+    assert result == expected

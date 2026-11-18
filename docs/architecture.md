@@ -58,7 +58,7 @@ flowchart TD
 
     NA["Pydantic Models<br/>Python mappings or sequences"]
     NB["pydantic_adapter<br/>into_ordered_dict_adapter"]
-    NE["pyarrow, polars, pandas, duckdb or pyspark schema"]
+    NE["pyarrow, polars, pandas, duckdb, ibis or pyspark schema"]
 
     A -.-> NA
     B -.-> NB
@@ -150,9 +150,9 @@ Steps inherit from the [`ParserStep`][api-parser-step] abstract base class.
 | `UnionTypeStep` | Extracts non-None types from Optional/Union types (dataframe libraries don't have Union types) | `Union[T, None]`, `T | None`, `Optional[T]` | Early - simplifies downstream parsers |
 | `AnnotatedStep` | Separates base types from their constraints/metadata for independent processing | `Annotated[T, metadata1, ...]` | Before type-specific parsers |
 | `AnnotatedTypesStep` | Refines types based on constraints (e.g., positive integers become unsigned types) | Types with `annotated_types` or Pydantic constraints | After `AnnotatedStep`, before type parsers |
-| `PydanticTypeStep` | Handles Pydantic-specific types that need special processing beyond Python type inspection | Pydantic types like `FutureDate` | After metadata extraction, before fallback |
+| `PydanticTypeStep` | Handles Pydantic-specific types that need special processing beyond Python type inspection | Pydantic types like `FutureDate`, `HttpUrl`, `SecretStr` | After metadata extraction, before fallback |
 | `JsonSchemaStep` | Converts JSON Schema (sub)schemas yielded by `jsonschema_adapter`, recursing through the pipeline for nested ones | Mappings such as `{"type": "integer", "minimum": 0}`, `anyOf`/`oneOf` with `null`, `enum`/`const` | Before `PyTypeStep` |
-| `PyTypeStep` | Fallback parser for all standard Python types | Basic (`int`, `str`, `bool`), temporal (`date`, `datetime`), container (`list[T]`, `tuple[T, ...]`), struct (`TypedDict`, dataclasses), other (`Decimal`, `Enum`) | Must be last |
+| `PyTypeStep` | Fallback parser for all standard Python types | Basic (`int`, `str`, `bool`), temporal (`date`, `datetime`), container (`list[T]`, `tuple[T, ...]`), struct (`TypedDict`, dataclasses), other (`Decimal`, `Enum`, `UUID`, `Path`, `ipaddress` types) | Must be last |
 
 ### Parser Order and Rationale
 
@@ -247,6 +247,10 @@ The pipeline processes this as:
 1. `pydantic_adapter` extracts: `("quantity", int, (Gt(gt=0),), {})`
 2. `AnnotatedStep` extracts constraints: `(Gt(gt=0),)` and passes through
 3. `AnnotatedTypesStep` refines based on constraints and converts to `UInt64` (instead of `Int64`)
+
+Steps may write field-level keys into `metadata`, e.g. `UnionTypeStep` sets `nullable` for `Optional[T]`.
+`parse_into_field` hands the steps a shallow copy of the field metadata, and the nested `anyschema` dict is replaced
+rather than edited, so the user's spec is never modified and fields that share one metadata dict stay independent.
 
 ## Recursion and Nested Types
 

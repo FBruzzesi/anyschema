@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import sys
 from unittest.mock import patch
 
 import pytest
+from pydantic_extra_types.color import Color
 
-from anyschema._dependencies import check_version
+from anyschema._dependencies import check_version, is_pydantic_extra_types_color
 
 
 @pytest.mark.parametrize(
@@ -58,3 +60,14 @@ def test_check_version_package_below_minimum_raises(package: str, installed_vers
     error_msg = str(exc_info.value)
     assert package in error_msg
     assert f"{installed_version} is installed" in error_msg
+
+
+def test_is_pydantic_extra_types_color() -> None:
+    assert is_pydantic_extra_types_color(Color)
+    assert not is_pydantic_extra_types_color(str)
+    assert not is_pydantic_extra_types_color("Color")
+
+
+def test_is_pydantic_extra_types_color_module_not_imported(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delitem(sys.modules, "pydantic_extra_types.color")
+    assert not is_pydantic_extra_types_color(Color)

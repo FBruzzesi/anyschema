@@ -7,6 +7,7 @@ References:
 - https://docs.pydantic.dev/latest/api/pydantic_extra_types_country/
 - https://docs.pydantic.dev/latest/api/pydantic_extra_types_phone_numbers/
 - https://docs.pydantic.dev/latest/api/pydantic_extra_types_coordinate/
+- https://docs.pydantic.dev/latest/api/pydantic_extra_types_color/
 """
 
 from __future__ import annotations
@@ -15,6 +16,7 @@ from typing import Any
 
 import narwhals as nw
 import pytest
+from pydantic_extra_types.color import Color
 from pydantic_extra_types.coordinate import Latitude, Longitude
 from pydantic_extra_types.country import (
     CountryAlpha2,
@@ -22,7 +24,12 @@ from pydantic_extra_types.country import (
     CountryNumericCode,
     CountryShortName,
 )
+from pydantic_extra_types.currency_code import Currency
+from pydantic_extra_types.isbn import ISBN
+from pydantic_extra_types.language_code import LanguageAlpha2, LanguageName
+from pydantic_extra_types.mac_address import MacAddress
 from pydantic_extra_types.phone_numbers import PhoneNumber
+from pydantic_extra_types.timezone_name import TimeZoneName
 
 from anyschema.parsers import ParserPipeline, PyTypeStep, UnionTypeStep
 
@@ -57,8 +64,25 @@ def py_type_parser() -> PyTypeStep:
         (PhoneNumber, nw.String()),
         (list[PhoneNumber], nw.List(nw.String())),
         (tuple[PhoneNumber, PhoneNumber, PhoneNumber], nw.Array(nw.String(), shape=3)),
+        # currency
+        (Currency, nw.String()),
+        # isbn
+        (ISBN, nw.String()),
+        # language
+        (LanguageAlpha2, nw.String()),
+        (LanguageName, nw.String()),
+        # mac address
+        (MacAddress, nw.String()),
+        # timezone
+        (TimeZoneName, nw.String()),
     ],
 )
 def test_pydantic_extra_types(py_type_parser: PyTypeStep, input_type: Any, expected: nw.dtypes.DType) -> None:
     result = py_type_parser.parse(input_type, (), {})
     assert result == expected
+
+
+@pytest.mark.parametrize(("input_type", "expected"), [(Color, nw.String()), (list[Color], nw.List(nw.String()))])
+def test_pydantic_extra_types_color(auto_pipeline: ParserPipeline, input_type: Any, expected: nw.dtypes.DType) -> None:
+    # `Color` does not subclass `str`, so `PydanticTypeStep` maps it, not `PyTypeStep`
+    assert auto_pipeline.parse(input_type, (), {}) == expected

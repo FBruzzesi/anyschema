@@ -55,6 +55,12 @@ Convert to different schema formats:
     print(schema.to_duckdb())
     ```
 
+=== "ibis"
+
+    ```python exec="true" source="above" result="python" session="basic-pydantic"
+    print(schema.to_ibis())
+    ```
+
 The `AnySchema` object also provides access to detailed field information through the `fields` attribute:
 
 ```python exec="true" source="above" result="python" session="basic-pydantic"
@@ -495,6 +501,73 @@ schema = AnySchema(spec=Product)
 print(schema.to_polars())
 ```
 
+## Supported Pydantic Types
+
+Dataframe schemas cannot express Pydantic's validation rules, so anyschema maps each Pydantic type to the dtype of
+the value it holds. The mapping is the same for every Pydantic 2.x release, although some types only exist in newer
+releases.
+
+`uuid.UUID`, `pathlib` paths and `ipaddress` types map to `String` in any spec, not only in Pydantic models.
+
+### pydantic.types
+
+| Pydantic Type | Narwhals DType |
+|---------------|----------------|
+| `SecretStr` | `String` |
+| `SecretBytes` | `Binary` |
+| `FilePath`, `DirectoryPath`, `NewPath` | `String` |
+| `UUID1` to `UUID8` | `String` |
+| `PositiveInt`, `NonNegativeInt` | `UInt64` |
+| `NegativeInt`, `NonPositiveInt` | `Int64` |
+| `PositiveFloat`, `NegativeFloat`, etc. | `Float64` |
+| `StrictStr`, `StrictBytes` | `String`, `Binary` |
+
+See the [Pydantic types reference](https://docs.pydantic.dev/latest/api/types/) and
+[Working with (Integer) Constraints](#working-with-integer-constraints) for how other integer bounds are mapped.
+
+### pydantic.networks
+
+| Pydantic Type | Narwhals DType |
+|---------------|----------------|
+| `AnyUrl`, `HttpUrl`, `AnyHttpUrl`, `WebsocketUrl`, `FileUrl`, `FtpUrl`, etc. | `String` |
+| `PostgresDsn`, `MySQLDsn`, `RedisDsn`, etc. | `String` |
+| `EmailStr`, `NameEmail` | `String` |
+| `IPvAnyAddress`, `IPvAnyInterface`, `IPvAnyNetwork` | `String` |
+
+See the [Pydantic networks reference](https://docs.pydantic.dev/latest/api/networks/).
+
+### pydantic-extra-types
+
+| Pydantic Type | Narwhals DType |
+|---------------|----------------|
+| `Color` | `String` |
+| `Latitude`, `Longitude` | `Float64` |
+| `CountryAlpha2`, `CountryAlpha3`, etc. | `String` |
+| `PhoneNumber`, `Currency`, `MacAddress`, `ISBN` | `String` |
+| `LanguageAlpha2`, `LanguageName`, `TimeZoneName` | `String` |
+
+`Color` here is `pydantic_extra_types.color.Color`. The deprecated `pydantic.color.Color` is not supported.
+See the [pydantic-extra-types repository](https://github.com/pydantic/pydantic-extra-types).
+
+### Example with Network Types
+
+```python exec="true" source="above" result="python" session="network-types"
+from anyschema import AnySchema
+from pydantic import BaseModel, SecretStr
+from pydantic.networks import HttpUrl, PostgresDsn
+
+
+class ServerConfig(BaseModel):
+    name: str
+    homepage: HttpUrl
+    database_url: PostgresDsn
+    api_key: SecretStr
+
+
+schema = AnySchema(spec=ServerConfig)
+print(schema.to_arrow())
+```
+
 ## Using Narwhals Directly
 
 You can also work with Narwhals schemas directly (and pass them to `AnySchema`, which acts as a no-op in this case):
@@ -532,6 +605,7 @@ schema = AnySchema(spec=nw_schema)
 
     You can specify which backend to use via the `dtype_backend` parameter, either for all fields together, or for each
     field individually.
+
 <!-- rumdl-enable MD005 -->
 
 Let's see it in practice:
@@ -593,6 +667,39 @@ columns = ", ".join(f"{name} {dtype}" for name, dtype in duckdb_schema.items())
 con = duckdb.connect()
 con.sql(f"CREATE TABLE events ({columns})")
 print(con.sql("DESCRIBE events"))
+```
+
+## Ibis output format
+
+!!! abstract "ibis schema"
+    `to_ibis()` returns an `ibis.Schema`. Each field keeps its nullability, and non-nullable types print with a
+    leading `!`. Nested element and struct field types are always nullable. Field metadata is dropped, because Ibis
+    schemas cannot store it.
+
+Int128, UInt128, Categorical, Enum, Object and Unknown dtypes have no Ibis equivalent and raise
+`UnsupportedDTypeError`, also when nested inside a List, Array or Struct.
+
+```python exec="true" source="above" result="python" session="ibis-format"
+from datetime import datetime
+
+import ibis
+from anyschema import AnySchema
+from pydantic import BaseModel
+
+
+class Event(BaseModel):
+    id: int
+    tags: list[str]
+    created_at: datetime
+    note: str | None
+
+
+schema = AnySchema(spec=Event)
+ibis_schema = schema.to_ibis()
+print(ibis_schema)
+
+events = ibis.table(ibis_schema, name="events")
+print(ibis.to_sql(events.select("id", "note"), dialect="duckdb"))
 ```
 
 ## Error Handling

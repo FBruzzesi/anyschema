@@ -10,6 +10,7 @@ from pydantic import BaseModel, PositiveInt
 from anyschema.parsers import (
     AnnotatedStep,
     ForwardRefStep,
+    JsonSchemaStep,
     ParserPipeline,
     ParserStep,
     PyTypeStep,
@@ -29,6 +30,7 @@ AUTO_PIPELINE_CLS_ORDER = (
     AttrsTypeStep,
     PydanticTypeStep,
     SQLAlchemyTypeStep,
+    JsonSchemaStep,
     PyTypeStep,
 )
 

@@ -58,6 +58,13 @@ The following steps are built-in and come dependency-free.
       show_source: false
       heading_level: 3
 
+::: anyschema.parsers.JsonSchemaStep
+    handler: python
+    options:
+      show_root_heading: true
+      show_source: false
+      heading_level: 3
+
 ::: anyschema.parsers.PyTypeStep
     handler: python
     options:

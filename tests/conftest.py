@@ -20,6 +20,11 @@ from anyschema.parsers import ParserPipeline
 SQLALCHEMY_GE_2_1 = parse_version(version("sqlalchemy")) >= (2, 1)
 
 
+def json_object_schema(properties: dict[str, object], **extra: object) -> dict[str, object]:
+    """Build a JSON Schema object with the given `properties` and extra top-level keywords."""
+    return {"type": "object", "properties": properties, **extra}
+
+
 @pytest.fixture(scope="session")
 def auto_pipeline() -> ParserPipeline:
     """Fixture to get the auto pipeline."""

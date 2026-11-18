@@ -1,7 +1,10 @@
 # ruff: noqa: ARG002
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Literal, Sequence
+import time
+from concurrent.futures import ThreadPoolExecutor
+from threading import Barrier
+from typing import TYPE_CHECKING, Any, Literal
 
 import narwhals as nw
 import pytest
@@ -58,6 +61,43 @@ def test_pipeline_set_valid() -> None:
     pipeline = ParserPipeline([step])
 
     assert step.pipeline is pipeline
+
+
+class SlowClaimStep(AlwaysNoneStep):
+    """Returns a stale `_pipeline` after a delay, so an unguarded check-then-set in the `pipeline` setter races."""
+
+    _claimed: ParserPipeline | None = None
+
+    @property
+    def _pipeline(self) -> ParserPipeline | None:
+        pipeline = self._claimed
+        time.sleep(0.01)
+        return pipeline
+
+    @_pipeline.setter
+    def _pipeline(self, value: ParserPipeline | None) -> None:  # pyright: ignore[reportIncompatibleVariableOverride]
+        self._claimed = value
+
+
+@pytest.mark.thread_unsafe(reason="spawns and synchronizes its own threads")
+def test_pipeline_set_once_across_threads() -> None:
+    """Threads racing to attach one step: exactly one pipeline claims it, the others get TypeError."""
+    n_threads = 8
+    step = SlowClaimStep()
+    barrier = Barrier(n_threads)
+
+    def claim(_: int) -> ParserPipeline | None:
+        barrier.wait()
+        try:
+            return ParserPipeline([step])
+        except TypeError:
+            return None
+
+    with ThreadPoolExecutor(max_workers=n_threads) as pool:
+        winners = [pipeline for pipeline in pool.map(claim, range(n_threads)) if pipeline is not None]
+
+    assert len(winners) == 1
+    assert step.pipeline is winners[0]
 
 
 def test_pipeline_set_invalid_type() -> None:
@@ -131,10 +171,10 @@ def test_pipeline_parse_with_metadata() -> None:
 
 @pytest.mark.parametrize(
     ("steps", "expected"),
-    [((Int32Step(), Int64Step()), nw.Int32()), ((Int64Step(), Int32Step()), nw.Int64())],
+    [((Int32Step, Int64Step), nw.Int32()), ((Int64Step, Int32Step), nw.Int64())],
 )
-def test_pipeline_parse_order_matters(steps: tuple[ParserStep, ...], expected: nw.dtypes.DType) -> None:
-    pipeline = ParserPipeline(steps=steps)
+def test_pipeline_parse_order_matters(steps: tuple[type[ParserStep], ...], expected: nw.dtypes.DType) -> None:
+    pipeline = ParserPipeline(steps=tuple(cls() for cls in steps))
     result = pipeline.parse(int, (), {}, strict=True)
     assert result == expected
 
@@ -189,51 +229,53 @@ def test_parser_step_clone_preserves_state() -> None:
     ("original_steps", "steps_to_add", "at_position", "expected"),
     [
         (
-            (AnnotatedStep(), Int64Step(), StrStep()),
-            Int32Step(),
+            (AnnotatedStep, Int64Step, StrStep),
+            Int32Step,
             "auto",
             (AnnotatedStep, Int32Step, Int64Step, StrStep),
         ),
         (
-            (AnnotatedStep(), StrStep()),
-            (Int32Step(), Int64Step()),
+            (AnnotatedStep, StrStep),
+            (Int32Step, Int64Step),
             "auto",
             (AnnotatedStep, Int32Step, Int64Step, StrStep),
         ),
         (
-            (Int64Step(), StrStep()),
-            Int32Step(),
+            (Int64Step, StrStep),
+            Int32Step,
             "auto",
             (Int32Step, Int64Step, StrStep),
         ),
         (
-            (Int64Step(), StrStep()),
-            Int32Step(),
+            (Int64Step, StrStep),
+            Int32Step,
             1,
             (Int64Step, Int32Step, StrStep),
         ),
         (
-            (Int64Step(), StrStep()),
-            Int32Step(),
+            (Int64Step, StrStep),
+            Int32Step,
             100,
             (Int64Step, StrStep, Int32Step),
         ),
         (
-            (Int64Step(), StrStep()),
-            Int32Step(),
+            (Int64Step, StrStep),
+            Int32Step,
             -100,
             (Int32Step, Int64Step, StrStep),
         ),
     ],
 )
 def test_pipeline_with_steps(
-    original_steps: tuple[ParserStep, ...],
-    steps_to_add: ParserStep | Sequence[ParserStep],
+    original_steps: tuple[type[ParserStep], ...],
+    steps_to_add: type[ParserStep] | tuple[type[ParserStep], ...],
     at_position: int | Literal["auto"],
     expected: tuple[type[ParserStep], ...],
 ) -> None:
-    pipeline = ParserPipeline(original_steps)
-    new_pipeline = pipeline.with_steps(steps_to_add, at_position=at_position)
+    # Fresh steps per call: a step belongs to one pipeline, and threads share parametrize values.
+    to_add = steps_to_add() if isinstance(steps_to_add, type) else tuple(cls() for cls in steps_to_add)
+    pipeline = ParserPipeline(tuple(cls() for cls in original_steps))
+    new_pipeline = pipeline.with_steps(to_add, at_position=at_position)
 
     assert all(isinstance(step, step_type) for step, step_type in zip(new_pipeline.steps, expected, strict=True))
 

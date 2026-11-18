@@ -251,16 +251,15 @@ class ParserPipeline:
         It wraps the DType parsing with additional field-level information like nullability,
         uniqueness, and custom metadata.
 
-        The metadata dictionary is populated during parsing (e.g., `UnionTypeStep` sets
-        `{"anyschema": {"nullable": True}}` for `Optional[T]` types), ensuring that forward references
-        are properly evaluated and avoiding code duplication.
+        Parsing fills field-level metadata into a copy of `metadata` (e.g. `UnionTypeStep` sets
+        `{"anyschema": {"nullable": True}}` for `Optional[T]`), so forward references are resolved before
+        nullability is read. The caller's dict, and any nested dict it holds, is never modified.
 
         Arguments:
             name: The name of the field.
             input_type: The type to parse.
             constraints: Constraints associated with the type.
-            metadata: Custom metadata dictionary. This dictionary may be modified during
-                parsing to add field-level metadata like `{"anyschema": {"nullable": True}}`.
+            metadata: Custom metadata dictionary. It is not modified, so one dict may be shared across fields.
 
         Returns:
             A [`AnyField`][anyschema.AnyField] instance containing the parsed dtype and field-level metadata.
@@ -287,6 +286,8 @@ class ParserPipeline:
         """
         from anyschema._anyschema import AnyField
 
+        # Steps write into `metadata` (e.g. `nullable` for Optional), so work on a copy.
+        metadata = dict(metadata)
         if (into_dtype := get_anyschema_value_by_key(metadata, key="dtype")) is not None:
             if isinstance(into_dtype, DType):
                 dtype = into_dtype

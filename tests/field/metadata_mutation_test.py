@@ -1,13 +1,18 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 import attrs
 from pydantic import BaseModel
 from pydantic import Field as PydanticField
 
 from anyschema import AnySchema
+
+if TYPE_CHECKING:
+    from pydantic.config import JsonDict
+
+    from anyschema.typing import FieldSpecIterable
 
 
 def test_pydantic_field_metadata_not_mutated_by_optional() -> None:
@@ -129,3 +134,33 @@ def test_dict_spec_is_safe() -> None:
     assert schema2.fields["name"].nullable is True
 
     assert spec == {"id": int, "name": Optional[str]}
+
+
+def test_shared_nested_metadata_not_leaked_across_fields() -> None:
+    """`nullable` from an Optional field must not leak through a nested `anyschema` dict shared with other fields."""
+    shared: JsonDict = {"anyschema": {"unique": True}}
+
+    class Model(BaseModel):
+        maybe: Optional[int] = PydanticField(json_schema_extra=shared)
+        always: int = PydanticField(json_schema_extra=shared)
+
+    schema = AnySchema(spec=Model)
+
+    assert schema.fields["maybe"].nullable is True
+    assert schema.fields["always"].nullable is False
+    assert shared == {"anyschema": {"unique": True}}
+
+
+def test_custom_adapter_shared_metadata_not_mutated() -> None:
+    """Parsing must not write into a metadata dict that a custom adapter yields for several fields."""
+    shared: dict[str, Any] = {"anyschema": {"unique": True}}
+
+    def adapter(spec: object) -> FieldSpecIterable:  # noqa: ARG001
+        yield "maybe", Optional[int], (), shared
+        yield "always", int, (), shared
+
+    schema = AnySchema(spec=object, adapter=adapter)
+
+    assert schema.fields["maybe"].nullable is True
+    assert schema.fields["always"].nullable is False
+    assert shared == {"anyschema": {"unique": True}}

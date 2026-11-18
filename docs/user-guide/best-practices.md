@@ -107,6 +107,39 @@ def good_adapter(spec: CustomSchemaSpec) -> FieldSpecIterable:
             yield field_name, field_value, (), {}
 ```
 
+## Thread Safety
+
+`anyschema` is tested on free-threaded Python (3.14t and 3.15t), with the test suite running in parallel threads.
+
+* One `ParserPipeline` can serve many threads: parsing keeps no per-call state on the pipeline or its steps.
+* A parser step belongs to exactly one pipeline. Attaching it to a second pipeline raises `TypeError`, even when two
+    threads race to do it. Use `step.clone()` to reuse a step.
+* `AnySchema` never modifies the field metadata of your spec, so several fields (or a custom adapter) can share one
+    metadata dict.
+* In custom parser steps, don't edit the nested `metadata["anyschema"]` dict in place, since the user's spec may
+    share it. Keep any step configuration read-only after `__init__`.
+
+```python exec="true" source="above" result="python" session="thread-safety"
+from concurrent.futures import ThreadPoolExecutor
+from typing import Optional
+
+from anyschema import AnySchema
+from anyschema.parsers import ParserPipeline, PyTypeStep
+
+pipeline = ParserPipeline("auto")
+specs = [{"id": int}, {"name": Optional[str]}]
+
+with ThreadPoolExecutor() as pool:
+    schemas = list(pool.map(lambda spec: AnySchema(spec=spec, pipeline=pipeline), specs))
+
+for schema in schemas:
+    print(schema.to_arrow())
+
+step = PyTypeStep()
+first = ParserPipeline([step])
+second = ParserPipeline([step.clone()])  # `ParserPipeline([step])` would raise TypeError
+```
+
 ## Integration Testing
 
 Test your custom components thoroughly at multiple levels: unit tests for individual parsers and adapters, and

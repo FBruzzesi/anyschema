@@ -124,6 +124,9 @@ class TestPydanticAdapter(unittest.TestCase):
 - Use fixtures from `tests/conftest.py` (e.g., `auto_pipeline`, `pydantic_student_cls`)
 - Parametrize tests for multiple scenarios: `@pytest.mark.parametrize(...)`
 - Test both success and error cases
+- Keep `parametrize` values immutable (types, dtypes, strings, classes): build parser steps, pipelines and
+    `pytest.raises(...)` inside the test. CI runs the suite in threads (`pytest-run-parallel` on 3.14t/3.15t), which
+    share parametrize values and fixtures. Shared-state stress tests live in `tests/thread_safety_test.py`
 - Coverage requirement: >90% overall, >95% for non-excluded files
 - Keep test files alongside corresponding source files (e.g., `tests/parsers/_builtin_test.py` for
     `anyschema/parsers/_builtin.py`)

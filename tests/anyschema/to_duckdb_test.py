@@ -78,7 +78,7 @@ def test_to_duckdb_special_dtypes(dtype: IntoDType, expected: str) -> None:
     result = AnySchema(spec=nw.Schema({"x": dtype})).to_duckdb()["x"]
 
     assert str(result) == expected
-    # A connection per call: DuckDB connections are not shared across threads (pytest-run-parallel).
+    # One connection per call, because test threads must not share a DuckDB connection.
     duckdb.connect().sql(f"select null::{result} as x")  # the type must be valid DuckDB SQL
 
 

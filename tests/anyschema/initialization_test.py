@@ -77,7 +77,7 @@ def test_anyschema_with_dict_spec() -> None:
 
 
 @pytest.mark.parametrize(
-    "into_pipeline",
+    "build_pipeline",
     [
         lambda: make_pipeline("auto").with_steps(CustomTypeStep()),
         lambda: ParserPipeline.from_auto(CustomTypeStep()),
@@ -85,8 +85,8 @@ def test_anyschema_with_dict_spec() -> None:
     ],
     ids=["with_steps", "from_auto", "cloned_steps"],
 )
-def test_anyschema_with_pipeline(into_pipeline: Callable[[], ParserPipeline | list[ParserStep]]) -> None:
-    pipeline = into_pipeline()
+def test_anyschema_with_pipeline(build_pipeline: Callable[[], ParserPipeline | list[ParserStep]]) -> None:
+    pipeline = build_pipeline()
     spec = {"custom_field": CustomType, "normal_field": int}
     schema = AnySchema(spec=spec, pipeline=pipeline)
 

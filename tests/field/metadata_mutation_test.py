@@ -137,7 +137,7 @@ def test_dict_spec_is_safe() -> None:
 
 
 def test_shared_nested_metadata_not_leaked_across_fields() -> None:
-    """A nested `anyschema` dict shared by several fields must not carry `nullable` from an Optional to the others."""
+    """`nullable` from an Optional field must not leak through a nested `anyschema` dict shared with other fields."""
     shared: JsonDict = {"anyschema": {"unique": True}}
 
     class Model(BaseModel):
@@ -152,7 +152,7 @@ def test_shared_nested_metadata_not_leaked_across_fields() -> None:
 
 
 def test_custom_adapter_shared_metadata_not_mutated() -> None:
-    """A custom adapter may yield the same metadata dict for several fields: parsing must not write into it."""
+    """Parsing must not write into a metadata dict that a custom adapter yields for several fields."""
     shared: dict[str, Any] = {"anyschema": {"unique": True}}
 
     def adapter(spec: object) -> FieldSpecIterable:  # noqa: ARG001

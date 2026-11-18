@@ -272,7 +272,7 @@ def test_pipeline_with_steps(
     at_position: int | Literal["auto"],
     expected: tuple[type[ParserStep], ...],
 ) -> None:
-    # Steps are instantiated per test call: a step can belong to a single pipeline, so sharing across threads fails.
+    # Fresh steps per call: a step belongs to one pipeline, and threads share parametrize values.
     to_add = steps_to_add() if isinstance(steps_to_add, type) else tuple(cls() for cls in steps_to_add)
     pipeline = ParserPipeline(tuple(cls() for cls in original_steps))
     new_pipeline = pipeline.with_steps(to_add, at_position=at_position)

@@ -261,7 +261,7 @@ class ParserPipeline:
             name: The name of the field.
             input_type: The type to parse.
             constraints: Constraints associated with the type.
-            metadata: The field metadata.
+            metadata: The field metadata. It is not modified, so one dict may be shared across fields.
 
         Returns:
             The parsed field.
@@ -299,6 +299,8 @@ class ParserPipeline:
         if parts.markers:
             metadata = merge_field_markers(name, metadata, parts.markers)
 
+        # Custom steps may write into `metadata` (e.g. `nullable`), so work on a copy.
+        metadata = dict(metadata)
         if (dtype_override := get_anyschema_value_by_key(metadata, key="dtype")) is not None:
             dtype = ensure_dtype(dtype_override)
         else:

@@ -124,6 +124,7 @@ def test_nested_schema_adapter() -> None:
 
 def test_polars_schema_with_dict() -> None:
     """Test that dict types work with Polars schema conversion."""
+    pytest.importorskip("polars")
     fields = {"id": int, "metadata": dict, "name": str}
     schema_spec = SimpleSchema(fields=fields)
 

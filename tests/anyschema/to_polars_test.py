@@ -2,10 +2,13 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import polars as pl
+import pytest
 from narwhals import Schema
 
 from anyschema import AnySchema
+
+pytest.importorskip("polars")
+import polars as pl
 
 if TYPE_CHECKING:
     from pydantic import BaseModel

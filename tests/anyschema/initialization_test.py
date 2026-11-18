@@ -10,6 +10,8 @@ from anyschema import AnySchema
 from anyschema.parsers import ParserPipeline, ParserStep, make_pipeline
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from narwhals.dtypes import DType
 
     from anyschema.typing import FieldConstraints, FieldMetadata, FieldSpecIterable, FieldType
@@ -75,14 +77,16 @@ def test_anyschema_with_dict_spec() -> None:
 
 
 @pytest.mark.parametrize(
-    "pipeline",
+    "into_pipeline",
     [
-        make_pipeline("auto").with_steps(CustomTypeStep()),
-        ParserPipeline.from_auto(CustomTypeStep()),
-        [step.clone() for step in ParserPipeline.from_auto(CustomTypeStep()).steps],
+        lambda: make_pipeline("auto").with_steps(CustomTypeStep()),
+        lambda: ParserPipeline.from_auto(CustomTypeStep()),
+        lambda: [step.clone() for step in ParserPipeline.from_auto(CustomTypeStep()).steps],
     ],
+    ids=["with_steps", "from_auto", "cloned_steps"],
 )
-def test_anyschema_with_pipeline(pipeline: ParserPipeline) -> None:
+def test_anyschema_with_pipeline(into_pipeline: Callable[[], ParserPipeline | list[ParserStep]]) -> None:
+    pipeline = into_pipeline()
     spec = {"custom_field": CustomType, "normal_field": int}
     schema = AnySchema(spec=spec, pipeline=pipeline)
 

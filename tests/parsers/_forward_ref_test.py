@@ -1,14 +1,11 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, ForwardRef
+from typing import Any, ForwardRef
 
 import narwhals as nw
 import pytest
 
 from anyschema.parsers import ForwardRefStep, ParserPipeline, PyTypeStep, UnionTypeStep
-
-if TYPE_CHECKING:
-    from contextlib import AbstractContextManager
 
 
 def forward_ref_parser_builder(
@@ -87,17 +84,17 @@ def test_custom_local() -> None:
 
 
 @pytest.mark.parametrize(
-    ("input_type", "context"),
+    ("input_type", "exc_type", "msg"),
     [
-        ("UndefinedType", pytest.raises(NotImplementedError, match="Failed to resolve ForwardRef")),
-        ("list[", pytest.raises(SyntaxError, match="Forward reference must be an expression")),
-        ("1 + 1", pytest.raises(NotImplementedError, match="No parser in the pipeline could handle type")),
+        ("UndefinedType", NotImplementedError, "Failed to resolve ForwardRef"),
+        ("list[", SyntaxError, "Forward reference must be an expression"),
+        ("1 + 1", NotImplementedError, "No parser in the pipeline could handle type"),
     ],
 )
 def test_resolution_error(
-    forward_ref_parser: ForwardRefStep, input_type: str, context: AbstractContextManager[Any]
+    forward_ref_parser: ForwardRefStep, input_type: str, exc_type: type[Exception], msg: str
 ) -> None:
-    with context:
+    with pytest.raises(exc_type, match=msg):
         forward_ref_parser.parse(ForwardRef(input_type), constraints=(), metadata={})
 
 

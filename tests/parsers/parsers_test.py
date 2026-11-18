@@ -55,14 +55,15 @@ def test_make_pipeline_auto(auto_pipeline: ParserPipeline) -> None:
 
 
 @pytest.mark.parametrize(
-    "steps",
+    "step_types",
     [
-        (PyTypeStep(),),
-        (UnionTypeStep(), PyTypeStep()),
-        (UnionTypeStep(), AnnotatedStep(), PyTypeStep()),
+        (PyTypeStep,),
+        (UnionTypeStep, PyTypeStep),
+        (UnionTypeStep, AnnotatedStep, PyTypeStep),
     ],
 )
-def test_make_pipeline_custom(steps: tuple[ParserStep, ...]) -> None:
+def test_make_pipeline_custom(step_types: tuple[type[ParserStep], ...]) -> None:
+    steps = tuple(cls() for cls in step_types)
     pipeline = make_pipeline(steps)
     assert isinstance(pipeline, ParserPipeline)
     assert len(pipeline.steps) == len(steps)

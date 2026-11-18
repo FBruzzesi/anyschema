@@ -50,6 +50,7 @@ testing = [
   "pydantic-extra-types[pycountry,phonenumbers]",
   "pytest>=9.0.3",
   "pytest-cov>=6.0.0",
+  "pytest-run-parallel>=0.10.0",
   "pytest-xdist>=3.8.0",
 ]
 

@@ -16,8 +16,8 @@ if TYPE_CHECKING:
 
 __all__ = ("ParserStep",)
 
-# Makes the check-and-set in `ParserStep.pipeline` atomic: only one pipeline may claim a step, even across threads.
-_SET_PIPELINE_LOCK = Lock()
+# Serializes the check-and-set in `ParserStep.pipeline`, so two threads cannot both claim one step.
+_PIPELINE_CLAIM_LOCK = Lock()
 
 
 class ParserStep(ABC):
@@ -106,7 +106,7 @@ class ParserStep(ABC):
             msg = f"Expected `ParserPipeline` object, found {type(pipeline)}"
             raise TypeError(msg)
 
-        with _SET_PIPELINE_LOCK:
+        with _PIPELINE_CLAIM_LOCK:
             if self._pipeline is not None:
                 msg = (
                     "`pipeline` can only be set once.\nYou should make a clone first, and then set a pipeline:\n\n"

@@ -4,7 +4,7 @@ from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
-from enum import Enum
+from enum import Enum, IntEnum, IntFlag
 from ipaddress import IPv4Address, IPv4Network, IPv6Address, IPv6Interface
 from pathlib import Path, PurePosixPath
 from types import NoneType
@@ -27,11 +27,30 @@ class Color(Enum):
     BLUE = 3
 
 
+class MixedEnum(Enum):
+    NUMBER = 1
+    TEXT = "text"
+
+
 class Status(Enum):
     """Another enum for testing."""
 
     ACTIVE = "active"
     INACTIVE = "inactive"
+
+
+class HttpStatus(IntEnum):
+    OK = 200
+    NOT_FOUND = 404
+
+
+class Permission(IntFlag):
+    READ = 1
+    WRITE = 2
+
+
+class Ratio(float, Enum):
+    HALF = 0.5
 
 
 class CustomClass:
@@ -68,12 +87,18 @@ def py_type_parser() -> PyTypeStep:
         (IPv6Interface, nw.String()),
         (IPv4Network, nw.String()),
         (object, nw.Object()),
-        (Color, nw.Enum(Color)),
         (Status, nw.Enum(Status)),
+        (Color, nw.UInt8()),
+        (HttpStatus, nw.UInt16()),
+        (Permission, nw.Int64()),
+        (Ratio, nw.Float64()),
         (Literal["red", "green", "blue"], nw.Enum(("red", "green", "blue"))),
-        (Literal[1, 2, 3], nw.Enum([1, 2, 3])),  # type: ignore[list-item]
+        (Literal[1, 2, 3], nw.UInt8()),
+        (Literal[-1, 300], nw.Int16()),
         (Literal["active", "inactive"], nw.Enum(("active", "inactive"))),
-        (Literal[True, False], nw.Enum([True, False])),  # type: ignore[list-item]
+        (Literal[True, False], nw.Boolean()),
+        (Literal["a", None], nw.Enum(("a",))),  # noqa: PYI061
+        (Literal[Status.ACTIVE], nw.Enum(Status)),
     ],
 )
 def test_parse_non_nested(py_type_parser: PyTypeStep, input_type: Any, expected: nw.dtypes.DType) -> None:
@@ -116,6 +141,30 @@ def test_parse_nested(py_type_parser: PyTypeStep, input_type: Any, expected: nw.
 def test_parse_heterogeneous_tuple_raises(py_type_parser: PyTypeStep, input_type: Any) -> None:
     with pytest.raises(UnsupportedDTypeError, match="Tuple with mixed types is not supported"):
         py_type_parser.parse(input_type, (), {})
+
+
+@pytest.mark.parametrize(
+    ("input_type", "match"),
+    [
+        (MixedEnum, "must share one non-None type"),
+        (Literal["a", 1], "must share one non-None type"),
+        (Literal[1, True], "must share one non-None type"),
+        (Literal[None], "must share one non-None type"),  # noqa: PYI061
+    ],
+)
+def test_parse_mixed_enum_or_literal_raises(py_type_parser: PyTypeStep, input_type: Any, match: str) -> None:
+    with pytest.raises(UnsupportedDTypeError, match=match):
+        py_type_parser.parse(input_type, (), {})
+
+
+@pytest.mark.parametrize(("explicit_nullable", "expected"), [(None, True), (False, False)])
+def test_literal_with_none_is_nullable(
+    auto_pipeline: ParserPipeline, *, explicit_nullable: bool | None, expected: bool
+) -> None:
+    metadata = {} if explicit_nullable is None else {"anyschema": {"nullable": explicit_nullable}}
+    field = auto_pipeline.parse_into_field("size", Literal["S", None], (), metadata)  # noqa: PYI061
+    assert field.dtype == nw.Enum(["S"])
+    assert field.nullable is expected
 
 
 @pytest.mark.parametrize(("input_type", "expected"), [(int, nw.Int64()), (list[int], nw.List(nw.Int64()))])
@@ -277,7 +326,7 @@ ADDRESS_STRUCT = nw.Struct([nw.Field(name="street", dtype=nw.String()), nw.Field
                 ]
             ),
         ),
-        (EnumWithDataclassMixin, nw.Enum(EnumWithDataclassMixin)),
+        (EnumWithDataclassMixin, ADDRESS_STRUCT),  # A mixin enum gets the dtype of its values
     ],
 )
 def test_parse_dataclass(py_type_parser: PyTypeStep, input_type: Any, expected: nw.dtypes.DType) -> None:

@@ -124,6 +124,27 @@ def test_anyschema_metadata_filtered_from_field_metadata() -> None:
     assert field.metadata == {"custom_key": "custom_value"}
 
 
+@pytest.mark.parametrize(
+    "metadata",
+    [
+        {"anyschema": {"nullable": True}, "x-anyschema": {"unique": True}},
+        # An empty namespace still counts: anything written later would go into `x-anyschema` and hide `anyschema`.
+        {"anyschema": {"unique": True}, "x-anyschema": {}},
+    ],
+)
+def test_parse_into_field_both_namespaces_raises(metadata: dict[str, Any]) -> None:
+    with pytest.raises(ValueError, match="Field 'test' sets both 'anyschema' and 'x-anyschema' metadata"):
+        make_pipeline().parse_into_field("test", Optional[int], (), metadata)
+
+
+def test_both_namespaces_in_spec_raises() -> None:
+    class Model(BaseModel):
+        x: int = PydanticField(json_schema_extra={"anyschema": {"unique": True}, "x-anyschema": {}})
+
+    with pytest.raises(ValueError, match="Field 'x' sets both"):
+        AnySchema(spec=Model)
+
+
 def test_x_anyschema_metadata_filtered_from_field_metadata() -> None:
     """Test that x-anyschema prefix works and is filtered from Field.metadata."""
     pipeline = make_pipeline()

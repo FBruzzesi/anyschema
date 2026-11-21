@@ -136,7 +136,7 @@ Steps inherit from the [`ParserStep`][api-parser-step] abstract base class.
 |------|---------|---------|-------|
 | `ForwardRefStep` | Resolves forward references before any type inspection can happen | `ForwardRef('ClassName')` | Must be first |
 | `UnionTypeStep` | Extracts non-None types from Optional/Union types (dataframe libraries don't have Union types) | `Union[T, None]`, `T | None`, `Optional[T]` | Early - simplifies downstream parsers |
-| `AnnotatedStep` | Separates base types from their constraints/metadata for independent processing | `Annotated[T, metadata1, ...]` | Before type-specific parsers |
+| `AnnotatedStep` | Separates base types from their constraints/metadata for independent processing; applies the `dtype` of nested `WithAnySchema` markers | `Annotated[T, metadata1, ...]` | Before type-specific parsers |
 | `AnnotatedTypesStep` | Refines types based on constraints (e.g., positive integers become unsigned types) | Types with `annotated_types` or Pydantic constraints | After `AnnotatedStep`, before type parsers |
 | `PydanticTypeStep` | Handles Pydantic-specific types that need special processing beyond Python type inspection | Pydantic types like `FutureDate`, `HttpUrl`, `SecretStr` | After metadata extraction, before fallback |
 | `PyTypeStep` | Fallback parser for all standard Python types | Basic (`int`, `str`, `bool`), temporal (`date`, `datetime`), container (`list[T]`, `tuple[T, ...]`), struct (`TypedDict`, dataclasses), other (`Decimal`, `Enum`, `UUID`, `Path`, `ipaddress` types) | Must be last |
@@ -235,6 +235,24 @@ The pipeline processes this as:
 Steps may write field-level keys into `metadata`, e.g. `UnionTypeStep` sets `nullable` for `Optional[T]`.
 `parse_into_field` hands the steps a shallow copy of the field metadata, and the nested `anyschema` dict is replaced
 rather than edited, so the user's spec is never modified and fields that share one metadata dict stay independent.
+
+### `Annotated` markers
+
+[`WithAnySchema`][anyschema.WithAnySchema] markers are handled in two places:
+
+1. `ParserPipeline.parse_into_field` first resolves a field type that is a `ForwardRef` (with the pipeline's
+    `ForwardRefStep`, keeping it unresolved if that fails). It then strips the **field-level** markers (the
+    `Annotated` layers of the field type, optionally wrapped in a single `| None`), merges them in order (last wins),
+    raises if they set a key that the adapter metadata also sets, and adds them to the metadata. The existing `dtype`
+    override then runs on the stripped type.
+2. `AnnotatedStep` handles **nested** markers: the last `dtype` sets the dtype of that element, and a marker
+    setting any other key raises `NotImplementedError`, since nested elements have no field metadata. Markers never
+    reach the steps that follow.
+
+Pydantic moves the outermost `Annotated` extras of a field into `FieldInfo.metadata`, so `pydantic_adapter` puts the
+markers back into the field type. Both places above then see Pydantic fields like any other spec.
+
+See [Annotated markers](user-guide/metadata.md#annotated-markers) for the user-facing rules.
 
 ## Recursion and Nested Types
 

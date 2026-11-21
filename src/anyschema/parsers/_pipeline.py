@@ -1,23 +1,29 @@
 from __future__ import annotations
 
+from contextlib import suppress
 from itertools import chain
-from typing import TYPE_CHECKING, Literal, overload
+from typing import TYPE_CHECKING, ForwardRef, Literal, overload
 
-from narwhals.dtypes import DType
 from typing_extensions import Self, TypeIs
 
 from anyschema._dependencies import ANNOTATED_TYPES_AVAILABLE, ATTRS_AVAILABLE, PYDANTIC_AVAILABLE, SQLALCHEMY_AVAILABLE
-from anyschema._metadata import filter_anyschema_metadata, get_anyschema_value_by_key
+from anyschema._metadata import (
+    ensure_dtype,
+    filter_anyschema_metadata,
+    get_anyschema_value_by_key,
+    merge_field_markers,
+)
 from anyschema._utils import qualified_type_name
-from anyschema.parsers._annotated import AnnotatedStep
+from anyschema.parsers._annotated import AnnotatedStep, split_field_markers
 from anyschema.parsers._base import ParserStep
 from anyschema.parsers._builtin import PyTypeStep
 from anyschema.parsers._forward_ref import ForwardRefStep
 from anyschema.parsers._union import UnionTypeStep
-from anyschema.serde import deserialize_dtype
 
 if TYPE_CHECKING:
     from collections.abc import Generator, Sequence
+
+    from narwhals.dtypes import DType
 
     from anyschema._anyschema import AnyField
     from anyschema.typing import IntoParserPipeline
@@ -255,6 +261,12 @@ class ParserPipeline:
         `{"anyschema": {"nullable": True}}` for `Optional[T]`), so forward references are resolved before
         nullability is read. The caller's dict, and any nested dict it holds, is never modified.
 
+        Field-level [`WithAnySchema`][anyschema.WithAnySchema] markers (in the `Annotated` layers of `input_type`,
+        optionally wrapped in a single `| None`) are merged into `metadata` in order, the last value winning per key.
+        A marker `dtype` on a `T | None` field makes it nullable unless `nullable` is set explicitly. If `input_type`
+        is a `ForwardRef`, the pipeline's `ForwardRefStep` resolves it first, so that markers inside it are field
+        level too.
+
         Arguments:
             name: The name of the field.
             input_type: The type to parse.
@@ -263,6 +275,10 @@ class ParserPipeline:
 
         Returns:
             A [`AnyField`][anyschema.AnyField] instance containing the parsed dtype and field-level metadata.
+
+        Raises:
+            ValueError: If `metadata` has both an `"anyschema"` and an `"x-anyschema"` key, or if a marker sets a key
+                that `metadata` also sets.
 
         Examples:
             >>> from anyschema.parsers import make_pipeline
@@ -286,19 +302,29 @@ class ParserPipeline:
         """
         from anyschema._anyschema import AnyField
 
+        if "anyschema" in metadata and "x-anyschema" in metadata:
+            msg = (
+                f"Field '{name}' sets both 'anyschema' and 'x-anyschema' metadata: use only one of them, "
+                "as both hold the same keys."
+            )
+            raise ValueError(msg)
+
+        if isinstance(input_type, ForwardRef) and (
+            forward_ref_step := next((step for step in self.steps if isinstance(step, ForwardRefStep)), None)
+        ):
+            # Resolve first so that markers inside string annotations are field level. On failure, keep the
+            # unresolved type: it only raises if it needs parsing (a `dtype` override skips that).
+            with suppress(NotImplementedError):
+                input_type = forward_ref_step.resolve(input_type)
+
+        input_type, markers, is_optional = split_field_markers(input_type)
+        if markers:
+            metadata = merge_field_markers(name, metadata, markers, is_optional=is_optional)
+
         # Steps write into `metadata` (e.g. `nullable` for Optional), so work on a copy.
         metadata = dict(metadata)
         if (into_dtype := get_anyschema_value_by_key(metadata, key="dtype")) is not None:
-            if isinstance(into_dtype, DType):
-                dtype = into_dtype
-            elif isinstance(into_dtype, str):  # pyright: ignore[reportUnnecessaryIsInstance]
-                dtype = deserialize_dtype(into_dtype=into_dtype)
-            else:
-                msg = (
-                    f"Expected `dtype` value to be of type `narwhals.dtypes.DType` or `str`, \n"
-                    f"found '{qualified_type_name(into_dtype)}' instead."
-                )
-                raise TypeError(msg)
+            dtype = ensure_dtype(into_dtype)
         else:
             dtype = self.parse(input_type, constraints, metadata, strict=True)
 

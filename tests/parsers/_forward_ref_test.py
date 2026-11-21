@@ -130,29 +130,24 @@ def test_build_namespace_custom() -> None:
     assert parser.localns == custom_locals
 
 
-def test_build_namespace_includes_pydantic_types() -> None:
-    from anyschema._dependencies import PYDANTIC_AVAILABLE
+@pytest.mark.parametrize(
+    ("annotation", "expected"),
+    [
+        ("PositiveInt", nw.UInt64()),
+        ("NonNegativeFloat", nw.Float64()),
+        ("list[NegativeInt]", nw.List(nw.Int64())),
+    ],
+)
+def test_resolves_pydantic_names_once_pydantic_is_imported(annotation: str, expected: nw.dtypes.DType) -> None:
+    # Pydantic names are merged in at resolve time, not stored in `globalns` (that would import pydantic).
+    assert "PositiveInt" not in ForwardRefStep().globalns
+    assert ParserPipeline("auto").parse(ForwardRef(annotation), (), {}) == expected
 
-    parser = forward_ref_parser_builder()
 
-    if PYDANTIC_AVAILABLE:
-        assert "BaseModel" in parser.globalns
-        assert "Field" in parser.globalns
-        assert "PositiveInt" in parser.globalns
-        assert "NegativeInt" in parser.globalns
-        assert "NonPositiveInt" in parser.globalns
-        assert "NonNegativeInt" in parser.globalns
-        assert "PositiveFloat" in parser.globalns
-        assert "NegativeFloat" in parser.globalns
-        assert "NonPositiveFloat" in parser.globalns
-        assert "NonNegativeFloat" in parser.globalns
-        assert "constr" in parser.globalns
-        assert "conint" in parser.globalns
-        assert "confloat" in parser.globalns
-        assert "conlist" in parser.globalns
-        assert "conset" in parser.globalns
-    else:  # pragma: no cover
-        ...
+def test_user_globalns_overrides_pydantic_names() -> None:
+    parser = forward_ref_parser_builder(globalns={"PositiveInt": str})
+
+    assert parser.parse(ForwardRef("PositiveInt"), (), {}) == nw.String()
 
 
 def test_build_namespace_includes_annotated_types() -> None:

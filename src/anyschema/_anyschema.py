@@ -26,6 +26,7 @@ from anyschema.adapters import (
 )
 from anyschema.exceptions import UnsupportedDTypeError
 from anyschema.parsers import ParserPipeline
+from anyschema.parsers._pipeline import shared_auto_pipeline
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable, Mapping
@@ -64,6 +65,28 @@ def _enums_to_categorical(dtype: IntoDType) -> IntoDType:
     if isinstance(dtype, nw.Struct):
         return nw.Struct([nw.Field(field.name, _enums_to_categorical(field.dtype)) for field in dtype.fields])
     return dtype
+
+
+def _infer_adapter(spec: Spec) -> Adapter:
+    """Return the built-in adapter for the type of `spec`.
+
+    Raises:
+        ValueError: If no built-in adapter supports `spec`.
+    """
+    if is_into_ordered_dict(spec):
+        return into_ordered_dict_adapter
+    if is_typed_dict(spec):
+        return typed_dict_adapter
+    if is_dataclass(spec):
+        return dataclass_adapter
+    if is_pydantic_base_model(spec):
+        return pydantic_adapter
+    if is_attrs_class(spec):
+        return attrs_adapter
+    if is_sqlalchemy_table(spec):
+        return sqlalchemy_adapter
+    msg = "`spec` type is unknown and `adapter` is not specified."
+    raise ValueError(msg)
 
 
 def _contains_tz_aware_datetime(dtype: IntoDType) -> bool:
@@ -291,31 +314,18 @@ class AnySchema:
             self._nw_schema = spec
             return
 
-        parser_pipeline = pipeline if isinstance(pipeline, ParserPipeline) else ParserPipeline(pipeline)
-        adapter_f: Adapter
-
-        if adapter is not None:
-            adapter_f = adapter
-        elif is_into_ordered_dict(spec):
-            adapter_f = into_ordered_dict_adapter
-        elif is_typed_dict(spec):
-            adapter_f = typed_dict_adapter
-        elif is_dataclass(spec):
-            adapter_f = dataclass_adapter
-        elif is_pydantic_base_model(spec):
-            adapter_f = pydantic_adapter
-        elif is_attrs_class(spec):
-            adapter_f = attrs_adapter
-        elif is_sqlalchemy_table(spec):
-            adapter_f = sqlalchemy_adapter
+        if isinstance(pipeline, ParserPipeline):
+            parser_pipeline = pipeline
+        elif pipeline == "auto":
+            parser_pipeline = shared_auto_pipeline()
         else:
-            msg = "`spec` type is unknown and `adapter` is not specified."
-            raise ValueError(msg)
+            parser_pipeline = ParserPipeline(pipeline)
+        spec_adapter = adapter if adapter is not None else _infer_adapter(spec)
 
         self._fields = MappingProxyType(
             {
                 name: parser_pipeline.parse_into_field(name, input_type, constraints, metadata)
-                for name, input_type, constraints, metadata in adapter_f(cast("Any", spec))
+                for name, input_type, constraints, metadata in spec_adapter(cast("Any", spec))
             }
         )
         self._nw_schema = Schema({name: field.dtype for name, field in self._fields.items()})

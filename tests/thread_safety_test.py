@@ -15,6 +15,7 @@ from annotated_types import Ge
 from pydantic import BaseModel, Field
 
 from anyschema import AnySchema
+from anyschema.parsers import make_pipeline
 from tests.conftest import AttrsPerson, PydanticStudent
 
 if TYPE_CHECKING:
@@ -71,3 +72,9 @@ def test_shared_nested_metadata_not_leaked() -> None:
     assert schema.fields["maybe"].nullable is True
     assert schema.fields["always"].nullable is False
     assert SHARED_EXTRA == {"anyschema": {"unique": True}}
+
+
+def test_shared_auto_pipeline_matches_a_new_pipeline() -> None:
+    spec = {"id": Annotated[int, Ge(0)], "ref": ForwardRef("PositiveInt"), "student": PydanticStudent}
+
+    assert AnySchema(spec=spec) == AnySchema(spec=spec, pipeline=make_pipeline("auto"))

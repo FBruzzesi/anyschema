@@ -89,6 +89,8 @@ def is_pydantic_base_model(obj: object) -> TypeIs[type[BaseModel]]:
         PYDANTIC_AVAILABLE
         and (pydantic := sys.modules.get("pydantic")) is not None
         and isinstance(obj, type)
+        # On Python 3.10 `list[int]` passes the check above, and with pydantic 2.0 `issubclass` then raises.
+        and isinstance(obj, type(pydantic.BaseModel))
         and issubclass(obj, pydantic.BaseModel)
     )
 

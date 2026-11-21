@@ -6,7 +6,6 @@ import narwhals as nw
 from sqlalchemy import types as sqltypes
 
 from anyschema._metadata import get_anyschema_value_by_key
-from anyschema._utils import is_sequence_of
 from anyschema.exceptions import UnsupportedDTypeError
 from anyschema.parsers._base import ParserStep
 
@@ -111,14 +110,10 @@ class SQLAlchemyTypeStep(ParserStep):
             return nw.Binary()
 
         if isinstance(input_type, sqltypes.ARRAY):
-            inner_type = self.pipeline.parse(
-                input_type.item_type, constraints=constraints, metadata=metadata, strict=True
-            )
-            shape = input_type.dimensions
-            return (
-                nw.Array(inner=inner_type, shape=tuple(shape) if is_sequence_of(shape, int) else shape)
-                if isinstance(shape, int) or is_sequence_of(shape, int)
-                else nw.List(inner=inner_type)
-            )
+            # `dimensions` is the nesting depth, not a length.
+            dtype = self.pipeline.parse(input_type.item_type, constraints=constraints, metadata=metadata, strict=True)
+            for _ in range(input_type.dimensions or 1):
+                dtype = nw.List(inner=dtype)
+            return dtype
 
         return None

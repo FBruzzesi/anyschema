@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any
 import narwhals as nw
 import pytest
 from sqlalchemy import types as sqltypes
+from sqlalchemy.dialects import postgresql
 
 from anyschema.exceptions import UnsupportedDTypeError
 from anyschema.parsers import make_pipeline
@@ -62,7 +63,9 @@ class Color(Enum):
         (sqltypes.Enum(Color), nw.Enum(["RED", "BLUE"])),
         (sqltypes.Enum(Color, values_callable=lambda e: [m.value for m in e]), nw.Enum(["r", "b"])),
         (sqltypes.ARRAY(sqltypes.Float()), nw.List(nw.Float32())),
-        (sqltypes.ARRAY(sqltypes.Float(), dimensions=3), nw.Array(nw.Float32(), shape=(3,))),
+        (sqltypes.ARRAY(sqltypes.Float(), dimensions=1), nw.List(nw.Float32())),
+        (sqltypes.ARRAY(sqltypes.Float(), dimensions=3), nw.List(nw.List(nw.List(nw.Float32())))),
+        (postgresql.ARRAY(sqltypes.Integer(), dimensions=2), nw.List(nw.List(nw.Int32()))),
         (int, None),
         ("not a sqlalchemy type", None),
     ],

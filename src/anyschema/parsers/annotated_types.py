@@ -9,7 +9,7 @@ from anyschema._utils import INT64_MIN, UINT64_MAX, int_dtype_from_bounds
 from anyschema.parsers._base import ParserStep
 
 if TYPE_CHECKING:
-    from narwhals.dtypes import DType
+    from narwhals.dtypes import DType, IntegerType
 
     from anyschema.typing import FieldConstraints, FieldMetadata, FieldType
 
@@ -56,27 +56,25 @@ class AnnotatedTypesStep(ParserStep):
         # For other types, we don't refine based on constraints
         return None
 
-    def _parse_integer_constraints(self, constraints: FieldConstraints) -> DType:
-        """Parse integer type constraints to determine the most appropriate integer dtype.
-
-        This function examines annotated_types constraints (Gt, Ge, Lt, Le, Interval) to determine
-        the smallest integer dtype that can accommodate the specified range.
+    def _parse_integer_constraints(self, constraints: FieldConstraints) -> IntegerType:
+        """Return the smallest integer dtype that holds every value the `Gt`/`Ge`/`Lt`/`Le`/`Interval` bounds allow.
 
         Arguments:
-            constraints: Tuple of constraint objects, potentially containing annotated_types constraints.
-
-        Returns:
-            The most appropriate integer DType based on the constraints.
+            constraints: Field constraints. Items that are not bounds are ignored.
         """
         lower_bound, upper_bound = INT64_MIN, UINT64_MAX
 
         # Iterating an `Interval` yields its `Gt`/`Ge`/`Lt`/`Le` parts.
-        flat_constraints = (item for c in constraints for item in (c if isinstance(c, Interval) else (c,)))
+        flat_constraints = (
+            part
+            for constraint in constraints
+            for part in (constraint if isinstance(constraint, Interval) else (constraint,))
+        )
         # floor/ceil, not `int()`: `Gt(-1.5)` allows -1, but `int(-1.5) + 1` is 0.
         for constraint in flat_constraints:
-            if isinstance(constraint, Gt):  #  It includes pydantic PositiveInt
+            if isinstance(constraint, Gt):  # Includes Pydantic `PositiveInt`
                 lower_bound = max(lower_bound, math.floor(constraint.gt) + 1)  # type: ignore[call-overload]
-            elif isinstance(constraint, Ge):  #  It includes pydantic NonNegativeInt
+            elif isinstance(constraint, Ge):  # Includes Pydantic `NonNegativeInt`
                 lower_bound = max(lower_bound, math.ceil(constraint.ge))  # type: ignore[call-overload]
             elif isinstance(constraint, Lt):
                 upper_bound = min(upper_bound, math.ceil(constraint.lt) - 1)  # type: ignore[call-overload]

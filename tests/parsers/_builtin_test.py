@@ -8,7 +8,8 @@ from enum import Enum
 from ipaddress import IPv4Address, IPv4Network, IPv6Address, IPv6Interface
 from pathlib import Path, PurePosixPath
 from types import NoneType
-from typing import Any, Literal, TypedDict
+from typing import Any, List, Literal, Tuple, TypedDict
+from typing import Sequence as TypingSequence
 from uuid import UUID
 
 import narwhals as nw
@@ -101,6 +102,9 @@ def test_parse_non_nested(py_type_parser: PyTypeStep, input_type: Any, expected:
         (tuple, nw.List(nw.Object())),
         (Sequence, nw.List(nw.Object())),
         (Iterable, nw.List(nw.Object())),
+        (List, nw.List(nw.Object())),
+        (TypingSequence, nw.List(nw.Object())),
+        (Tuple, nw.List(nw.Object())),
     ],
 )
 def test_parse_nested(py_type_parser: PyTypeStep, input_type: Any, expected: nw.dtypes.DType) -> None:
@@ -161,7 +165,7 @@ def test_parse_decimal_with_precision_scale_metadata(
     assert result == expected
 
 
-@pytest.mark.parametrize("input_type", [CustomClass, NoneType, set[int], frozenset])
+@pytest.mark.parametrize("input_type", [CustomClass, NoneType, set[int], set[CustomClass], frozenset])
 def test_unsupported_type(py_type_parser: PyTypeStep, input_type: Any) -> None:
     result = py_type_parser.parse(input_type, (), {})
     assert result is None

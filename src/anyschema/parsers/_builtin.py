@@ -131,24 +131,22 @@ class PyTypeStep(ParserStep):
             # TODO(FBruzzesi): What's a better way to map this? We should introspect the mapping values
             return nw.Struct([])
 
-        args = get_args(input_type)
+        if origin not in {list, Sequence, Iterable, tuple}:
+            return None
+
+        if not (args := get_args(input_type)):  # Bare `typing.List`, `typing.Sequence`, ...
+            return nw.List(nw.Object())
+
         inner_dtype = self.pipeline.parse(args[0], constraints=constraints, metadata=metadata, strict=True)
 
-        if origin in {list, Sequence, Iterable}:
+        if origin is not tuple or (len(args) == 2 and args[1] is Ellipsis):  # noqa: PLR2004
             return nw.List(inner_dtype)
 
-        if origin is tuple:
-            if len(args) == 2 and args[1] is Ellipsis:  # noqa: PLR2004
-                # tuple[T, ...] - variable length tuple
-                return nw.List(inner_dtype)
+        if len(set(args)) != 1:
+            msg = f"Tuple with mixed types is not supported: {input_type}"
+            raise UnsupportedDTypeError(msg)
 
-            if len(set(args)) != 1:
-                msg = f"Tuple with mixed types is not supported: {input_type}"
-                raise UnsupportedDTypeError(msg)
-
-            return nw.Array(inner_dtype, shape=len(args))
-
-        return None
+        return nw.Array(inner_dtype, shape=len(args))
 
     def _parse_typed_dict(
         self,

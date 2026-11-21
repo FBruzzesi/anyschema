@@ -67,6 +67,7 @@ def test_check_version_package_below_minimum_warns(package: str, installed_versi
     assert len(record) == 1
 
 
+@pytest.mark.thread_unsafe(reason="patches module-level availability flags")
 def test_specs_of_unavailable_libraries_are_not_detected() -> None:
     class PydanticModel(BaseModel):
         x: int
@@ -80,9 +81,9 @@ def test_specs_of_unavailable_libraries_are_not_detected() -> None:
     with patch.multiple(
         "anyschema._dependencies", PYDANTIC_AVAILABLE=False, ATTRS_AVAILABLE=False, SQLALCHEMY_AVAILABLE=False
     ):
-        assert not is_pydantic_base_model(PydanticModel)
-        assert not is_attrs_class(AttrsClass)
-        assert not is_sqlalchemy_table(table)
+        detected = (is_pydantic_base_model(PydanticModel), is_attrs_class(AttrsClass), is_sqlalchemy_table(table))
+
+    assert detected == (False, False, False)
 
 
 def test_is_pydantic_extra_types_color() -> None:

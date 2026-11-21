@@ -3,10 +3,19 @@ from __future__ import annotations
 import sys
 from unittest.mock import patch
 
+import attrs
 import pytest
+import sqlalchemy as sa
+from pydantic import BaseModel
 from pydantic_extra_types.color import Color
 
-from anyschema._dependencies import check_version, is_pydantic_extra_types_color
+from anyschema._dependencies import (
+    check_version,
+    is_attrs_class,
+    is_pydantic_base_model,
+    is_pydantic_extra_types_color,
+    is_sqlalchemy_table,
+)
 
 
 @pytest.mark.parametrize(
@@ -56,6 +65,24 @@ def test_check_version_package_below_minimum_warns(package: str, installed_versi
 
     assert result is False
     assert len(record) == 1
+
+
+def test_specs_of_unavailable_libraries_are_not_detected() -> None:
+    class PydanticModel(BaseModel):
+        x: int
+
+    @attrs.define
+    class AttrsClass:
+        x: int
+
+    table = sa.Table("t", sa.MetaData(), sa.Column("x", sa.Integer))
+
+    with patch.multiple(
+        "anyschema._dependencies", PYDANTIC_AVAILABLE=False, ATTRS_AVAILABLE=False, SQLALCHEMY_AVAILABLE=False
+    ):
+        assert not is_pydantic_base_model(PydanticModel)
+        assert not is_attrs_class(AttrsClass)
+        assert not is_sqlalchemy_table(table)
 
 
 def test_is_pydantic_extra_types_color() -> None:

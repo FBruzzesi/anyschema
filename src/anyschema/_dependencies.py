@@ -98,7 +98,8 @@ def is_dataclass(obj: object) -> TypeGuard[DataclassType]:
 def is_pydantic_base_model(obj: object) -> TypeIs[type[BaseModel]]:
     """Check if the object is a pydantic BaseModel."""
     return (
-        (pydantic := get_pydantic()) is not None
+        PYDANTIC_AVAILABLE
+        and (pydantic := get_pydantic()) is not None
         and isinstance(obj, type)
         and isinstance(obj, type(pydantic.BaseModel))
         and issubclass(obj, pydantic.BaseModel)
@@ -120,7 +121,7 @@ def is_attrs_class(obj: object) -> TypeIs[AttrsClassType]:
     Uses attrs.has() to check if a class is an attrs class.
     Supports @attrs.define/@attrs.frozen decorators.
     """
-    return (attrs := get_attrs()) is not None and attrs.has(obj)
+    return ATTRS_AVAILABLE and (attrs := get_attrs()) is not None and attrs.has(obj)
 
 
 def get_sqlalchemy() -> ModuleType | None:
@@ -141,6 +142,8 @@ def is_sqlalchemy_table(obj: object) -> TypeIs[SQLAlchemyTableType]:
     - SQLAlchemy Table instances (Core)
     - SQLAlchemy ORM mapped classes (DeclarativeBase subclasses)
     """
+    if not SQLALCHEMY_AVAILABLE:
+        return False
     is_table = (sql := get_sqlalchemy()) is not None and isinstance(obj, sql.Table)
     is_declarative_base = (
         (sql_orm := get_sqlalchemy_orm()) is not None

@@ -477,6 +477,8 @@ schema = AnySchema(spec=Product)
 print(schema.to_polars())
 ```
 
+Bounds can be fractional: `Gt(-1.5)` allows `-1`, so it gives a signed integer.
+
 ## Supported Pydantic Types
 
 Dataframe schemas cannot express Pydantic's validation rules, so anyschema maps each Pydantic type to the dtype of

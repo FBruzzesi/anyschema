@@ -60,6 +60,20 @@ def test_anyschema_with_unknown_spec_and_custom_adapter() -> None:
     assert "field2" in result
 
 
+def test_anyschema_custom_adapter_wins_over_auto_detection() -> None:
+    from pydantic import BaseModel
+
+    class Model(BaseModel):
+        name: str
+
+    def custom_adapter(spec: type[Model]) -> FieldSpecIterable:  # noqa: ARG001
+        yield "other", int, (), {}
+
+    schema = AnySchema(spec=Model, adapter=custom_adapter)
+
+    assert schema.dtypes(named=True) == {"other": nw.Int64()}
+
+
 def test_anyschema_with_narwhals_schema() -> None:
     nw_schema = Schema({"name": nw.String(), "age": nw.Int64()})
     anyschema = AnySchema(spec=nw_schema)

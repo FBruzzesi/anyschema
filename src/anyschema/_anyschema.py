@@ -174,6 +174,7 @@ class AnySchema:
                 (e.g., from `json_schema_extra` in Pydantic Field's, `metadata` in attrs and dataclasses field's)
 
             This allows for custom field specification logic and extensibility from user-defined adapters.
+            When given, it is used for every spec, including types anyschema recognizes.
 
     Attributes:
         fields: A mapping from field names to [`AnyField`][anyschema.AnyField] objects,
@@ -268,7 +269,9 @@ class AnySchema:
         parser_pipeline = pipeline if isinstance(pipeline, ParserPipeline) else ParserPipeline(pipeline)
         adapter_f: Adapter
 
-        if is_into_ordered_dict(spec):
+        if adapter is not None:
+            adapter_f = adapter
+        elif is_into_ordered_dict(spec):
             adapter_f = into_ordered_dict_adapter
         elif is_typed_dict(spec):
             adapter_f = typed_dict_adapter
@@ -280,8 +283,6 @@ class AnySchema:
             adapter_f = attrs_adapter
         elif is_sqlalchemy_table(spec):
             adapter_f = sqlalchemy_adapter
-        elif adapter is not None:
-            adapter_f = adapter
         else:
             msg = "`spec` type is unknown and `adapter` is not specified."
             raise ValueError(msg)

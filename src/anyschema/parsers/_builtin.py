@@ -130,10 +130,10 @@ class PyTypeStep(ParserStep):
             A Narwhals DType if this parser can handle the type, None otherwise.
         """
         if origin is Literal:
-            literal_values = get_args(input_type)
-            values = [value for value in literal_values if value is not None]
-            if len(values) < len(literal_values) and get_anyschema_value_by_key(metadata, key="nullable") is None:
+            literal_args = get_args(input_type)
+            if None in literal_args and get_anyschema_value_by_key(metadata, key="nullable") is None:
                 set_anyschema_meta(metadata, key="nullable", value=True)
+            values = [value for value in literal_args if value is not None]
             return self._parse_enum_values(values, input_type, constraints, metadata)
 
         if origin in {dict, Mapping}:
@@ -149,14 +149,13 @@ class PyTypeStep(ParserStep):
 
         inner_dtype = self.pipeline.parse(args[0], constraints=constraints, metadata=metadata, strict=True)
 
-        if origin is not tuple or (len(args) == 2 and args[1] is Ellipsis):  # noqa: PLR2004
-            return nw.List(inner_dtype)
+        if origin is tuple and args[-1] is not Ellipsis:  # Fixed length: `tuple[T, T]`
+            if len(set(args)) != 1:
+                msg = f"Tuple with mixed types is not supported: {input_type}"
+                raise UnsupportedDTypeError(msg)
+            return nw.Array(inner_dtype, shape=len(args))
 
-        if len(set(args)) != 1:
-            msg = f"Tuple with mixed types is not supported: {input_type}"
-            raise UnsupportedDTypeError(msg)
-
-        return nw.Array(inner_dtype, shape=len(args))
+        return nw.List(inner_dtype)
 
     def _parse_enum_values(
         self, values: list[Any], source: FieldType, constraints: FieldConstraints, metadata: FieldMetadata

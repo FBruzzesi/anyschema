@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
@@ -325,7 +326,8 @@ ADDRESS_STRUCT = nw.Struct([nw.Field(name="street", dtype=nw.String()), nw.Field
                 ]
             ),
         ),
-        (EnumWithDataclassMixin, ADDRESS_STRUCT),  # A mixin enum gets the dtype of its values
+        # A mixin enum gets the dtype of its values. Python 3.10 keeps the raw `("Main St", 1)` tuple as the value.
+        (EnumWithDataclassMixin, ADDRESS_STRUCT if sys.version_info >= (3, 11) else nw.List(nw.Object())),
     ],
 )
 def test_parse_dataclass(py_type_parser: PyTypeStep, input_type: Any, expected: nw.dtypes.DType) -> None:

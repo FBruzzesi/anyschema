@@ -32,6 +32,10 @@ class MixedEnum(Enum):
     TEXT = "text"
 
 
+class EmptyEnum(Enum):
+    pass
+
+
 class Status(Enum):
     """Another enum for testing."""
 
@@ -144,16 +148,11 @@ def test_parse_heterogeneous_tuple_raises(py_type_parser: PyTypeStep, input_type
 
 
 @pytest.mark.parametrize(
-    ("input_type", "match"),
-    [
-        (MixedEnum, "must share one non-None type"),
-        (Literal["a", 1], "must share one non-None type"),
-        (Literal[1, True], "must share one non-None type"),
-        (Literal[None], "must share one non-None type"),  # noqa: PYI061
-    ],
+    "input_type",
+    [MixedEnum, EmptyEnum, Literal["a", 1], Literal[1, True], Literal[None]],  # noqa: PYI061
 )
-def test_parse_mixed_enum_or_literal_raises(py_type_parser: PyTypeStep, input_type: Any, match: str) -> None:
-    with pytest.raises(UnsupportedDTypeError, match=match):
+def test_parse_enum_values_without_single_type_raises(py_type_parser: PyTypeStep, input_type: Any) -> None:
+    with pytest.raises(UnsupportedDTypeError, match="must be non-empty and of a single type"):
         py_type_parser.parse(input_type, (), {})
 
 

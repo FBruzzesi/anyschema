@@ -166,12 +166,12 @@ class PyTypeStep(ParserStep):
         fits them, and any other type its own dtype.
 
         Raises:
-            UnsupportedDTypeError: If the values do not share one type.
+            UnsupportedDTypeError: If there are no values, or they have more than one type.
         """
         value_types = {type(value) for value in values}
         if len(value_types) != 1:
             msg = (
-                f"Values of {source} must share one non-None type. "
+                f"Cannot infer a dtype for {source}: its values must be non-empty and of a single type. "
                 "Set the dtype explicitly with `{'anyschema': {'dtype': ...}}` metadata."
             )
             raise UnsupportedDTypeError(msg)

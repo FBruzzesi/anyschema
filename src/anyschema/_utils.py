@@ -1,7 +1,50 @@
 # ruff: noqa: T201
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any, Final
+
+import narwhals as nw
+
+if TYPE_CHECKING:
+    from narwhals.dtypes import IntegerType, SignedIntegerType, UnsignedIntegerType
+
+UINT_RANGES: Final[dict[UnsignedIntegerType, tuple[int, int]]] = {
+    nw.UInt8(): (0, 255),
+    nw.UInt16(): (0, 65535),
+    nw.UInt32(): (0, 4294967295),
+    nw.UInt64(): (0, 18446744073709551615),
+}
+"""Inclusive unsigned integer ranges, in ascending order so the first fit is the smallest."""
+
+INT_RANGES: Final[dict[SignedIntegerType, tuple[int, int]]] = {
+    nw.Int8(): (-128, 127),
+    nw.Int16(): (-32768, 32767),
+    nw.Int32(): (-2147483648, 2147483647),
+    nw.Int64(): (-9223372036854775808, 9223372036854775807),
+}
+"""Inclusive signed integer ranges, in ascending order so the first fit is the smallest."""
+
+INT64_MIN: Final[int] = -9_223_372_036_854_775_808
+UINT64_MAX: Final[int] = 18_446_744_073_709_551_615
+
+
+def int_dtype_from_bounds(lower_bound: int, upper_bound: int) -> IntegerType:
+    """Return the smallest Narwhals integer dtype that fits the inclusive `[lower_bound, upper_bound]` range.
+
+    Unsigned dtypes are used when `lower_bound >= 0`. A range that fits no dtype falls back to `UInt64` or `Int64`.
+
+    Examples:
+        >>> int_dtype_from_bounds(0, 255)
+        UInt8
+        >>> int_dtype_from_bounds(-1, 1000)
+        Int16
+    """
+    if lower_bound >= 0:
+        return next((dtype for dtype, (_, upper) in UINT_RANGES.items() if upper_bound <= upper), nw.UInt64())
+    return next(
+        (dtype for dtype, (lower, upper) in INT_RANGES.items() if lower <= lower_bound and upper_bound <= upper),
+        nw.Int64(),
+    )
 
 
 def qualified_type_name(obj: object | type[Any], /) -> str:

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from functools import cache
 from itertools import chain
 from typing import TYPE_CHECKING, Literal, overload
 
@@ -341,6 +342,15 @@ def make_pipeline(steps: IntoParserPipeline = "auto") -> ParserPipeline:
         TypeError: If the steps are not a sequence of `ParserStep` instances or a `ParserPipeline`.
     """
     return ParserPipeline(steps)
+
+
+@cache
+def shared_auto_pipeline() -> ParserPipeline:
+    """Return the "auto" pipeline that `AnySchema` uses by default, built once and never handed to users.
+
+    Steps hold no mutable state and `parse_into_field` copies the metadata, so threads can share it.
+    """
+    return ParserPipeline("auto")
 
 
 def _auto_pipeline() -> tuple[ParserStep, ...]:

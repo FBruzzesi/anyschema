@@ -26,6 +26,7 @@ from anyschema.adapters import (
 )
 from anyschema.exceptions import UnsupportedDTypeError
 from anyschema.parsers import ParserPipeline
+from anyschema.parsers._pipeline import shared_auto_pipeline
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable, Mapping
@@ -278,7 +279,7 @@ class AnySchema:
     _nw_schema: Schema
     _fields: MappingProxyType[str, AnyField]
 
-    def __init__(
+    def __init__(  # noqa: C901
         self,
         spec: Spec,
         pipeline: ParserPipeline | IntoParserPipeline = "auto",
@@ -291,7 +292,12 @@ class AnySchema:
             self._nw_schema = spec
             return
 
-        parser_pipeline = pipeline if isinstance(pipeline, ParserPipeline) else ParserPipeline(pipeline)
+        if isinstance(pipeline, ParserPipeline):
+            parser_pipeline = pipeline
+        elif pipeline == "auto":
+            parser_pipeline = shared_auto_pipeline()
+        else:
+            parser_pipeline = ParserPipeline(pipeline)
         adapter_f: Adapter
 
         if adapter is not None:

@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, TypeAlias
+from typing import TYPE_CHECKING
 
 import narwhals as nw
 from sqlalchemy import types as sqltypes
-from typing_extensions import TypeIs
 
 from anyschema._metadata import get_anyschema_value_by_key
 from anyschema._utils import is_sequence_of
@@ -23,41 +22,6 @@ STRING_TYPES = (
     sqltypes.JSON,  # In python and dataframes this is probably the best we can do for JSON
     sqltypes.Uuid,  # In python and dataframes this is probably the best we can do for UUID
 )
-
-SupportedSQLAlchemyType: TypeAlias = (
-    sqltypes.String
-    | sqltypes.Boolean
-    | sqltypes.ARRAY[Any]
-    | sqltypes.Integer
-    | sqltypes.Float[Any]
-    | sqltypes.Numeric[Any]
-    | sqltypes.Date
-    | sqltypes.DateTime
-    | sqltypes.Time
-    | sqltypes.Interval
-    | sqltypes._Binary  # noqa: SLF001
-    | sqltypes.JSON
-    | sqltypes.Uuid[Any]
-)
-_SUPPORTED_SQLALCHEMY_TYPES = (
-    sqltypes.String,
-    sqltypes.Boolean,
-    sqltypes.ARRAY,
-    sqltypes.Integer,
-    sqltypes.Float,  # Not a Numeric subclass since SQLAlchemy 2.1
-    sqltypes.Numeric,
-    sqltypes.Date,
-    sqltypes.DateTime,
-    sqltypes.Time,
-    sqltypes.Interval,
-    sqltypes._Binary,  # noqa: SLF001
-    sqltypes.JSON,
-    sqltypes.Uuid,
-)
-
-
-def _is_supported_sqlalchemy_type(obj: FieldType) -> TypeIs[SupportedSQLAlchemyType]:
-    return isinstance(obj, _SUPPORTED_SQLALCHEMY_TYPES)
 
 
 class SQLAlchemyTypeStep(ParserStep):
@@ -90,9 +54,6 @@ class SQLAlchemyTypeStep(ParserStep):
             A Narwhals DType if this parser can handle the type, None otherwise.
         """
         if not isinstance(input_type, sqltypes.TypeEngine):  # Keep this as a fast path!
-            return None
-
-        if not _is_supported_sqlalchemy_type(input_type):
             return None
 
         # NOTE: The order is quite important. In fact:
@@ -150,13 +111,15 @@ class SQLAlchemyTypeStep(ParserStep):
             # All binary dtypes inherit from this one, namely: LargeBinary, BINARY, VARBINARY, BLOB, etc..
             return nw.Binary()
 
-        # By exclusion, input_type is ARRAY.
-        # ARRAY.item_type is a TypeEngine instance, which is also a valid FieldType
-        # SQLAlchemy's type stubs don't provide full generic parameter information for item_type
-        inner_type = self.pipeline.parse(input_type.item_type, constraints=constraints, metadata=metadata, strict=True)
-        shape = input_type.dimensions
-        return (
-            nw.Array(inner=inner_type, shape=tuple(shape) if is_sequence_of(shape, int) else shape)
-            if isinstance(shape, int) or is_sequence_of(shape, int)
-            else nw.List(inner=inner_type)
-        )
+        if isinstance(input_type, sqltypes.ARRAY):
+            inner_type = self.pipeline.parse(
+                input_type.item_type, constraints=constraints, metadata=metadata, strict=True
+            )
+            shape = input_type.dimensions
+            return (
+                nw.Array(inner=inner_type, shape=tuple(shape) if is_sequence_of(shape, int) else shape)
+                if isinstance(shape, int) or is_sequence_of(shape, int)
+                else nw.List(inner=inner_type)
+            )
+
+        return None

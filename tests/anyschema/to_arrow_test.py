@@ -1,7 +1,9 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from enum import Enum
+from typing import TYPE_CHECKING, Any, Literal
 
+import narwhals as nw
 import pyarrow as pa
 import pytest
 from narwhals import Schema
@@ -12,6 +14,8 @@ from anyschema import AnySchema
 
 if TYPE_CHECKING:
     from anyschema.typing import Spec
+
+ENUM_ARROW_TYPE = pa.dictionary(pa.uint32(), pa.string())
 
 
 class User(BaseModel):
@@ -119,3 +123,39 @@ def test_to_arrow_with_metadata(spec: Spec, expected_metadata: tuple[dict[bytes,
 
     for field, _metadata in zip(pa_schema, expected_metadata, strict=True):
         assert field.metadata == _metadata
+
+
+def test_to_arrow_literal_keeps_nullability() -> None:
+    pa_schema = AnySchema(spec={"s": Literal["a", "b"], "t": Literal["x"] | None}).to_arrow()
+
+    assert pa_schema == pa.schema(
+        [pa.field("s", ENUM_ARROW_TYPE, nullable=False), pa.field("t", ENUM_ARROW_TYPE, nullable=True)]
+    )
+
+
+def test_to_arrow_nested_enum() -> None:
+    class Color(Enum):
+        RED = "red"
+        BLUE = "blue"
+
+    class Inner(BaseModel):
+        color: Color
+
+    class Outer(BaseModel):
+        colors: list[Color]
+        inner: Inner | None
+
+    pa_schema = AnySchema(spec=Outer).to_arrow()
+
+    assert pa_schema == pa.schema(
+        [
+            pa.field("colors", pa.list_(ENUM_ARROW_TYPE), nullable=False),
+            pa.field("inner", pa.struct([("color", ENUM_ARROW_TYPE)]), nullable=True),
+        ]
+    )
+
+
+def test_to_arrow_enum_in_array_keeps_shape() -> None:
+    pa_schema = AnySchema(spec=Schema({"a": nw.Array(nw.Enum(["x", "y"]), (2, 3))})).to_arrow()
+
+    assert pa_schema.field("a").type == pa.list_(pa.list_(ENUM_ARROW_TYPE, 3), 2)

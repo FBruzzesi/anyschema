@@ -1,29 +1,10 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+import sys
+from functools import cache
+from typing import TYPE_CHECKING, NamedTuple
 
 import narwhals as nw
-from pydantic import (
-    AnyUrl,
-    AwareDatetime,
-    BaseModel,
-    EmailStr,
-    FutureDate,
-    FutureDatetime,
-    IPvAnyAddress,
-    IPvAnyInterface,
-    IPvAnyNetwork,
-    MongoDsn,
-    NaiveDatetime,
-    NameEmail,
-    PastDate,
-    PastDatetime,
-    PostgresDsn,
-    SecretBytes,
-    SecretStr,
-    networks,
-)
-from pydantic_core import MultiHostUrl, Url
 
 from anyschema._dependencies import is_pydantic_base_model, is_pydantic_extra_types_color
 from anyschema._metadata import get_anyschema_value_by_key
@@ -32,32 +13,76 @@ from anyschema.parsers._base import ParserStep
 
 if TYPE_CHECKING:
     from narwhals.dtypes import DType
+    from pydantic import BaseModel
 
     from anyschema.typing import FieldConstraints, FieldMetadata, FieldType
 
 __all__ = ("PydanticTypeStep",)
 
-# URL/DSN types: before pydantic 2.10 they are `Annotated[pydantic_core.Url | MultiHostUrl, ...]`, which
-# `AnnotatedStep` unwraps, so the `isinstance` filter drops the aliases. From 2.10 they are classes, and all but the
-# multi-host DSNs subclass `AnyUrl`. Only public names are used, so a pydantic refactor cannot silently break this.
-_PYDANTIC_STRING_TYPES: tuple[type, ...] = tuple(
-    tp
-    for tp in (
-        Url,
-        MultiHostUrl,
+
+class _PydanticTypes(NamedTuple):
+    aware_datetime: type
+    naive_datetime: type
+    past_or_future_datetimes: tuple[type, ...]
+    past_or_future_dates: tuple[type, ...]
+    string_types: tuple[type, ...]
+    secret_bytes: type
+
+
+@cache
+def _pydantic_types() -> _PydanticTypes:
+    """Import the pydantic types on first parse, so building the pipeline does not import pydantic."""
+    from pydantic import (
         AnyUrl,
-        PostgresDsn,
-        MongoDsn,
-        getattr(networks, "NatsDsn", None),  # pydantic>=2.6
+        AwareDatetime,
         EmailStr,
-        NameEmail,
+        FutureDate,
+        FutureDatetime,
         IPvAnyAddress,
         IPvAnyInterface,
         IPvAnyNetwork,
+        MongoDsn,
+        NaiveDatetime,
+        NameEmail,
+        PastDate,
+        PastDatetime,
+        PostgresDsn,
+        SecretBytes,
         SecretStr,
+        networks,
     )
-    if isinstance(tp, type)
-)
+    from pydantic_core import MultiHostUrl, Url
+
+    # URL/DSN types: before pydantic 2.10 they are `Annotated[pydantic_core.Url | MultiHostUrl, ...]`, which
+    # `AnnotatedStep` unwraps, so the `isinstance` filter drops the aliases. From 2.10 they are classes, and all but
+    # the multi-host DSNs subclass `AnyUrl`. Only public names are used, so a pydantic refactor cannot silently break
+    # this.
+    string_types = tuple(
+        tp
+        for tp in (
+            Url,
+            MultiHostUrl,
+            AnyUrl,
+            PostgresDsn,
+            MongoDsn,
+            getattr(networks, "NatsDsn", None),  # pydantic>=2.6
+            EmailStr,
+            NameEmail,
+            IPvAnyAddress,
+            IPvAnyInterface,
+            IPvAnyNetwork,
+            SecretStr,
+        )
+        if isinstance(tp, type)
+    )
+    return _PydanticTypes(
+        aware_datetime=AwareDatetime,  # pyright: ignore[reportArgumentType]  # pyrefly: ignore[bad-argument-type]
+        naive_datetime=NaiveDatetime,  # pyright: ignore[reportArgumentType]  # pyrefly: ignore[bad-argument-type]
+        past_or_future_datetimes=(PastDatetime, FutureDatetime),  # pyright: ignore[reportArgumentType]  # pyrefly: ignore[bad-argument-type]
+        past_or_future_dates=(PastDate, FutureDate),  # pyright: ignore[reportArgumentType]  # pyrefly: ignore[bad-argument-type]
+        string_types=string_types,
+        secret_bytes=SecretBytes,
+    )
 
 
 class PydanticTypeStep(ParserStep):
@@ -95,12 +120,14 @@ class PydanticTypeStep(ParserStep):
         Returns:
             A Narwhals DType if this parser can handle the type, None otherwise.
         """
-        # Check if it's a type/class first (not a generic alias or other special form)
-        if not isinstance(input_type, type):
+        # A pydantic type cannot reach the pipeline before the user imports pydantic. Generic aliases are not types.
+        if "pydantic" not in sys.modules or not isinstance(input_type, type):
             return None
 
+        pydantic_types = _pydantic_types()
+
         # Handle AwareDatetime
-        if issubclass(input_type, AwareDatetime):  # pyright: ignore[reportArgumentType]  # pyrefly: ignore[invalid-argument]
+        if issubclass(input_type, pydantic_types.aware_datetime):
             # Pydantic AwareDatetime does not fix a single timezone, but any timezone would work.
             # See https://github.com/pydantic/pydantic/issues/5829
             # Unless a timezone is specified via {"anyschema": {"time_zone": ...}}, we raise an error.
@@ -116,7 +143,7 @@ class PydanticTypeStep(ParserStep):
                 time_unit=get_anyschema_value_by_key(metadata, key="time_unit", default="us"), time_zone=time_zone
             )
 
-        if issubclass(input_type, NaiveDatetime):  # pyright: ignore[reportArgumentType]  # pyrefly: ignore[invalid-argument]
+        if issubclass(input_type, pydantic_types.naive_datetime):
             # Pydantic NaiveDatetime should not receive a timezone.
             # If a timezone is specified via {"anyschema": {"time_zone": ...}}, we raise an error.
             if (time_zone := get_anyschema_value_by_key(metadata, key="time_zone")) is not None:
@@ -128,7 +155,7 @@ class PydanticTypeStep(ParserStep):
             )
 
         # Handle datetime types
-        if issubclass(input_type, (PastDatetime, FutureDatetime)):  # pyright: ignore[reportArgumentType]  # pyrefly: ignore[invalid-argument]
+        if issubclass(input_type, pydantic_types.past_or_future_datetimes):
             # PastDatetime and FutureDatetime accept both aware and naive datetimes.
             return nw.Datetime(
                 time_unit=get_anyschema_value_by_key(metadata, key="time_unit", default="us"),
@@ -136,14 +163,14 @@ class PydanticTypeStep(ParserStep):
             )
 
         # Handle date types
-        if issubclass(input_type, (PastDate, FutureDate)):  # pyright: ignore[reportArgumentType]  # pyrefly: ignore[invalid-argument]
+        if issubclass(input_type, pydantic_types.past_or_future_dates):
             return nw.Date()
 
         # `Color` does not subclass `str`, so `PyTypeStep` would not catch it
-        if issubclass(input_type, _PYDANTIC_STRING_TYPES) or is_pydantic_extra_types_color(input_type):
+        if issubclass(input_type, pydantic_types.string_types) or is_pydantic_extra_types_color(input_type):
             return nw.String()
 
-        if issubclass(input_type, SecretBytes):
+        if issubclass(input_type, pydantic_types.secret_bytes):
             return nw.Binary()
 
         # Handle Pydantic models (Struct types)

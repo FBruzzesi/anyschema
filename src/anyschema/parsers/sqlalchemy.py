@@ -1,10 +1,10 @@
 from __future__ import annotations
 
+import sys
+from functools import cache
 from typing import TYPE_CHECKING
 
 import narwhals as nw
-from sqlalchemy import types as sqltypes
-from sqlalchemy.dialects import postgresql
 
 from anyschema._metadata import get_anyschema_value_by_key
 from anyschema.exceptions import UnsupportedDTypeError
@@ -17,14 +17,21 @@ if TYPE_CHECKING:
 
 __all__ = ("SQLAlchemyTypeStep",)
 
-STRING_TYPES = (
-    sqltypes.String,  # Includes  sqltypes.Text, sqltypes.Unicode, sqltypes.UnicodeText
-    sqltypes.JSON,  # In python and dataframes this is probably the best we can do for JSON
-    sqltypes.Uuid,  # In python and dataframes this is probably the best we can do for UUID
-    postgresql.INET,
-    postgresql.CIDR,
-    postgresql.MACADDR,
-)
+
+@cache
+def _string_types() -> tuple[type, ...]:
+    """SQLAlchemy types parsed as String. Call it only after sqlalchemy is imported."""
+    from sqlalchemy import types as sqltypes
+    from sqlalchemy.dialects import postgresql
+
+    return (
+        sqltypes.String,  # Includes  sqltypes.Text, sqltypes.Unicode, sqltypes.UnicodeText
+        sqltypes.JSON,  # In python and dataframes this is probably the best we can do for JSON
+        sqltypes.Uuid,  # In python and dataframes this is probably the best we can do for UUID
+        postgresql.INET,
+        postgresql.CIDR,
+        postgresql.MACADDR,
+    )
 
 
 class SQLAlchemyTypeStep(ParserStep):
@@ -61,6 +68,11 @@ class SQLAlchemyTypeStep(ParserStep):
         Returns:
             A Narwhals DType if this parser can handle the type, None otherwise.
         """
+        # A SQLAlchemy type cannot reach the pipeline before the user imports sqlalchemy.
+        if "sqlalchemy" not in sys.modules:
+            return None
+        from sqlalchemy import types as sqltypes
+
         if not isinstance(input_type, sqltypes.TypeEngine):  # Keep this as a fast path!
             return None
 
@@ -70,7 +82,7 @@ class SQLAlchemyTypeStep(ParserStep):
         #   * issubclass(Double(), Float) -> True
         if isinstance(input_type, sqltypes.Enum):
             return nw.Enum(input_type.enums)
-        if isinstance(input_type, STRING_TYPES):
+        if isinstance(input_type, _string_types()):
             return nw.String()
         if isinstance(input_type, sqltypes.Boolean):
             return nw.Boolean()
@@ -112,6 +124,8 @@ class SQLAlchemyTypeStep(ParserStep):
             )
         if isinstance(input_type, sqltypes.Time):
             return nw.Time()
+        from sqlalchemy.dialects import postgresql
+
         if isinstance(input_type, (sqltypes.Interval, postgresql.INTERVAL)):
             return nw.Duration()
         if isinstance(input_type, sqltypes._Binary):  # noqa: SLF001

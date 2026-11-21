@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import sys
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
@@ -179,3 +180,9 @@ def test_sqlalchemy_numeric_metadata_override(
 ) -> None:
     result = sqlalchemy_step.parse(input_type=input_type, constraints=(), metadata=metadata)
     assert result == expected
+
+
+def test_sqlalchemy_step_skips_when_sqlalchemy_is_not_imported(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delitem(sys.modules, "sqlalchemy")
+
+    assert SQLAlchemyTypeStep().parse(sqltypes.Integer(), (), {}) is None

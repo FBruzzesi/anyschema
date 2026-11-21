@@ -1,25 +1,22 @@
 from __future__ import annotations
 
+from typing import ForwardRef
 from unittest.mock import patch
 
-from anyschema.parsers import ForwardRefStep
+import narwhals as nw
+import pytest
+
+from anyschema.parsers import ForwardRefStep, ParserPipeline
 
 
-def test_build_namespace_without_pydantic() -> None:
-    """Test that pydantic types are excluded when PYDANTIC_AVAILABLE is False."""
+def test_pydantic_names_do_not_resolve_without_pydantic() -> None:
+    # pydantic is imported in this process, so only the availability flag keeps its names out.
     with patch(target="anyschema.parsers._forward_ref.PYDANTIC_AVAILABLE", new=False):
-        step = ForwardRefStep()
+        pipeline = ParserPipeline("auto")
 
-        # Pydantic types should NOT be in the namespace
-        assert "BaseModel" not in step.globalns
-        assert "Field" not in step.globalns
-        assert "PositiveInt" not in step.globalns
-        assert "conint" not in step.globalns
-
-        # But builtin types should still be there
-        assert "int" in step.globalns
-        assert "str" in step.globalns
-        assert "List" in step.globalns
+        with pytest.raises(NotImplementedError, match="PositiveInt"):
+            pipeline.parse(ForwardRef("PositiveInt"), (), {})
+        assert pipeline.parse(ForwardRef("List[int]"), (), {}) == nw.List(nw.Int64())
 
 
 def test_build_namespace_without_annotated_types() -> None:
@@ -46,10 +43,6 @@ def test_build_namespace_without_both_optional_deps() -> None:
         patch(target="anyschema.parsers._forward_ref.ANNOTATED_TYPES_AVAILABLE", new=False),
     ):
         step = ForwardRefStep()
-
-        # No pydantic types
-        assert "BaseModel" not in step.globalns
-        assert "PositiveInt" not in step.globalns
 
         # No annotated_types
         assert "Gt" not in step.globalns

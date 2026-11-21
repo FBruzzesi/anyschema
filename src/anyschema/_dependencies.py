@@ -5,7 +5,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import is_dataclass as dc_is_dataclass
 from importlib.metadata import version as get_version
 from importlib.util import find_spec
-from typing import TYPE_CHECKING, TypeAlias
+from typing import TYPE_CHECKING, TypeAlias, TypeGuard
 
 from narwhals.utils import parse_version
 from typing_extensions import TypeIs, is_typeddict
@@ -81,12 +81,13 @@ def is_into_ordered_dict(obj: object) -> TypeIs[IntoOrderedDict]:
     )
 
 
-def is_typed_dict(obj: object) -> TypeIs[TypedDictType]:
+# `TypeGuard`, not `TypeIs`: `type[Any]` matches these protocols, so `TypeIs` narrows the False branch to `Never`.
+def is_typed_dict(obj: object) -> TypeGuard[TypedDictType]:
     """Check if the object is a TypedDict and narrows type checkers."""
     return is_typeddict(obj)
 
 
-def is_dataclass(obj: object) -> TypeIs[DataclassType]:
+def is_dataclass(obj: object) -> TypeGuard[DataclassType]:
     """Check if the object is a dataclass and narrows type checkers."""
     return dc_is_dataclass(obj)
 

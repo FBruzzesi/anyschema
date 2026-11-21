@@ -66,6 +66,17 @@ def _enums_to_categorical(dtype: IntoDType) -> IntoDType:
     return dtype
 
 
+def _contains_tz_aware_datetime(dtype: IntoDType) -> bool:
+    """Return whether `dtype`, or any dtype nested in it, is a timezone-aware `Datetime`."""
+    if isinstance(dtype, nw.Datetime):
+        return dtype.time_zone is not None
+    if isinstance(dtype, (nw.List, nw.Array)):
+        return _contains_tz_aware_datetime(dtype.inner)
+    if isinstance(dtype, nw.Struct):
+        return any(_contains_tz_aware_datetime(field.dtype) for field in dtype.fields)
+    return False
+
+
 @dataclass(frozen=True, slots=True, kw_only=True)
 class AnyField:
     """A structured field descriptor.
@@ -778,7 +789,9 @@ class AnySchema:
         from narwhals.utils import Version
         from pyspark.sql import SparkSession, types
 
-        session = SparkSession.builder.getOrCreate()
+        # NOTE: narwhals reads the session only for timezone-aware datetimes, and starting one can boot a JVM.
+        needs_session = any(_contains_tz_aware_datetime(field.dtype) for field in self._fields.values())
+        session = SparkSession.builder.getOrCreate() if needs_session else None
         version = Version.MAIN
 
         return types.StructType(

@@ -5,6 +5,7 @@ from operator import attrgetter
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Literal, TypeAlias, TypeVar, cast, overload
 
+import narwhals as nw
 from narwhals.schema import Schema
 
 from anyschema._dependencies import (
@@ -50,6 +51,19 @@ _get_description: AnyFieldAttrAccessor[str | None] = attrgetter("description")
 _get_dtype: AnyFieldAttrAccessor[DType] = attrgetter("dtype")
 _get_nullable: AnyFieldAttrAccessor[bool] = attrgetter("nullable")
 _get_unique: AnyFieldAttrAccessor[bool] = attrgetter("unique")
+
+
+def _enums_to_categorical(dtype: IntoDType) -> IntoDType:
+    """Return `dtype` with every nested `Enum` replaced by `Categorical`."""
+    if isinstance(dtype, nw.Enum):
+        return nw.Categorical()
+    if isinstance(dtype, nw.List):
+        return nw.List(_enums_to_categorical(dtype.inner))
+    if isinstance(dtype, nw.Array):
+        return nw.Array(_enums_to_categorical(dtype.inner), dtype.size)
+    if isinstance(dtype, nw.Struct):
+        return nw.Struct([nw.Field(field.name, _enums_to_categorical(field.dtype)) for field in dtype.fields])
+    return dtype
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -545,6 +559,9 @@ class AnySchema:
     def to_arrow(self) -> pa.Schema:
         """Converts input model into pyarrow schema.
 
+        `Enum` and `Literal` fields, at any nesting level, become dictionary-encoded strings
+        (`dictionary<values=string, indices=uint32>`).
+
         Returns:
             The converted pyarrow schema.
 
@@ -568,11 +585,15 @@ class AnySchema:
         """
         import pyarrow as pa
 
+        # NOTE: narwhals cannot convert Enum to pyarrow, but converts Categorical to an Arrow dictionary.
+        arrow_schema = Schema(
+            {name: _enums_to_categorical(dtype) for name, dtype in self._nw_schema.items()}
+        ).to_arrow()
         return pa.schema(
             pa_field.with_nullable(field.nullable).with_metadata({k: str(v) for k, v in field.metadata.items()})
             if field.metadata
             else pa_field.with_nullable(field.nullable)
-            for pa_field, field in zip(self._nw_schema.to_arrow(), self._fields.values(), strict=True)
+            for pa_field, field in zip(arrow_schema, self._fields.values(), strict=True)
         )
 
     def to_pandas(

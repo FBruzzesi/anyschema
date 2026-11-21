@@ -17,7 +17,6 @@ from anyschema._dependencies import check_version, is_pydantic_extra_types_color
     ],
 )
 def test_check_version_no_min_version(package: str, *, expected: bool) -> None:
-    """Test that _check_version returns False for non-existent packages."""
     assert check_version(package) is expected
 
 
@@ -36,7 +35,6 @@ def test_check_version_no_min_version(package: str, *, expected: bool) -> None:
     ],
 )
 def test_check_version_package_meets_minimum(package: str, installed_version: str) -> None:
-    """Test that _check_version returns True when version meets or exceeds minimum."""
     with patch("anyschema._dependencies.get_version", return_value=installed_version):
         assert check_version(package) is True
 
@@ -49,17 +47,15 @@ def test_check_version_package_meets_minimum(package: str, installed_version: st
         ("sqlalchemy", "1.4.0"),
     ],
 )
-def test_check_version_package_below_minimum_raises(package: str, installed_version: str) -> None:
-    """Test that _check_version raises ImportError with helpful message when version is below minimum."""
+def test_check_version_package_below_minimum_warns(package: str, installed_version: str) -> None:
     with (
         patch("anyschema._dependencies.get_version", return_value=installed_version),
-        pytest.raises(ImportError) as exc_info,
+        pytest.warns(UserWarning, match=rf"{package}.*{installed_version} is installed.*will ignore it") as record,
     ):
-        check_version(package)
+        result = check_version(package)
 
-    error_msg = str(exc_info.value)
-    assert package in error_msg
-    assert f"{installed_version} is installed" in error_msg
+    assert result is False
+    assert len(record) == 1
 
 
 def test_is_pydantic_extra_types_color() -> None:

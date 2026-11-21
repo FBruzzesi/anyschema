@@ -86,6 +86,12 @@ def test_specs_of_unavailable_libraries_are_not_detected() -> None:
     assert detected == (False, False, False)
 
 
+@pytest.mark.parametrize("obj", [int, list[int], "BaseModel"])
+def test_is_pydantic_base_model_rejects_non_models(obj: object) -> None:
+    # `list[int]` passes `isinstance(obj, type)` on Python 3.10, so `issubclass` must not raise on it.
+    assert not is_pydantic_base_model(obj)
+
+
 def test_is_pydantic_extra_types_color() -> None:
     assert is_pydantic_extra_types_color(Color)
     assert not is_pydantic_extra_types_color(str)

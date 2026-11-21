@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 
 import narwhals as nw
 from sqlalchemy import types as sqltypes
+from sqlalchemy.dialects import postgresql
 
 from anyschema._metadata import get_anyschema_value_by_key
 from anyschema.exceptions import UnsupportedDTypeError
@@ -20,17 +21,25 @@ STRING_TYPES = (
     sqltypes.String,  # Includes  sqltypes.Text, sqltypes.Unicode, sqltypes.UnicodeText
     sqltypes.JSON,  # In python and dataframes this is probably the best we can do for JSON
     sqltypes.Uuid,  # In python and dataframes this is probably the best we can do for UUID
+    postgresql.INET,
+    postgresql.CIDR,
+    postgresql.MACADDR,
 )
 
 
 class SQLAlchemyTypeStep(ParserStep):
     """Parser for SQLAlchemy-specific types.
 
-    Handles:
+    Handles SQLAlchemy column types:
 
-    - SQLAlchemy column types (Integer, String, DateTime, etc.)
-    - SQLAlchemy relationship types
-    - SQLAlchemy custom types
+    - Strings (`String`, `Text`, `Unicode`, ...), `JSON`, `Uuid` and PostgreSQL `INET`, `CIDR`, `MACADDR`
+        as `String`.
+    - `Enum`, using the labels SQLAlchemy stores (member names by default, or the output of `values_callable`).
+    - `Boolean`, integers, floats and `Numeric`/`DECIMAL` (metadata can override precision and scale).
+    - `Date`, `DateTime`, `Time`, `Interval` and PostgreSQL `INTERVAL`.
+    - Binary types (`LargeBinary`, `BINARY`, `VARBINARY`, ...).
+    - `ARRAY` (including PostgreSQL `ARRAY`), as one `List` per dimension.
+    - Any other `TypeDecorator` (e.g. `PickleType` or a custom type), parsed as its implementation type.
 
     Warning:
         It requires [sqlalchemy](https://www.sqlalchemy.org/) to be installed.
@@ -103,7 +112,7 @@ class SQLAlchemyTypeStep(ParserStep):
             )
         if isinstance(input_type, sqltypes.Time):
             return nw.Time()
-        if isinstance(input_type, sqltypes.Interval):
+        if isinstance(input_type, (sqltypes.Interval, postgresql.INTERVAL)):
             return nw.Duration()
         if isinstance(input_type, sqltypes._Binary):  # noqa: SLF001
             # All binary dtypes inherit from this one, namely: LargeBinary, BINARY, VARBINARY, BLOB, etc..
@@ -115,5 +124,11 @@ class SQLAlchemyTypeStep(ParserStep):
             for _ in range(input_type.dimensions or 1):
                 dtype = nw.List(inner=dtype)
             return dtype
+
+        if isinstance(input_type, sqltypes.TypeDecorator):
+            # Last, because `Interval` is a `TypeDecorator` over `DateTime`.
+            return self.pipeline.parse(
+                input_type.impl_instance, constraints=constraints, metadata=metadata, strict=True
+            )
 
         return None

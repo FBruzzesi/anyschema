@@ -30,6 +30,16 @@ class Color(Enum):
     BLUE = "b"
 
 
+class StringDecorator(sqltypes.TypeDecorator[str]):
+    impl = sqltypes.String(20)
+    cache_ok = True
+
+
+class NumericDecorator(sqltypes.TypeDecorator[Any]):
+    impl = sqltypes.Numeric(10, 2)
+    cache_ok = True
+
+
 @pytest.mark.parametrize(
     ("input_type", "expected"),
     # SQLAlchemy types have incomplete generic parameters
@@ -66,6 +76,13 @@ class Color(Enum):
         (sqltypes.ARRAY(sqltypes.Float(), dimensions=1), nw.List(nw.Float32())),
         (sqltypes.ARRAY(sqltypes.Float(), dimensions=3), nw.List(nw.List(nw.List(nw.Float32())))),
         (postgresql.ARRAY(sqltypes.Integer(), dimensions=2), nw.List(nw.List(nw.Int32()))),
+        (StringDecorator(), nw.String()),
+        (NumericDecorator(), nw.Decimal(precision=10, scale=2)),
+        (sqltypes.PickleType(), nw.Binary()),
+        (postgresql.INTERVAL(), nw.Duration()),
+        (postgresql.INET(), nw.String()),
+        (postgresql.CIDR(), nw.String()),
+        (postgresql.MACADDR(), nw.String()),
         (int, None),
         ("not a sqlalchemy type", None),
     ],
@@ -135,7 +152,6 @@ def test_sqlalchemy_non_sqlalchemy_types_return_none(sqlalchemy_step: SQLAlchemy
 @pytest.mark.parametrize(
     "input_type",
     [
-        sqltypes.PickleType(),
         sqltypes.NullType(),
     ],
 )
@@ -154,6 +170,8 @@ def test_sqlalchemy_unhandled_types_return_none(sqlalchemy_step: SQLAlchemyTypeS
         (sqltypes.DECIMAL(5, 1), {"anyschema": {"precision": 8}}, nw.Decimal(precision=8, scale=1)),
         # Test without SQLAlchemy precision/scale but with metadata
         (sqltypes.Numeric(), {"anyschema": {"precision": 10, "scale": 2}}, nw.Decimal(precision=10, scale=2)),
+        # Metadata still applies through a TypeDecorator
+        (NumericDecorator(), {"anyschema": {"precision": 15}}, nw.Decimal(precision=15, scale=2)),
     ],
 )
 def test_sqlalchemy_numeric_metadata_override(

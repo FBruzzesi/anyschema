@@ -61,8 +61,7 @@ class SQLAlchemyTypeStep(ParserStep):
         #   * issubclass(SmallInteger(), Integer) -> True
         #   * issubclass(Double(), Float) -> True
         if isinstance(input_type, sqltypes.Enum):
-            categories = input_type.enum_class if input_type.enum_class is not None else input_type.enums
-            return nw.Enum(categories)
+            return nw.Enum(input_type.enums)
         if isinstance(input_type, STRING_TYPES):
             return nw.String()
         if isinstance(input_type, sqltypes.Boolean):

@@ -25,8 +25,8 @@ def sqlalchemy_step() -> SQLAlchemyTypeStep:
 
 
 class Color(Enum):
-    RED = 1
-    BLUE = 2
+    RED = "r"
+    BLUE = "b"
 
 
 @pytest.mark.parametrize(
@@ -58,7 +58,9 @@ class Color(Enum):
         (sqltypes.JSON(), nw.String()),
         (sqltypes.Uuid(), nw.String()),
         (sqltypes.Enum("red", "green", "blue"), nw.Enum(["red", "green", "blue"])),
-        (sqltypes.Enum(Color), nw.Enum(Color)),
+        # SQLAlchemy stores member names by default, values only with `values_callable`
+        (sqltypes.Enum(Color), nw.Enum(["RED", "BLUE"])),
+        (sqltypes.Enum(Color, values_callable=lambda e: [m.value for m in e]), nw.Enum(["r", "b"])),
         (sqltypes.ARRAY(sqltypes.Float()), nw.List(nw.Float32())),
         (sqltypes.ARRAY(sqltypes.Float(), dimensions=3), nw.Array(nw.Float32(), shape=(3,))),
         (int, None),

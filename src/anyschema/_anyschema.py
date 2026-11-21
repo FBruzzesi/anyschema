@@ -117,11 +117,10 @@ class AnyField:
     def __hash__(self) -> int:
         """Return hash of the instance.
 
-        Creates a hashable tuple representation.
-        `metadata` is a dict and not hashable, we convert it to a sorted tuple of items
+        Leaves out `metadata`, whose values can be unhashable (lists, dicts). Equal fields still hash equal
+        because `__eq__` compares every hashed attribute.
         """
-        metadata_tuple = tuple(sorted(self.metadata.items()))
-        return hash((self.name, self.dtype, self.nullable, self.unique, self.description, metadata_tuple))
+        return hash((self.name, self.dtype, self.nullable, self.unique, self.description))
 
 
 class AnySchema:

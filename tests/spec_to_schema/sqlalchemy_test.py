@@ -97,13 +97,13 @@ if TYPE_CHECKING:
                 "scores": nw.List(nw.Float32()),
             },
         ),
-        # Array types - Fixed dimensions (Array)
+        # Array types - `dimensions` sets the nesting depth
         (
             array_fixed_table,
             {
                 "id": nw.Int32(),
-                "coordinates": nw.Array(nw.Float32(), shape=(3,)),
-                "matrix": nw.Array(nw.Int32(), shape=(2,)),
+                "coordinates": nw.List(nw.List(nw.List(nw.Float32()))),
+                "matrix": nw.List(nw.List(nw.Int32())),
             },
         ),
     ],

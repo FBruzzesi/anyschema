@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, TypeAlias
+from typing import TYPE_CHECKING
 
 import narwhals as nw
 from sqlalchemy import types as sqltypes
-from typing_extensions import TypeIs
+from sqlalchemy.dialects import postgresql
 
 from anyschema._metadata import get_anyschema_value_by_key
-from anyschema._utils import is_sequence_of
 from anyschema.exceptions import UnsupportedDTypeError
 from anyschema.parsers._base import ParserStep
 
@@ -22,52 +21,25 @@ STRING_TYPES = (
     sqltypes.String,  # Includes  sqltypes.Text, sqltypes.Unicode, sqltypes.UnicodeText
     sqltypes.JSON,  # In python and dataframes this is probably the best we can do for JSON
     sqltypes.Uuid,  # In python and dataframes this is probably the best we can do for UUID
+    postgresql.INET,
+    postgresql.CIDR,
+    postgresql.MACADDR,
 )
-
-SupportedSQLAlchemyType: TypeAlias = (
-    sqltypes.String
-    | sqltypes.Boolean
-    | sqltypes.ARRAY[Any]
-    | sqltypes.Integer
-    | sqltypes.Float[Any]
-    | sqltypes.Numeric[Any]
-    | sqltypes.Date
-    | sqltypes.DateTime
-    | sqltypes.Time
-    | sqltypes.Interval
-    | sqltypes._Binary  # noqa: SLF001
-    | sqltypes.JSON
-    | sqltypes.Uuid[Any]
-)
-_SUPPORTED_SQLALCHEMY_TYPES = (
-    sqltypes.String,
-    sqltypes.Boolean,
-    sqltypes.ARRAY,
-    sqltypes.Integer,
-    sqltypes.Float,  # Not a Numeric subclass since SQLAlchemy 2.1
-    sqltypes.Numeric,
-    sqltypes.Date,
-    sqltypes.DateTime,
-    sqltypes.Time,
-    sqltypes.Interval,
-    sqltypes._Binary,  # noqa: SLF001
-    sqltypes.JSON,
-    sqltypes.Uuid,
-)
-
-
-def _is_supported_sqlalchemy_type(obj: FieldType) -> TypeIs[SupportedSQLAlchemyType]:
-    return isinstance(obj, _SUPPORTED_SQLALCHEMY_TYPES)
 
 
 class SQLAlchemyTypeStep(ParserStep):
     """Parser for SQLAlchemy-specific types.
 
-    Handles:
+    Handles SQLAlchemy column types:
 
-    - SQLAlchemy column types (Integer, String, DateTime, etc.)
-    - SQLAlchemy relationship types
-    - SQLAlchemy custom types
+    - Strings (`String`, `Text`, `Unicode`, ...), `JSON`, `Uuid` and PostgreSQL `INET`, `CIDR`, `MACADDR`
+        as `String`.
+    - `Enum`, using the labels SQLAlchemy stores (member names by default, or the output of `values_callable`).
+    - `Boolean`, integers, floats and `Numeric`/`DECIMAL` (metadata can override precision and scale).
+    - `Date`, `DateTime`, `Time`, `Interval` and PostgreSQL `INTERVAL`.
+    - Binary types (`LargeBinary`, `BINARY`, `VARBINARY`, ...).
+    - `ARRAY` (including PostgreSQL `ARRAY`), as one `List` per dimension.
+    - Any other `TypeDecorator` (e.g. `PickleType` or a custom type), parsed as its implementation type.
 
     Warning:
         It requires [sqlalchemy](https://www.sqlalchemy.org/) to be installed.
@@ -92,16 +64,12 @@ class SQLAlchemyTypeStep(ParserStep):
         if not isinstance(input_type, sqltypes.TypeEngine):  # Keep this as a fast path!
             return None
 
-        if not _is_supported_sqlalchemy_type(input_type):
-            return None
-
         # NOTE: The order is quite important. In fact:
         #   * issubclass(Enum(...), String) -> True
         #   * issubclass(SmallInteger(), Integer) -> True
         #   * issubclass(Double(), Float) -> True
         if isinstance(input_type, sqltypes.Enum):
-            categories = input_type.enum_class if input_type.enum_class is not None else input_type.enums
-            return nw.Enum(categories)
+            return nw.Enum(input_type.enums)
         if isinstance(input_type, STRING_TYPES):
             return nw.String()
         if isinstance(input_type, sqltypes.Boolean):
@@ -144,19 +112,23 @@ class SQLAlchemyTypeStep(ParserStep):
             )
         if isinstance(input_type, sqltypes.Time):
             return nw.Time()
-        if isinstance(input_type, sqltypes.Interval):
+        if isinstance(input_type, (sqltypes.Interval, postgresql.INTERVAL)):
             return nw.Duration()
         if isinstance(input_type, sqltypes._Binary):  # noqa: SLF001
             # All binary dtypes inherit from this one, namely: LargeBinary, BINARY, VARBINARY, BLOB, etc..
             return nw.Binary()
 
-        # By exclusion, input_type is ARRAY.
-        # ARRAY.item_type is a TypeEngine instance, which is also a valid FieldType
-        # SQLAlchemy's type stubs don't provide full generic parameter information for item_type
-        inner_type = self.pipeline.parse(input_type.item_type, constraints=constraints, metadata=metadata, strict=True)
-        shape = input_type.dimensions
-        return (
-            nw.Array(inner=inner_type, shape=tuple(shape) if is_sequence_of(shape, int) else shape)
-            if isinstance(shape, int) or is_sequence_of(shape, int)
-            else nw.List(inner=inner_type)
-        )
+        if isinstance(input_type, sqltypes.ARRAY):
+            # `dimensions` is the nesting depth, not a length.
+            dtype = self.pipeline.parse(input_type.item_type, constraints=constraints, metadata=metadata, strict=True)
+            for _ in range(input_type.dimensions or 1):
+                dtype = nw.List(inner=dtype)
+            return dtype
+
+        if isinstance(input_type, sqltypes.TypeDecorator):
+            # Last, because `Interval` is a `TypeDecorator` over `DateTime`.
+            return self.pipeline.parse(
+                input_type.impl_instance, constraints=constraints, metadata=metadata, strict=True
+            )
+
+        return None

@@ -1,17 +1,15 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from enum import IntEnum
 
 import pytest
 from narwhals import Schema
+from pydantic import BaseModel
 
 from anyschema import AnySchema
 
 pytest.importorskip("polars")
 import polars as pl
-
-if TYPE_CHECKING:
-    from pydantic import BaseModel
 
 
 def test_pydantic_to_polars(pydantic_student_cls: type[BaseModel]) -> None:
@@ -61,3 +59,14 @@ def test_nw_schema_to_arrow(nw_schema: Schema) -> None:
             "unknown": pl.Unknown(),
         }
     )
+
+
+def test_int_enum_to_polars() -> None:
+    class HttpStatus(IntEnum):
+        OK = 200
+        NOT_FOUND = 404
+
+    class Response(BaseModel):
+        status: HttpStatus
+
+    assert AnySchema(spec=Response).to_polars() == pl.Schema({"status": pl.UInt16()})

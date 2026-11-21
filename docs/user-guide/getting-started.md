@@ -477,6 +477,48 @@ schema = AnySchema(spec=Product)
 print(schema.to_polars())
 ```
 
+Bounds can be fractional: `Gt(-1.5)` allows `-1`, so it gives a signed integer.
+
+## Enums and literals
+
+Dataframe `Enum` dtypes hold strings, so only an `Enum` subclass or a `Literal` whose values are all strings becomes an
+`Enum` dtype. Int values get the smallest integer dtype that fits them, the same way [integer bounds](#using-annotated-types)
+do: `IntEnum` members `200` and `404` give `UInt16`, `Literal[1, 3]` gives `UInt8`. Other values get the dtype of their
+type: `Literal[True, False]` gives `Boolean`. `Flag` and `IntFlag` enums give `Int64`, because their members combine
+into values that are not listed (`READ | WRITE`).
+
+```python exec="true" source="above" result="python" session="enums-literals"
+from enum import Enum, IntEnum
+from typing import Literal
+from anyschema import AnySchema
+
+
+class Color(str, Enum):
+    RED = "red"
+    BLUE = "blue"
+
+
+class HttpStatus(IntEnum):
+    OK = 200
+    NOT_FOUND = 404
+
+
+schema = AnySchema(
+    spec={
+        "color": Color,
+        "status": HttpStatus,
+        "size": Literal["S", "M", None],
+        "retries": Literal[1, 3],
+    }
+)
+print(schema.to_polars())
+```
+
+A `None` value makes the field nullable: `Literal["S", "M", None]` works like `Optional[Literal["S", "M"]]`.
+
+An `Enum` or `Literal` whose values mix types (`Literal["a", 1]`) raises `UnsupportedDTypeError`. Set the dtype
+explicitly with `{"anyschema": {"dtype": ...}}` field metadata (see [metadata](metadata.md)).
+
 ## Supported Pydantic Types
 
 Dataframe schemas cannot express Pydantic's validation rules, so anyschema maps each Pydantic type to the dtype of

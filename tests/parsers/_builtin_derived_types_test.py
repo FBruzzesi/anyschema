@@ -86,7 +86,7 @@ def parser_pipeline() -> ParserPipeline:
         (FutureDate, nw.Date),
         (NonNegativeDecimal, nw.Decimal()),
         (HttpMethod, nw.Enum(HttpMethod)),
-        (Priority, nw.Enum(Priority)),
+        (Priority, nw.UInt8()),
     ],
 )
 def test_derived_types(parser_pipeline: ParserPipeline, input_type: Any, expected: nw.dtypes.DType) -> None:

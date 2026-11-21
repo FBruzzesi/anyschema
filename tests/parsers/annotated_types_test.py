@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from decimal import Decimal
+from fractions import Fraction
+from typing import TYPE_CHECKING
 
 import hypothesis.strategies as st
 import narwhals as nw
@@ -74,23 +76,23 @@ def test_int_with_constraint(
 
 
 @pytest.mark.parametrize(
-    ("input_value", "expected"),
+    ("constraints", "expected"),
     [
-        (42, 42),
-        (3.14, 3.14),
-        ("123", 123),
-        ("3.14", 3.14),
+        ((Gt(-1.5),), nw.Int64()),  # allows -1
+        ((Ge(-0.5),), nw.UInt64()),  # smallest allowed value is 0
+        ((Ge(0), Lt(0.5)), nw.UInt8()),
+        ((Ge(0), Le(255.5)), nw.UInt8()),
+        ((Ge(0), Lt(256.5)), nw.UInt16()),
+        ((Gt(Decimal("-1.5")), Le(Decimal("100.9"))), nw.Int8()),
+        ((Ge(Fraction(-1, 2)), Le(Fraction(511, 2))), nw.UInt8()),
+        ((Interval(gt=-1.5, lt=127.5),), nw.Int8()),
+        ((None, Ge(0), Le(10)), nw.UInt8()),  # Pydantic can put `None` in field metadata
     ],
 )
-def test_extract_value(annotated_types_parser: AnnotatedTypesStep, input_value: Any, expected: float) -> None:
-    result = annotated_types_parser._extract_numeric_value(input_value)
-    assert result == expected
-
-
-@pytest.mark.parametrize("input_value", [None, {"key": "value"}])
-def test_extract_value_raise(annotated_types_parser: AnnotatedTypesStep, input_value: Any) -> None:
-    with pytest.raises(TypeError, match=r"Cannot .* value"):
-        annotated_types_parser._extract_numeric_value(input_value)
+def test_int_with_fractional_constraint(
+    annotated_types_parser: AnnotatedTypesStep, constraints: FieldConstraints, expected: nw.dtypes.DType
+) -> None:
+    assert annotated_types_parser.parse(int, constraints=constraints, metadata={}) == expected
 
 
 @given(lb=st.integers(-128, -1), ub=st.integers(1, 127))
@@ -144,24 +146,3 @@ def test_parse_int_exceeding_uint64_max(annotated_types_parser: AnnotatedTypesSt
     huge_upper_bound = 18446744073709551616 * 2  # Way larger than UInt64 max
     result = annotated_types_parser.parse(int, constraints=(Ge(0), Le(huge_upper_bound)), metadata={})
     assert result == nw.UInt64()
-
-
-def test_parse_int_exceeding_int64_max(annotated_types_parser: AnnotatedTypesStep) -> None:
-    """Test that ranges exceeding Int64 max still return Int64."""
-    # Int64 range is -9223372036854775808 to 9223372036854775807
-    result = annotated_types_parser.parse(int, constraints=(Ge(0),), metadata={})
-    # With Ge(0), lower_bound=0 (non-negative), so it goes to unsigned path
-    # But with no upper bound constraint, upper_bound stays at MAX_INT
-    # which is way larger than any UInt type max, so it should... wait
-    # Actually UInt64 max IS MAX_INT, so it should match and return UInt64
-    assert result == nw.UInt64()
-
-
-def test_parse_int_with_very_negative_lower_bound(annotated_types_parser: AnnotatedTypesStep) -> None:
-    """Test fallback to Int64 when no specific signed integer type fits."""
-    # Start with a negative lower bound (so we use signed integers)
-    # but no upper bound constraint (upper_bound stays at MAX_INT = UInt64 max)
-    # This means no Int type will fit (all require upper_bound <= their max)
-    result = annotated_types_parser.parse(int, constraints=(Ge(-100),), metadata={})
-    # With only Ge(-100), upper_bound stays at MAX_INT which exceeds all Int ranges
-    assert result == nw.Int64()

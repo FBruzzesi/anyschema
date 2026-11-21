@@ -199,10 +199,40 @@ print(schema.to_arrow())
     print(schema.to_arrow())
     ```
 
-SQLAlchemy support includes comprehensive type mapping for numeric types, strings, dates, binary data, JSON, UUIDs,
-Enums, and PostgreSQL-specific types like `ARRAY`.
+SQLAlchemy support covers numeric types, strings, dates, intervals, binary data, JSON, UUIDs, `Enum`, `ARRAY`, and
+the PostgreSQL types `INTERVAL`, `INET`, `CIDR` and `MACADDR`. Three mappings to know:
 
-Both dynamic-length arrays (converted to `List`) and fixed-dimension arrays (converted to `Array`) are supported.
+* `ARRAY(..., dimensions=N)` becomes `N` nested `List`s (`dimensions` is the nesting depth, not a length).
+* `Enum` uses the labels SQLAlchemy stores: member names by default, or member values with `values_callable`.
+* A `TypeDecorator` is parsed as its implementation type (`impl`).
+
+```python exec="true" source="above" result="python" session="sqlalchemy-types"
+import enum
+
+from anyschema import AnySchema
+from sqlalchemy import ARRAY, Column, Enum, Integer, MetaData, String, Table, TypeDecorator
+
+
+class Color(enum.Enum):
+    RED = "r"
+    BLUE = "b"
+
+
+class Email(TypeDecorator[str]):
+    impl = String(100)
+    cache_ok = True
+
+
+table = Table(
+    "example",
+    MetaData(),
+    Column("matrix", ARRAY(Integer, dimensions=2)),
+    Column("color", Enum(Color)),
+    Column("email", Email()),
+)
+
+print(AnySchema(spec=table).to_polars())
+```
 
 ### With Python Mappings
 

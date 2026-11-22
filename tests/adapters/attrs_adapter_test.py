@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from datetime import date, datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
+import attrs
 import pytest
 
 from anyschema.adapters import attrs_adapter
@@ -45,8 +46,26 @@ def test_attrs_adapter_with_inheritance() -> None:
 
 def test_attrs_adapter_missing_decorator_raises() -> None:
     child_cls, expected_msg = create_missing_decorator_test_case()
-    with pytest.raises(AssertionError, match=expected_msg.replace("(", r"\(").replace(")", r"\)")):
+    with pytest.raises(TypeError, match=expected_msg.replace("(", r"\(").replace(")", r"\)")):
         list(attrs_adapter(child_cls))
+
+
+def test_attrs_adapter_skips_classvar() -> None:
+    @attrs.define
+    class Counter:
+        x: int
+        counter: ClassVar[int] = 0
+
+    assert list(attrs_adapter(Counter)) == [("x", int, (), {})]
+
+
+def test_attrs_adapter_unresolvable_annotation_raises() -> None:
+    @attrs.define
+    class Local:
+        x: Undefined  # type: ignore[name-defined] # noqa: F821  # pyright: ignore[reportUndefinedVariable]
+
+    with pytest.raises(NameError, match="Undefined"):
+        list(attrs_adapter(Local))
 
 
 def test_attrs_adapter_with_time_metadata() -> None:

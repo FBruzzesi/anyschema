@@ -8,12 +8,12 @@ import narwhals as nw
 
 from anyschema._dependencies import is_pydantic_base_model, is_pydantic_extra_types_color
 from anyschema._metadata import get_anyschema_value_by_key
+from anyschema.adapters import pydantic_adapter
 from anyschema.exceptions import UnsupportedDTypeError
-from anyschema.parsers._base import ParserStep
+from anyschema.parsers._base import ParserStep, parse_struct
 
 if TYPE_CHECKING:
     from narwhals.dtypes import DType
-    from pydantic import BaseModel
 
     from anyschema.typing import FieldConstraints, FieldMetadata, FieldType
 
@@ -175,28 +175,7 @@ class PydanticTypeStep(ParserStep):
 
         # Handle Pydantic models (Struct types)
         if is_pydantic_base_model(input_type):
-            return self._parse_pydantic_model(input_type)
+            return parse_struct(self.pipeline, pydantic_adapter(input_type))
 
         # This parser doesn't handle this type
         return None
-
-    def _parse_pydantic_model(self, model: type[BaseModel]) -> DType:
-        """Parse a Pydantic model into a Struct type.
-
-        Arguments:
-            model: The Pydantic model class or instance.
-
-        Returns:
-            A Narwhals Struct dtype.
-        """
-        from anyschema.adapters import pydantic_adapter
-
-        return nw.Struct(
-            [
-                nw.Field(
-                    name=field_name,
-                    dtype=self.pipeline.parse(field_info, field_constraints, field_metadata, strict=True),
-                )
-                for field_name, field_info, field_constraints, field_metadata in pydantic_adapter(model)
-            ]
-        )

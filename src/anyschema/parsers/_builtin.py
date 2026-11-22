@@ -10,19 +10,19 @@ from typing import TYPE_CHECKING, Any, Literal
 from uuid import UUID
 
 import narwhals as nw
-from typing_extensions import get_args, get_origin, get_type_hints  # noqa: UP035
+from typing_extensions import get_args, get_origin  # noqa: UP035
 
 from anyschema._dependencies import is_dataclass, is_typed_dict
 from anyschema._metadata import get_anyschema_value_by_key
 from anyschema._utils import int_dtype_from_bounds
-from anyschema.adapters import dataclass_adapter
+from anyschema.adapters import dataclass_adapter, typed_dict_adapter
 from anyschema.exceptions import UnsupportedDTypeError
-from anyschema.parsers._base import ParserStep
+from anyschema.parsers._base import ParserStep, parse_struct
 
 if TYPE_CHECKING:
     from narwhals.dtypes import DType
 
-    from anyschema.typing import DataclassType, FieldConstraints, FieldMetadata, FieldType, TypedDictType
+    from anyschema.typing import FieldConstraints, FieldMetadata, FieldType
 
 # `IPv4Interface`/`IPv6Interface` subclass the `Address` types
 _STDLIB_STRING_TYPES = (str, UUID, PurePath, IPv4Address, IPv6Address, IPv4Network, IPv6Network)
@@ -99,9 +99,9 @@ class PyTypeStep(ParserStep):
             if issubclass(input_type, bytes):
                 return nw.Binary()
             if is_typed_dict(input_type):
-                return self._parse_typed_dict(input_type, constraints, metadata)
+                return parse_struct(self.pipeline, typed_dict_adapter(input_type))
             if is_dataclass(input_type):
-                return self._parse_dataclass(input_type)
+                return parse_struct(self.pipeline, dataclass_adapter(input_type))
             if issubclass(input_type, dict):  # Plain dict without type parameters -> Struct with Object fields
                 return nw.Struct([])
             # TODO(FBruzzesi): https://github.com/FBruzzesi/anyschema/issues/56
@@ -179,40 +179,3 @@ class PyTypeStep(ParserStep):
         if value_type is int:
             return int_dtype_from_bounds(min(values), max(values))
         return self.pipeline.parse(value_type, constraints=constraints, metadata=metadata)
-
-    def _parse_typed_dict(
-        self,
-        typed_dict: TypedDictType,
-        constraints: FieldConstraints,  # noqa: ARG002
-        metadata: FieldMetadata,  # noqa: ARG002
-    ) -> DType:
-        """Parse a TypedDict into a Struct type.
-
-        Arguments:
-            typed_dict: The TypedDict class.
-            constraints: Constraints associated with the type.
-            metadata: Custom metadata dictionary.
-
-        Returns:
-            A Narwhals Struct dtype.
-        """
-        try:
-            type_hints = get_type_hints(typed_dict, include_extras=True)
-        except Exception:  # pragma: no cover  # noqa: BLE001
-            # If we can't get type hints, use __annotations__
-            type_hints = getattr(typed_dict, "__annotations__", {})
-
-        fields = [
-            nw.Field(name=field_name, dtype=self.pipeline.parse(field_type, constraints=(), metadata={}))
-            for field_name, field_type in type_hints.items()
-        ]
-        return nw.Struct(fields)
-
-    def _parse_dataclass(self, dataclass: DataclassType) -> DType:
-        """Parse a dataclass into a Struct, forwarding each field's metadata to the pipeline."""
-        return nw.Struct(
-            [
-                nw.Field(name=field_name, dtype=self.pipeline.parse(field_type, field_constraints, field_metadata))
-                for field_name, field_type, field_constraints, field_metadata in dataclass_adapter(dataclass)
-            ]
-        )

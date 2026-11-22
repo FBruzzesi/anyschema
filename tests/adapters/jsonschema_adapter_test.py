@@ -113,6 +113,18 @@ def test_jsonschema_adapter_same_ref_twice_is_not_a_cycle() -> None:
             {"anyschema": {"description": "explicit"}},
         ),
         (True, {}),  # boolean subschema
+        # Nullable when the property's own schema allows `null`.
+        ({"anyOf": [{"type": "integer"}, {"type": "null"}]}, {"anyschema": {"nullable": True}}),
+        ({"oneOf": [{"type": "null"}, {"type": "integer"}]}, {"anyschema": {"nullable": True}}),
+        ({"type": ["integer", "null"]}, {"anyschema": {"nullable": True}}),
+        ({"type": "null"}, {"anyschema": {"nullable": True}}),
+        ({"enum": ["a", None]}, {"anyschema": {"nullable": True}}),
+        ({"const": None}, {"anyschema": {"nullable": True}}),
+        ({"enum": ["a", "b"]}, {}),
+        ({"type": "array", "items": {"anyOf": [{"type": "integer"}, {"type": "null"}]}}, {}),  # only elements
+        # An explicit `nullable` wins.
+        ({"type": ["integer", "null"], "anyschema": {"nullable": False}}, {"anyschema": {"nullable": False}}),
+        ({"type": ["integer", "null"], "x-anyschema": {"nullable": False}}, {"x-anyschema": {"nullable": False}}),
     ],
 )
 def test_jsonschema_adapter_metadata(prop: object, expected_metadata: dict[str, object]) -> None:

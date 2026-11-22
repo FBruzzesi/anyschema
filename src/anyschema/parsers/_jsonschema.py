@@ -9,8 +9,7 @@ from typing import TYPE_CHECKING, Any, Final
 import narwhals as nw
 from typing_extensions import TypeIs
 
-from anyschema._jsonschema import extract_field_metadata
-from anyschema._metadata import get_anyschema_value_by_key, set_anyschema_meta
+from anyschema._jsonschema import extract_field_metadata, union_branches
 from anyschema._utils import INT64_MIN, UINT64_MAX, int_dtype_from_bounds
 from anyschema.exceptions import UnsupportedDTypeError
 from anyschema.parsers._base import ParserStep
@@ -39,8 +38,6 @@ _ANNOTATION_KEYWORDS: Final = frozenset(
 )
 """Keywords that do not constrain a value: a schema made only of these accepts anything."""
 
-_UNION_KEYWORDS: Final = ("anyOf", "oneOf", "allOf")
-
 
 class JsonSchemaStep(ParserStep):
     """Parser for [JSON Schema](https://json-schema.org/) subschemas, as yielded by
@@ -54,9 +51,11 @@ class JsonSchemaStep(ParserStep):
     - `enum`/`const` values follow the same rule as `Enum` and `Literal`: strings give an `Enum`, ints the smallest
         int dtype that fits them, other values the dtype of their Python type, and mixed types raise. One exception:
         a mix of ints and floats gives `Float64`, as JSON does not tell `1` from `1.0`.
-    - A `null` branch in `anyOf`/`oneOf`, or `"null"` in a `type` list, marks the field nullable. Keywords next to
-        `anyOf`/`oneOf`/`allOf` apply to every branch. `anyOf: [number, string]` becomes `Decimal`, as Pydantic emits
-        it for `Decimal` fields. Other unions of different types are rejected.
+    - `null` branches in `anyOf`/`oneOf`, `"null"` in a `type` list and `null` values in `enum` are skipped:
+        [`jsonschema_adapter`][anyschema.adapters.jsonschema_adapter] marks the field nullable when the property's
+        own schema allows `null`.
+    - Keywords next to `anyOf`/`oneOf`/`allOf` apply to every branch. `anyOf: [number, string]` becomes `Decimal`, as
+        Pydantic emits it for `Decimal` fields. Other unions of different types are rejected.
     - A schema without `type` or constraints, such as `{}` for `typing.Any`, becomes `Object`.
     - Other scalars are parsed as the equivalent Python type (e.g. `"format": "date-time"` as `datetime`), so
         metadata such as `time_zone` and `time_unit` applies as for any other spec.
@@ -75,7 +74,7 @@ class JsonSchemaStep(ParserStep):
         Arguments:
             input_type: The type to parse. Only mappings are handled.
             constraints: Constraints associated with the type, passed on to scalar types.
-            metadata: Custom metadata dictionary. Marked nullable in place when the schema allows `null`.
+            metadata: Custom metadata dictionary, passed on to scalar types.
 
         Returns:
             A Narwhals DType if `input_type` is a JSON Schema this step understands, None otherwise.
@@ -84,7 +83,7 @@ class JsonSchemaStep(ParserStep):
             return None
 
         schema: JsonSchema = input_type
-        if (branches := _union_branches(schema)) is not None:
+        if (branches := union_branches(schema)) is not None:
             return self._parse_union(branches, constraints, metadata)
         if "const" in schema:
             return self._parse_enum([schema["const"]], schema, constraints, metadata)
@@ -117,8 +116,6 @@ class JsonSchemaStep(ParserStep):
         self, branches: Sequence[JsonSchema], constraints: FieldConstraints, metadata: FieldMetadata
     ) -> DType:
         non_null_branches = [branch for branch in branches if branch.get("type") != "null"]
-        if len(non_null_branches) < len(branches):
-            _mark_nullable(metadata)
         if not non_null_branches:
             return nw.Object()
         if len(non_null_branches) == 1:
@@ -132,8 +129,6 @@ class JsonSchemaStep(ParserStep):
         self, values: Sequence[Any], schema: JsonSchema, constraints: FieldConstraints, metadata: FieldMetadata
     ) -> DType:
         non_null_values = [value for value in values if value is not None]
-        if len(non_null_values) < len(values):
-            _mark_nullable(metadata)
         # JSON does not tell `1` from `1.0`. `type`, not `isinstance`: `bool` is an `int` and `[1, true]` must raise.
         if {type(value) for value in non_null_values} == {int, float}:
             non_null_values = [float(value) for value in non_null_values]
@@ -149,23 +144,6 @@ class JsonSchemaStep(ParserStep):
         if isinstance(items := schema.get("items"), Mapping):
             return nw.List(self.pipeline.parse(items, constraints, metadata))
         return nw.List(nw.Object())
-
-
-def _union_branches(schema: JsonSchema) -> list[JsonSchema] | None:
-    """Return the branches of `anyOf`, `oneOf`, a single-item `allOf` or a `type` list, else None.
-
-    Each branch also gets the keywords next to the union, and its own keywords win on conflicts.
-    """
-    for keyword in _UNION_KEYWORDS:
-        branches = schema.get(keyword)
-        if isinstance(branches, list) and (keyword != "allOf" or len(branches) == 1):
-            siblings = {key: value for key, value in schema.items() if key != keyword}
-            return [{**siblings, **branch} for branch in branches]
-    if isinstance(json_type := schema.get("type"), list):
-        return [{**schema, "type": type_name} for type_name in json_type]
-    if json_type == "null":
-        return [schema]
-    return None
 
 
 def _is_decimal_union(branches: Sequence[JsonSchema]) -> bool:
@@ -196,9 +174,3 @@ def _integer_bounds(schema: JsonSchema) -> tuple[int, int] | None:
 
 def _is_number(value: object) -> TypeIs[int | float]:
     return isinstance(value, (int, float)) and not isinstance(value, bool)
-
-
-def _mark_nullable(metadata: FieldMetadata) -> None:
-    """Mark the field nullable, unless the metadata already sets `nullable` explicitly."""
-    if get_anyschema_value_by_key(metadata, key="nullable") is None:
-        set_anyschema_meta(metadata, key="nullable", value=True)

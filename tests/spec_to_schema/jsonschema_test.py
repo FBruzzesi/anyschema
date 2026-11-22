@@ -196,6 +196,9 @@ class _RoundTripModel(BaseModel):
     maybe_price: Decimal | None
     retries: int = 5
     note: str | None = None
+    maybe_ints: list[int | None]  # only the elements are nullable
+    maybe_letters: list[Literal["a", None]]  # noqa: PYI061
+    small: int | None = Field(json_schema_extra={"anyschema": {"dtype": "Int32"}})  # override keeps the null
 
 
 class _RoundTripLink(BaseModel):

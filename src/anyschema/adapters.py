@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Literal, get_origin
 from typing_extensions import get_type_hints
 
 from anyschema._dependencies import is_jsonschema
-from anyschema._jsonschema import extract_field_metadata, inline_refs
+from anyschema._jsonschema import allows_null, extract_field_metadata, inline_refs
 from anyschema._metadata import get_anyschema_value_by_key, set_anyschema_meta
 
 if TYPE_CHECKING:
@@ -87,7 +87,11 @@ def jsonschema_adapter(spec: JsonSchema) -> FieldSpecIterable:
     if not isinstance(properties := inlined_spec.get("properties"), Mapping):  # a root `$ref` to a non-object
         raise ValueError(msg)  # noqa: TRY004
     for field_name, field_schema in properties.items():
-        yield field_name, field_schema, (), extract_field_metadata(field_schema)
+        metadata = extract_field_metadata(field_schema)
+        # An explicit `nullable` survives a `dtype` override, which skips `JsonSchemaStep`.
+        if allows_null(field_schema) and get_anyschema_value_by_key(metadata, key="nullable") is None:
+            set_anyschema_meta(metadata, key="nullable", value=True)
+        yield field_name, field_schema, (), metadata
 
 
 def into_ordered_dict_adapter(spec: IntoOrderedDict) -> FieldSpecIterable:

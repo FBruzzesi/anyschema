@@ -11,7 +11,7 @@ from anyschema.exceptions import UnsupportedDTypeError
 if TYPE_CHECKING:
     from anyschema.typing import FieldMetadata, JsonSchema
 
-__all__ = ("extract_field_metadata", "inline_refs")
+__all__ = ("allows_null", "extract_field_metadata", "inline_refs", "union_branches")
 
 _T = TypeVar("_T")
 
@@ -24,6 +24,8 @@ literal `"$ref"` key, and `additionalProperties` is not converted.
 
 _DEFINITION_DOC_KEYWORDS: Final = frozenset({"title", "description"})
 """Keywords of a referenced definition that describe the definition, not the field pointing to it."""
+
+_UNION_KEYWORDS: Final = ("anyOf", "oneOf", "allOf")
 
 
 def inline_refs(schema: JsonSchema, root: JsonSchema, _expanding: tuple[str, ...] = ()) -> JsonSchema:
@@ -111,3 +113,35 @@ def extract_field_metadata(schema: object) -> FieldMetadata:
     ):
         set_anyschema_meta(metadata, key="description", value=description)
     return metadata
+
+
+def union_branches(schema: JsonSchema) -> list[JsonSchema] | None:
+    """Return the branches of `anyOf`, `oneOf`, a single-item `allOf` or a `type` list, else None.
+
+    Each branch also gets the keywords next to the union, and its own keywords win on conflicts.
+    """
+    for keyword in _UNION_KEYWORDS:
+        branches = schema.get(keyword)
+        if isinstance(branches, list) and (keyword != "allOf" or len(branches) == 1):
+            siblings = {key: value for key, value in schema.items() if key != keyword}
+            return [{**siblings, **branch} for branch in branches]
+    if isinstance(json_type := schema.get("type"), list):
+        return [{**schema, "type": type_name} for type_name in json_type]
+    if json_type == "null":
+        return [schema]
+    return None
+
+
+def allows_null(schema: object) -> bool:
+    """Whether the top level of `schema` allows `null`.
+
+    That is a `null` branch in `anyOf`/`oneOf`, `"null"` in a `type` list, or `null` in `enum`/`const`. Nested
+    subschemas (e.g. `items`) do not count.
+    """
+    if not isinstance(schema, Mapping):
+        return False
+    if (branches := union_branches(schema)) is not None:
+        return any(branch.get("type") == "null" for branch in branches)
+    if "const" in schema:
+        return schema["const"] is None
+    return isinstance(values := schema.get("enum"), list) and None in values

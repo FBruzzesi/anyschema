@@ -105,16 +105,11 @@ def test_jsonschema_step_enum_mixed_or_empty_raises(pipeline: ParserPipeline, va
         {"type": ["integer", "null"]},
     ],
 )
-def test_jsonschema_step_nullable(pipeline: ParserPipeline, schema: dict[str, Any]) -> None:
+def test_jsonschema_step_skips_null_without_marking_nullable(pipeline: ParserPipeline, schema: dict[str, Any]) -> None:
+    # Field nullability is set by `jsonschema_adapter`, from the property's own schema.
     metadata: FieldMetadata = {}
     assert pipeline.parse(schema, (), metadata) == nw.Int64()
-    assert metadata == {"anyschema": {"nullable": True}}
-
-
-def test_jsonschema_step_explicit_nullable_is_preserved(pipeline: ParserPipeline) -> None:
-    metadata: FieldMetadata = {"anyschema": {"nullable": False}}
-    pipeline.parse({"type": ["string", "null"]}, (), metadata)
-    assert metadata == {"anyschema": {"nullable": False}}
+    assert metadata == {}
 
 
 @pytest.mark.parametrize(

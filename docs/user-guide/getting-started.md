@@ -302,8 +302,9 @@ print(schema.to_arrow())
 ```
 
 Local `$ref`s (including a root `$ref`), nested objects, arrays, enums and integer bounds are supported, so
-`exclusiveMinimum: 0` turns `age` into an unsigned integer. A field is nullable only when its schema allows `null`; the
-`required` keyword is ignored. To start from a raw JSON document, decode it with `json.loads` first.
+`exclusiveMinimum: 0` turns `age` into an unsigned integer. A field is nullable only when its own schema allows `null`
+(a `null` in `items` makes only the elements nullable), and the `required` keyword is ignored. To start from a raw
+JSON document, decode it with `json.loads` first.
 
 !!! note "Differences from the original Pydantic model"
 

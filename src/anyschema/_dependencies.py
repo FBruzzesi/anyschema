@@ -15,7 +15,14 @@ if TYPE_CHECKING:
     from pydantic import BaseModel
     from pydantic_extra_types.color import Color
 
-    from anyschema.typing import AttrsClassType, DataclassType, IntoOrderedDict, SQLAlchemyTableType, TypedDictType
+    from anyschema.typing import (
+        AttrsClassType,
+        DataclassType,
+        IntoOrderedDict,
+        JsonSchema,
+        SQLAlchemyTableType,
+        TypedDictType,
+    )
 
     Version: TypeAlias = tuple[int, ...]
 
@@ -70,6 +77,23 @@ def is_into_ordered_dict(obj: object) -> TypeIs[IntoOrderedDict]:
     return isinstance(obj, Mapping) or (
         isinstance(obj, Sequence) and all(isinstance(s, tuple) and len(s) == tpl_size for s in obj)
     )
+
+
+# `TypeGuard`, not `TypeIs`: most mappings are not JSON Schema objects, so `TypeIs` would wrongly narrow on False.
+def is_jsonschema(obj: object) -> TypeGuard[JsonSchema]:
+    """Check if the object is a JSON Schema object that `jsonschema_adapter` accepts.
+
+    That is a mapping with a `"properties"` mapping and `"type": "object"` (or no `type`), or with a root `"$ref"` (or
+    a single-item `"allOf"`, before Pydantic 2.9) next to `"$defs"` or `"definitions"`, as emitted for self-referencing
+    models.
+    """
+    if not isinstance(obj, Mapping):
+        return False
+    if isinstance(obj.get("$defs", obj.get("definitions")), Mapping) and (
+        isinstance(obj.get("$ref"), str) or isinstance(obj.get("allOf"), list)
+    ):
+        return True
+    return isinstance(obj.get("properties"), Mapping) and obj.get("type", "object") == "object"
 
 
 # `TypeGuard`, not `TypeIs`: `type[Any]` matches these protocols, so `TypeIs` narrows the False branch to `Never`.

@@ -7,6 +7,8 @@ from typing import TYPE_CHECKING, Any, ClassVar, Literal, get_origin
 
 from typing_extensions import get_type_hints
 
+from anyschema._dependencies import is_jsonschema
+from anyschema._jsonschema import allows_null, extract_field_metadata, inline_refs
 from anyschema._metadata import get_anyschema_value_by_key, set_anyschema_meta
 
 if TYPE_CHECKING:
@@ -19,6 +21,7 @@ if TYPE_CHECKING:
         DataclassType,
         FieldSpecIterable,
         IntoOrderedDict,
+        JsonSchema,
         SQLAlchemyTableType,
         TypedDictType,
     )
@@ -27,10 +30,69 @@ __all__ = (
     "attrs_adapter",
     "dataclass_adapter",
     "into_ordered_dict_adapter",
+    "jsonschema_adapter",
     "pydantic_adapter",
     "sqlalchemy_adapter",
     "typed_dict_adapter",
 )
+
+
+def jsonschema_adapter(spec: JsonSchema) -> FieldSpecIterable:
+    """Adapter for JSON Schema objects, such as the output of `pydantic.BaseModel.model_json_schema()`.
+
+    Each property is yielded with its subschema as the field type, with every local, non-recursive `$ref` inlined,
+    for [`JsonSchemaStep`][anyschema.parsers.JsonSchemaStep] to convert.
+
+    A field is nullable when its own schema allows `null`: a `null` branch in `anyOf`/`oneOf`/`allOf`, `"null"` in a
+    `type` list, or `null` in `enum`/`const`. A `null` inside `items` makes only the elements nullable, and the
+    `required` keyword does not affect nullability.
+
+    Arguments:
+        spec: A JSON Schema with a `"properties"` mapping and `"type": "object"` (or no `type`), or a root `"$ref"` to
+            such a schema in `"$defs"`, optionally wrapped in a single-item `"allOf"`.
+
+    Yields:
+        A tuple of `(field_name, field_type, constraints, metadata)` for each property.
+            - `field_type`: The property subschema with `$ref`s inlined.
+            - `constraints`: Always an empty tuple.
+            - `metadata`: The `anyschema`/`x-anyschema` namespaces of the property, plus its `description` and
+                `nullable`.
+
+    Raises:
+        ValueError: If `spec` is not a JSON Schema object, or a `$ref` is not local or cannot be resolved.
+
+    Examples:
+        >>> schema = {
+        ...     "type": "object",
+        ...     "properties": {
+        ...         "id": {"type": "integer"},
+        ...         "name": {"type": "string", "description": "Full name"},
+        ...         "address": {"$ref": "#/$defs/Address"},
+        ...     },
+        ...     "$defs": {"Address": {"type": "object", "properties": {"city": {"type": "string"}}}},
+        ... }
+        >>> for spec_field in jsonschema_adapter(schema):
+        ...     print(spec_field)
+        ('id', {'type': 'integer'}, (), {})
+        ('name', {'type': 'string', 'description': 'Full name'}, (), {'anyschema': {'description': 'Full name'}})
+        ('address', {'type': 'object', 'properties': {'city': {'type': 'string'}}}, (), {})
+    """
+    msg = "Expected a JSON Schema object with a `'properties'` mapping and `'type': 'object'` (or no `'type'`)."
+    if not is_jsonschema(spec):
+        raise ValueError(msg)
+    inlined_spec = inline_refs(spec, spec)
+    all_of = inlined_spec.get("allOf")
+    if "properties" not in inlined_spec and isinstance(all_of, list) and len(all_of) == 1:
+        # Pydantic < 2.9 wraps the root `$ref` of a self-referencing model in a single-item `allOf`.
+        inlined_spec = all_of[0] if isinstance(all_of[0], Mapping) else {}
+    if not isinstance(properties := inlined_spec.get("properties"), Mapping):  # a root `$ref` to a non-object
+        raise ValueError(msg)  # noqa: TRY004
+    for field_name, field_schema in properties.items():
+        metadata = extract_field_metadata(field_schema)
+        # Set here, not in `JsonSchemaStep`, so it holds when a `dtype` override skips the step.
+        if allows_null(field_schema) and get_anyschema_value_by_key(metadata, key="nullable") is None:
+            set_anyschema_meta(metadata, key="nullable", value=True)
+        yield field_name, field_schema, (), metadata
 
 
 def into_ordered_dict_adapter(spec: IntoOrderedDict) -> FieldSpecIterable:

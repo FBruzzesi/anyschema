@@ -12,6 +12,7 @@ from anyschema._dependencies import (
     is_attrs_class,
     is_dataclass,
     is_into_ordered_dict,
+    is_jsonschema,
     is_pydantic_base_model,
     is_sqlalchemy_table,
     is_typed_dict,
@@ -20,6 +21,7 @@ from anyschema.adapters import (
     attrs_adapter,
     dataclass_adapter,
     into_ordered_dict_adapter,
+    jsonschema_adapter,
     pydantic_adapter,
     sqlalchemy_adapter,
     typed_dict_adapter,
@@ -73,6 +75,9 @@ def _infer_adapter(spec: Spec) -> Adapter:
     Raises:
         ValueError: If no built-in adapter supports `spec`.
     """
+    # Before is_into_ordered_dict: a JSON Schema is also a mapping.
+    if is_jsonschema(spec):
+        return jsonschema_adapter
     if is_into_ordered_dict(spec):
         return into_ordered_dict_adapter
     if is_typed_dict(spec):
@@ -199,6 +204,10 @@ class AnySchema:
                 instance or [DeclarativeBase](https://docs.sqlalchemy.org/en/20/orm/mapping_api.html#sqlalchemy.orm.DeclarativeBase)
                 subclass (not an instance).
                 The fields are extracted using SQLAlchemy's schema introspection.
+            - A [JSON Schema](https://json-schema.org/) object (a mapping with a `"properties"` mapping, or a root
+                `"$ref"` into `"$defs"`), such as the output of `pydantic.BaseModel.model_json_schema()`.
+                See [`jsonschema_adapter`][anyschema.adapters.jsonschema_adapter] for the conversion details.
+                Decode a raw JSON document with `json.loads` first.
 
         pipeline: Control how types are parsed into Narwhals dtypes. Options:
 

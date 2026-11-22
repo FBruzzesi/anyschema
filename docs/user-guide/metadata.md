@@ -81,7 +81,9 @@ Provides a human-readable description of the field's purpose or content.
 1. **Pydantic**: The `description` parameter of `Field()` is automatically extracted
 2. **SQLAlchemy**: The `doc` parameter of `Column()` or `mapped_column()` is automatically extracted
 3. **Dataclasses (Python 3.14+)**: The `doc` parameter of `field()` is automatically extracted
-4. **Explicit metadata**: Set `{"anyschema": {"description": ...}}` in field metadata
+4. **JSON Schema**: The `description` keyword of a property is automatically extracted
+5. **Explicit metadata**: Set `{"anyschema": {"description": ...}}` in field metadata. In a JSON Schema, put the
+    `anyschema` (or `x-anyschema`) key inside the property; it wins over `description`.
 
 Example with Pydantic:
 

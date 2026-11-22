@@ -1,0 +1,292 @@
+from __future__ import annotations
+
+from decimal import Decimal  # noqa: TC003 (pydantic resolves annotations at runtime)
+from enum import Enum, IntEnum, IntFlag
+from importlib.metadata import version
+from typing import Any, Literal, Mapping
+
+import narwhals as nw
+import pytest
+from narwhals.utils import parse_version
+from pydantic import BaseModel, Field, PositiveInt
+
+from anyschema import AnySchema
+from anyschema.exceptions import UnsupportedDTypeError
+from tests.conftest import (
+    PydanticEventWithTimeMetadata,
+    PydanticEventWithXAnyschema,
+    PydanticStudent,
+    json_object_schema,
+)
+
+
+@pytest.mark.parametrize(
+    ("spec", "expected_schema"),
+    [
+        (
+            json_object_schema(
+                {
+                    "id": {"type": "integer"},
+                    "name": {"type": "string"},
+                    "score": {"anyOf": [{"type": "number"}, {"type": "null"}]},
+                    "active": {"type": "boolean"},
+                    "tags": {"type": "array", "items": {"type": "string"}},
+                    "role": {"enum": ["admin", "user"]},
+                    "age": {"type": "integer", "exclusiveMinimum": 0},
+                }
+            ),
+            {
+                "id": nw.Int64(),
+                "name": nw.String(),
+                "score": nw.Float64(),
+                "active": nw.Boolean(),
+                "tags": nw.List(nw.String()),
+                "role": nw.Enum(["admin", "user"]),
+                "age": nw.UInt64(),
+            },
+        ),
+        (
+            json_object_schema(
+                {"address": {"$ref": "#/$defs/Address"}},
+                **{
+                    "$defs": {
+                        "Address": json_object_schema({"street": {"type": "string"}, "zipcode": {"type": "integer"}}),
+                    }
+                },
+            ),
+            {"address": nw.Struct([nw.Field("street", nw.String()), nw.Field("zipcode", nw.Int64())])},
+        ),
+        (
+            json_object_schema({"byte": {"type": "integer", "minimum": 0, "maximum": 255}}),
+            {"byte": nw.UInt8()},
+        ),
+        # Integer constraints must survive inside a nested struct (regression: they were dropped).
+        (
+            json_object_schema(
+                {"addr": json_object_schema({"zipcode": {"type": "integer", "minimum": 0, "maximum": 255}})}
+            ),
+            {"addr": nw.Struct([nw.Field("zipcode", nw.UInt8())])},
+        ),
+        # ... and inside a list's element type.
+        (
+            json_object_schema(
+                {"bytes": {"type": "array", "items": {"type": "integer", "minimum": 0, "maximum": 255}}}
+            ),
+            {"bytes": nw.List(nw.UInt8())},
+        ),
+    ],
+)
+def test_jsonschema_to_schema(spec: dict[str, object], expected_schema: Mapping[str, nw.dtypes.DType]) -> None:
+    schema = AnySchema(spec=spec)
+    assert schema._nw_schema == nw.Schema(expected_schema)
+
+
+@pytest.mark.parametrize(
+    ("json_schema", "expected_dtype"),
+    [
+        ({"enum": [1, 2, 3]}, nw.UInt8()),
+        ({"const": 5}, nw.UInt8()),
+        ({"enum": [1.5, 2.5]}, nw.Float64()),
+        ({"enum": [True, False]}, nw.Boolean()),
+    ],
+)
+def test_non_string_enum_const_convert_to_backends(
+    json_schema: dict[str, object], expected_dtype: nw.dtypes.DType
+) -> None:
+    # No backend can lower a non-string `Enum`, so these conversions raise unless the dtype is a scalar.
+    pytest.importorskip("polars")
+    schema = AnySchema(spec=json_object_schema({"x": json_schema}))
+    assert schema._nw_schema == nw.Schema({"x": expected_dtype})
+    schema.to_arrow()
+    schema.to_polars()
+
+
+def test_string_enum_is_polars_enum() -> None:
+    # String choices stay categorical (a Narwhals `Enum`), which Polars can lower.
+    pl = pytest.importorskip("polars")
+
+    schema = AnySchema(spec=json_object_schema({"role": {"enum": ["admin", "user"]}}))
+    assert schema._nw_schema == nw.Schema({"role": nw.Enum(["admin", "user"])})
+    assert schema.to_polars()["role"] == pl.Enum(["admin", "user"])
+
+
+def test_optional_nested_model_via_anyof_ref() -> None:
+    # The common Pydantic v2 emission for an optional nested model: `anyOf: [{$ref}, {"type": "null"}]`.
+    spec = json_object_schema(
+        {"address": {"anyOf": [{"$ref": "#/$defs/Address"}, {"type": "null"}]}},
+        **{"$defs": {"Address": json_object_schema({"street": {"type": "string"}})}},
+    )
+    schema = AnySchema(spec=spec)
+    assert schema._nw_schema == nw.Schema({"address": nw.Struct([nw.Field("street", nw.String())])})
+    assert schema.nullables(named=True) == {"address": True}
+
+
+def test_nullable_and_description_propagate() -> None:
+    spec = json_object_schema(
+        {
+            "email": {"anyOf": [{"type": "string"}, {"type": "null"}], "description": "contact email"},
+            "id": {"type": "integer"},
+        }
+    )
+    schema = AnySchema(spec=spec)
+    assert schema.nullables(named=True) == {"email": True, "id": False}
+    assert schema.descriptions(named=True) == {"email": "contact email", "id": None}
+
+
+def test_plain_mapping_with_nested_dict_is_not_a_jsonschema() -> None:
+    # A nested mapping that is not a JSON Schema must still fail instead of becoming an Object column.
+    with pytest.raises(NotImplementedError, match="No parser in the pipeline could handle"):
+        AnySchema(spec={"x": {"b": int}})
+
+
+class _RoundTripAddress(BaseModel):
+    """A postal address."""
+
+    zipcode: PositiveInt  # nested constrained int -> must round-trip to UInt64, not Int64
+    street: str
+
+
+class _RoundTripColor(str, Enum):
+    """A color."""
+
+    RED = "red"
+    BLUE = "blue"
+
+
+class _RoundTripStatus(IntEnum):
+    OK = 200
+    NOT_FOUND = 404
+
+
+class _RoundTripLevel(Enum):
+    LOW = -1
+    HIGH = 1
+
+
+class _RoundTripModel(BaseModel):
+    """Exercises the nested-constraint, list-of-constrained, enum and optional paths together."""
+
+    id: PositiveInt
+    tags: list[str]
+    role: Literal["admin", "user"]
+    address: _RoundTripAddress
+    nickname: str | None
+    scores: list[PositiveInt]
+    pair: tuple[int, int]
+    maybe_address: _RoundTripAddress | None
+    color: _RoundTripColor
+    status: _RoundTripStatus
+    level: _RoundTripLevel
+    odd: Literal[1, 3]
+    price: Decimal
+    maybe_price: Decimal | None
+    retries: int = 5
+    note: str | None = None
+    maybe_ints: list[int | None]  # only the elements are nullable
+    maybe_letters: list[Literal["a", None]]  # noqa: PYI061
+    maybe_letter: Literal["a", None]  # noqa: PYI061
+    maybe_status: _RoundTripStatus | None
+    pair_of_addresses: tuple[_RoundTripAddress, _RoundTripAddress]
+    small: int | None = Field(json_schema_extra={"anyschema": {"dtype": "Int32"}})  # override keeps the null
+
+
+class _RoundTripLink(BaseModel):
+    """Instance data that looks like a `$ref` is not a reference."""
+
+    target: dict[str, Any] = Field(default={"$ref": "https://example.com/a.json"})
+
+
+class _RoundTripTree(BaseModel):
+    """Self-referencing model: its JSON Schema has a root `$ref`, and the recursion sits in `dict` values."""
+
+    name: str
+    children: dict[str, _RoundTripTree]
+
+
+class _RoundTripRecursiveWithDtype(BaseModel):
+    """Self-referencing model whose recursive field sets its dtype, so it is not parsed."""
+
+    name: str
+    child: _RoundTripRecursiveWithDtype | None = Field(None, json_schema_extra={"anyschema": {"dtype": "String"}})
+
+
+_ROUND_TRIP_MODELS: list[type[BaseModel] | Any] = [
+    PydanticStudent,
+    PydanticEventWithTimeMetadata,
+    PydanticEventWithXAnyschema,
+    _RoundTripModel,
+    pytest.param(
+        _RoundTripLink,
+        marks=pytest.mark.skipif(
+            parse_version(version("pydantic")) < (2, 9), reason="`model_json_schema()` raises on a `$ref` default"
+        ),
+    ),
+    _RoundTripTree,
+    _RoundTripRecursiveWithDtype,
+]
+
+
+@pytest.mark.parametrize("model", _ROUND_TRIP_MODELS, ids=lambda model: model.__name__)
+def test_pydantic_json_schema_round_trip(model: type[BaseModel]) -> None:
+    from_model = AnySchema(spec=model)
+    from_json = AnySchema(spec=model.model_json_schema())
+    # Compare the fields in order, so a failure shows which one differs.
+    assert list(from_json.fields.items()) == list(from_model.fields.items())
+
+
+class _MixedLiteral(BaseModel):
+    x: Literal[1, "a"]
+
+
+class _NoneLiteral(BaseModel):
+    x: Literal[None]  # noqa: PYI061
+
+
+@pytest.mark.parametrize("model", [_MixedLiteral, _NoneLiteral])
+def test_unsupported_literal_raises_from_model_and_json_schema(model: type[BaseModel]) -> None:
+    with pytest.raises(UnsupportedDTypeError, match="single type"):
+        AnySchema(spec=model)
+    with pytest.raises(UnsupportedDTypeError, match="single type"):
+        AnySchema(spec=model.model_json_schema())
+
+
+class _Permission(IntFlag):
+    READ = 1
+    WRITE = 2
+
+
+class _IntFlagModel(BaseModel):
+    permission: _Permission
+
+
+class _IntFloatLiteral(BaseModel):
+    x: Literal[1, 2.5]  # type: ignore[valid-type]  # pyright: ignore[reportInvalidTypeForm]
+
+
+def test_documented_differences_from_model() -> None:
+    # Keep in sync with "Differences from the original Pydantic model" in docs/user-guide/getting-started.md.
+    assert AnySchema(spec=_IntFlagModel)._nw_schema == nw.Schema({"permission": nw.Int64()})
+    assert AnySchema(spec=_IntFlagModel.model_json_schema())._nw_schema == nw.Schema({"permission": nw.UInt8()})
+    with pytest.raises(UnsupportedDTypeError, match="single type"):
+        AnySchema(spec=_IntFloatLiteral)
+    assert AnySchema(spec=_IntFloatLiteral.model_json_schema())._nw_schema == nw.Schema({"x": nw.Float64()})
+
+
+class _RecursiveNode(BaseModel):
+    child: _RecursiveNode | None = None
+
+
+@pytest.mark.parametrize(
+    "spec",
+    [
+        _RecursiveNode.model_json_schema(),
+        json_object_schema({"self": {"$ref": "#"}}),
+        {
+            "allOf": [{"$ref": "#/$defs/Node"}],
+            "$defs": {"Node": json_object_schema({"child": {"$ref": "#/$defs/Node"}})},
+        },
+    ],
+)
+def test_recursive_json_schema_is_rejected(spec: dict[str, object]) -> None:
+    with pytest.raises(UnsupportedDTypeError, match="Recursive JSON Schema reference"):
+        AnySchema(spec=spec)

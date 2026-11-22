@@ -16,10 +16,10 @@ if TYPE_CHECKING:
 
 
 class UnionTypeStep(ParserStep):
-    """Parser for `T | None`, `Optional[T]` and `Union[T, None]`, which parses `T`.
+    """Parser for `T | None`, `Optional[T]` and `Union[T, None]`: it parses `T`.
 
-    It leaves nullability to [`ParserPipeline.parse_into_field`][anyschema.parsers.ParserPipeline.parse_into_field],
-    because it also parses nested types such as the elements of `list[T | None]`.
+    It does not set `nullable`, because it also parses nested types such as the elements of `list[T | None]`.
+    [`ParserPipeline.parse_into_field`][anyschema.parsers.ParserPipeline.parse_into_field] decides nullability.
     """
 
     def parse(self, input_type: FieldType, constraints: FieldConstraints, metadata: FieldMetadata) -> DType | None:
@@ -47,5 +47,5 @@ class UnionTypeStep(ParserStep):
             msg = "Union with mixed types is not supported."
             raise UnsupportedDTypeError(msg)
 
-        (non_none_type,) = (arg for arg in args if arg is not NoneType)
-        return self.pipeline.parse(non_none_type, constraints, metadata, strict=True)
+        inner_type = args[1] if args[0] is NoneType else args[0]
+        return self.pipeline.parse(inner_type, constraints, metadata, strict=True)

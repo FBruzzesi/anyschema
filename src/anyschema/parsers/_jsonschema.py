@@ -47,12 +47,11 @@ class JsonSchemaStep(ParserStep):
         for `tuple[int, int]`).
     - `integer` bounds (`minimum`, `maximum`, `exclusiveMinimum`, `exclusiveMaximum`) pick the smallest integer dtype
         that fits, e.g. `{"type": "integer", "exclusiveMinimum": 0}` becomes `UInt64`.
-    - `enum`/`const` values follow the same rule as `Enum` and `Literal`: strings give an `Enum`, ints the smallest
-        int dtype that fits them, other values the dtype of their Python type, and mixed types raise. One exception:
-        a mix of ints and floats gives `Float64`, as JSON does not tell `1` from `1.0`.
-    - `null` branches in `anyOf`/`oneOf`, `"null"` in a `type` list and `null` values in `enum` are skipped:
-        [`jsonschema_adapter`][anyschema.adapters.jsonschema_adapter] marks the field nullable when the property's
-        own schema allows `null`.
+    - `enum`/`const` values follow the rule for `Enum` and `Literal`: strings give an `Enum`, ints the smallest int
+        dtype that fits them, other values the dtype of their Python type, and mixed types raise. A mix of ints and
+        floats gives `Float64`, as JSON does not tell `1` from `1.0`.
+    - `null` branches in `anyOf`/`oneOf`, `"null"` in a `type` list and `null` in `enum` are skipped.
+        [`jsonschema_adapter`][anyschema.adapters.jsonschema_adapter] makes the field nullable instead.
     - Keywords next to `anyOf`/`oneOf`/`allOf` apply to every branch. Branches with the same dtype give that dtype,
         and `anyOf: [number, string]` gives `Decimal`, as Pydantic emits it for `Decimal` fields. Other unions raise.
     - A schema without `type` or constraints (such as `{}` for `typing.Any`) and `{"type": "null"}` become `Object`.
@@ -83,7 +82,7 @@ class JsonSchemaStep(ParserStep):
             UnsupportedDTypeError: For a `$ref`, a union of different dtypes, mixed `enum` values, or an unknown
                 `type`.
         """
-        if not isinstance(input_type, Mapping):  # Keep this as a fast path!
+        if not isinstance(input_type, Mapping):  # First: every type of every spec reaches this step.
             return None
 
         schema: JsonSchema = input_type

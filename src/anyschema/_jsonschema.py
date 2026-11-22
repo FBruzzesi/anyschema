@@ -13,14 +13,14 @@ if TYPE_CHECKING:
 __all__ = ("allows_null", "extract_field_metadata", "inline_refs", "union_branches")
 
 _SUBSCHEMA_KEYWORDS: Final = frozenset({"items", "prefixItems", "anyOf", "oneOf", "allOf"})
-"""Keywords holding a subschema or a list of subschemas that `JsonSchemaStep` reads, besides `properties`.
+"""Keywords besides `properties` that hold subschemas `JsonSchemaStep` reads.
 
 Other keywords are copied as-is: `default`, `examples`, `const` and `enum` hold instance data, which may contain a
 literal `"$ref"` key, and `additionalProperties` is not converted.
 """
 
 _DEFINITION_DOC_KEYWORDS: Final = frozenset({"title", "description"})
-"""Keywords of a referenced definition that describe the definition, not the field pointing to it."""
+"""Keywords that describe a referenced definition, not the field pointing to it."""
 
 _UNION_KEYWORDS: Final = ("anyOf", "oneOf", "allOf")
 

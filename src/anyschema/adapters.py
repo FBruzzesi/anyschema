@@ -55,7 +55,8 @@ def jsonschema_adapter(spec: JsonSchema) -> FieldSpecIterable:
         A tuple of `(field_name, field_type, constraints, metadata)` for each property.
             - `field_type`: The property subschema with `$ref`s inlined.
             - `constraints`: Always an empty tuple.
-            - `metadata`: The `anyschema`/`x-anyschema` namespaces of the property, plus its `description`.
+            - `metadata`: The `anyschema`/`x-anyschema` namespaces of the property, plus its `description` and
+                `nullable`.
 
     Raises:
         ValueError: If `spec` is not a JSON Schema object, or a `$ref` is not local or cannot be resolved.
@@ -88,7 +89,7 @@ def jsonschema_adapter(spec: JsonSchema) -> FieldSpecIterable:
         raise ValueError(msg)  # noqa: TRY004
     for field_name, field_schema in properties.items():
         metadata = extract_field_metadata(field_schema)
-        # An explicit `nullable` survives a `dtype` override, which skips `JsonSchemaStep`.
+        # Set here, not in `JsonSchemaStep`, so it holds when a `dtype` override skips the step.
         if allows_null(field_schema) and get_anyschema_value_by_key(metadata, key="nullable") is None:
             set_anyschema_meta(metadata, key="nullable", value=True)
         yield field_name, field_schema, (), metadata

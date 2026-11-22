@@ -480,6 +480,28 @@ print(schema.to_polars())
 
 Bounds can be fractional: `Gt(-1.5)` allows `-1`, so it gives a signed integer.
 
+### Overriding dtypes and metadata with `Annotated`
+
+The [`WithAnySchema`][anyschema.WithAnySchema] marker sets a field dtype and metadata directly in the annotation,
+for any spec (including TypedDict and plain dicts):
+
+```python exec="true" source="above" result="python" session="annotated-markers-intro"
+from typing import Annotated
+
+from anyschema import AnySchema, WithAnySchema
+
+schema = AnySchema(
+    spec={
+        "id": Annotated[int, WithAnySchema(dtype="Int32")],
+        "email": Annotated[str, WithAnySchema(unique=True)],
+    }
+)
+print(schema.to_polars())
+print(schema.fields["email"].unique)
+```
+
+See [Annotated markers](metadata.md#annotated-markers) for composition, conflict and nullability rules.
+
 ## Enums and literals
 
 Dataframe `Enum` dtypes hold strings, so only an `Enum` subclass or a `Literal` whose values are all strings becomes an

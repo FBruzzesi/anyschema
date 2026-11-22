@@ -3,11 +3,11 @@ from __future__ import annotations
 from collections import Counter
 from collections.abc import Mapping
 from dataclasses import fields as dc_fields
-from typing import TYPE_CHECKING, Any, ClassVar, Literal, get_origin
+from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Literal, get_origin
 
 from typing_extensions import get_type_hints
 
-from anyschema._metadata import get_anyschema_value_by_key, set_anyschema_meta
+from anyschema._metadata import get_anyschema_value_by_key, partition_markers, set_anyschema_meta
 
 if TYPE_CHECKING:
     from collections.abc import Container
@@ -170,7 +170,7 @@ def pydantic_adapter(spec: type[BaseModel]) -> FieldSpecIterable:
     Yields:
         A tuple of `(field_name, field_type, constraints, metadata)` for each field.
             - `field_name`: The name of the field as defined in the model
-            - `field_type`: The type annotation of the field
+            - `field_type`: The type annotation of the field, with any `WithAnySchema` markers
             - `constraints`: A tuple of constraint items from `Annotated` types (e.g., `Gt`, `Le`)
             - `metadata`: A dict of custom metadata from `json_schema_extra`
 
@@ -189,8 +189,9 @@ def pydantic_adapter(spec: type[BaseModel]) -> FieldSpecIterable:
         ('age', ForwardRef('Annotated[int, Field(ge=0)]', is_class=True), (), {})
     """
     for field_name, field_info in spec.model_fields.items():
-        # Extract constraints from metadata (these are the annotated-types constraints)
-        constraints = tuple(field_info.metadata)
+        # Pydantic moves the outermost `Annotated` extras into `metadata`: put the markers back into the type.
+        markers, constraints = partition_markers(field_info.metadata)
+        field_type = Annotated[(field_info.annotation, *markers)] if markers else field_info.annotation  # pyrefly: ignore[not-a-type]
 
         json_schema_extra = field_info.json_schema_extra
         # Create a copy of metadata to avoid mutating the original Pydantic Field
@@ -201,7 +202,7 @@ def pydantic_adapter(spec: type[BaseModel]) -> FieldSpecIterable:
         ):
             set_anyschema_meta(metadata, key="description", value=description)
 
-        yield field_name, field_info.annotation, constraints, metadata
+        yield field_name, field_type, constraints, metadata
 
 
 def attrs_adapter(spec: AttrsClassType) -> FieldSpecIterable:

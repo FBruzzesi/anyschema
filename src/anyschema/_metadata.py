@@ -1,12 +1,22 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Literal, overload
+from collections.abc import Mapping
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any, Literal, TypeVar, get_args, overload
+
+from narwhals.dtypes import DType
+
+from anyschema._utils import qualified_type_name
+from anyschema.serde import deserialize_dtype
+from anyschema.typing import AnySchemaMetadataKey, AnySchemaNamespaceKey
 
 if TYPE_CHECKING:
-    from narwhals.dtypes import DType
-    from narwhals.typing import TimeUnit
+    from collections.abc import Iterable
 
-    from anyschema.typing import AnySchemaMetadata, AnySchemaMetadataKey, AnySchemaNamespaceKey, FieldMetadata
+    from narwhals.typing import TimeUnit
+    from typing_extensions import Unpack
+
+    from anyschema.typing import AnySchemaMetadata, FieldMetadata
 
 
 def _get_anyschema_metadata(metadata: FieldMetadata) -> AnySchemaMetadata:
@@ -156,7 +166,7 @@ def set_anyschema_meta(
     metadata[namespace_key] = {**metadata.get(namespace_key, {}), key: value}
 
 
-def filter_anyschema_metadata(metadata: FieldMetadata) -> FieldMetadata:
+def filter_anyschema_metadata(metadata: Mapping[str, Any]) -> FieldMetadata:
     """Filter out anyschema-specific metadata keys, returning only custom metadata.
 
     Removes both "anyschema" and "x-anyschema" keys to support both conventions.
@@ -173,3 +183,158 @@ def filter_anyschema_metadata(metadata: FieldMetadata) -> FieldMetadata:
         {'custom': 'value'}
     """
     return {key: value for key, value in metadata.items() if key not in {"anyschema", "x-anyschema"}}
+
+
+_T = TypeVar("_T")
+
+_NAMESPACE_KEYS: frozenset[AnySchemaNamespaceKey] = frozenset(get_args(AnySchemaNamespaceKey))
+_METADATA_KEYS: frozenset[AnySchemaMetadataKey] = frozenset(get_args(AnySchemaMetadataKey))
+
+
+def ensure_dtype(into_dtype: object) -> DType:
+    """Return `into_dtype` as a Narwhals `DType`, deserializing it first if it is a string.
+
+    Raises:
+        TypeError: If `into_dtype` is neither a `DType` instance nor a `str`.
+        UnsupportedDTypeError: If `into_dtype` is a string that cannot be deserialized.
+    """
+    if isinstance(into_dtype, DType):
+        return into_dtype
+    if isinstance(into_dtype, str):
+        return deserialize_dtype(into_dtype)
+    msg = (
+        "Expected `dtype` value to be of type `narwhals.dtypes.DType` or `str`, "
+        f"found '{qualified_type_name(into_dtype)}' instead."
+    )
+    raise TypeError(msg)
+
+
+@dataclass(frozen=True, init=False, repr=False)
+class WithAnySchema:
+    """`Annotated` marker that sets the anyschema dtype and metadata of a field, for any spec.
+
+    Keyword arguments are the anyschema metadata keys (`dtype`, `nullable`, `unique`, `description`, `time_zone`,
+    ...). Any other metadata goes in `custom` and ends up in [`AnyField.metadata`][anyschema.AnyField]. A `dtype`
+    skips type parsing for that field.
+
+    Nested markers (e.g. inside `list[...]`) can only set `dtype`. Every other key is only valid at the field level:
+    in the `Annotated` layers of a field type, optionally wrapped in a single `| None`.
+
+    Arguments:
+        custom: Custom metadata, copied on construction.
+        **anyschema: Anyschema metadata keys. A `dtype` string is deserialized on construction (see
+            [`deserialize_dtype`][anyschema.serde.deserialize_dtype]).
+
+    Raises:
+        TypeError: On an unknown keyword argument, if `custom` is not a mapping or contains an `"anyschema"` /
+            `"x-anyschema"` key, or if `dtype` is neither a `DType` instance nor a `str`.
+        UnsupportedDTypeError: If `dtype` is a string that cannot be deserialized.
+
+    Examples:
+        >>> from typing import Annotated
+        >>> from anyschema import AnySchema, WithAnySchema
+        >>>
+        >>> WithAnySchema(dtype="Int32", unique=True, custom={"pii": True})
+        WithAnySchema(dtype=Int32, unique=True, custom={'pii': True})
+        >>> Email = Annotated[str, WithAnySchema(unique=True, custom={"pii": True})]
+        >>> schema = AnySchema(
+        ...     spec={
+        ...         "id": Annotated[int, WithAnySchema(dtype="Int32")],
+        ...         "email": Annotated[Email, WithAnySchema(description="Primary email")],
+        ...         "tags": list[Annotated[str, WithAnySchema(dtype="Categorical")]],
+        ...     }
+        ... )
+        >>> {name: field.dtype for name, field in schema.fields.items()}
+        {'id': Int32, 'email': String, 'tags': List(Categorical)}
+        >>> schema.fields["email"]
+        AnyField(name='email', dtype=String, nullable=False, unique=True, description='Primary email', metadata={'pii': True})
+    """  # noqa: E501
+
+    anyschema: AnySchemaMetadata
+    custom: Mapping[str, Any]
+
+    def __init__(self, *, custom: Mapping[str, Any] | None = None, **anyschema: Unpack[AnySchemaMetadata]) -> None:
+        if unknown := sorted(anyschema.keys() - _METADATA_KEYS):
+            msg = (
+                f"Unknown anyschema metadata key(s): {', '.join(map(repr, unknown))}. "
+                f"Expected any of {', '.join(map(repr, sorted(_METADATA_KEYS)))}; pass other metadata via `custom=`."
+            )
+            raise TypeError(msg)
+        custom = {} if custom is None else custom
+        if not isinstance(custom, Mapping):  # pyright: ignore[reportUnnecessaryIsInstance]
+            msg = f"Expected `custom` to be a mapping, found '{qualified_type_name(custom)}' instead."
+            raise TypeError(msg)
+        if reserved := sorted(custom.keys() & _NAMESPACE_KEYS):
+            msg = (
+                f"`custom` cannot contain the reserved key(s) {', '.join(map(repr, reserved))}: pass anyschema "
+                "metadata as keyword arguments instead, e.g. `WithAnySchema(unique=True)`."
+            )
+            raise TypeError(msg)
+        if "dtype" in anyschema:
+            anyschema["dtype"] = ensure_dtype(anyschema["dtype"])
+        object.__setattr__(self, "anyschema", anyschema)  # `**anyschema` is already a fresh dict
+        object.__setattr__(self, "custom", dict(custom))
+
+    @property
+    def dtype(self) -> DType | None:
+        """The Narwhals dtype set by the marker, if any."""
+        dtype = self.anyschema.get("dtype")
+        return dtype if isinstance(dtype, DType) else None
+
+    def __hash__(self) -> int:
+        # Python 3.10 hashes `Union` args and values may be unhashable (e.g. `dict`): hash the keys only.
+        return hash((frozenset(self.anyschema), frozenset(self.custom)))
+
+    def __repr__(self) -> str:
+        args = [f"{key}={value!r}" for key, value in self.anyschema.items()]
+        if self.custom:
+            args.append(f"custom={self.custom!r}")
+        return f"{type(self).__name__}({', '.join(args)})"
+
+
+def partition_markers(extras: Iterable[_T]) -> tuple[tuple[WithAnySchema, ...], tuple[_T, ...]]:
+    """Split `Annotated` extras into `(markers, everything else)`, keeping their order."""
+    markers: list[WithAnySchema] = []
+    others: list[_T] = []
+    for extra in extras:
+        if isinstance(extra, WithAnySchema):
+            markers.append(extra)
+        else:
+            others.append(extra)
+    return tuple(markers), tuple(others)
+
+
+def merge_field_markers(field_name: str, metadata: FieldMetadata, markers: Iterable[WithAnySchema]) -> FieldMetadata:
+    """Merge field-level markers into a copy of the spec's own field metadata.
+
+    The last marker wins per key: anyschema keys one by one, `custom` keys shallow-merged.
+
+    Arguments:
+        field_name: The field name, used in error messages.
+        metadata: The spec's own field metadata, with at most one of the `"anyschema"` / `"x-anyschema"` keys.
+        markers: The field-level markers, innermost first.
+
+    Raises:
+        ValueError: If a key is set both by a marker and by the spec's own metadata, even with equal values.
+    """
+    marker_anyschema: AnySchemaMetadata = {}
+    marker_custom: dict[str, Any] = {}
+    for marker in markers:
+        marker_anyschema.update(marker.anyschema)
+        marker_custom.update(marker.custom)
+
+    spec_anyschema = _get_anyschema_metadata(metadata)
+    conflicts = [
+        *sorted(marker_anyschema.keys() & spec_anyschema.keys()),
+        *sorted(marker_custom.keys() & metadata.keys()),
+    ]
+    if conflicts:
+        keys = ", ".join(f"'{key}'" for key in conflicts)
+        msg = (
+            f"Conflicting metadata for field '{field_name}': the following key(s) are set both by `Annotated` markers "
+            f"(`WithAnySchema`) and by the spec's own field metadata: {keys}."
+        )
+        raise ValueError(msg)
+
+    namespace_key: AnySchemaNamespaceKey = "x-anyschema" if "x-anyschema" in metadata else "anyschema"
+    return {**metadata, **marker_custom, namespace_key: {**(metadata.get(namespace_key) or {}), **marker_anyschema}}

@@ -5,22 +5,27 @@ from itertools import chain
 from types import GenericAlias
 from typing import TYPE_CHECKING, Literal, cast, overload
 
-from narwhals.dtypes import DType
 from typing_extensions import Self
 
 from anyschema._dependencies import ANNOTATED_TYPES_AVAILABLE, ATTRS_AVAILABLE, PYDANTIC_AVAILABLE, SQLALCHEMY_AVAILABLE
-from anyschema._metadata import filter_anyschema_metadata, get_anyschema_value_by_key
+from anyschema._metadata import (
+    ensure_dtype,
+    filter_anyschema_metadata,
+    get_anyschema_value_by_key,
+    merge_field_markers,
+)
 from anyschema._utils import qualified_type_name
 from anyschema.exceptions import UnsupportedDTypeError
-from anyschema.parsers._annotated import AnnotatedStep, field_contains_none
+from anyschema.parsers._annotated import AnnotatedStep, field_contains_none, split_field_markers
 from anyschema.parsers._base import ParserStep
 from anyschema.parsers._builtin import PyTypeStep
 from anyschema.parsers._forward_ref import ForwardRefStep
 from anyschema.parsers._union import UnionTypeStep
-from anyschema.serde import deserialize_dtype
 
 if TYPE_CHECKING:
     from collections.abc import Generator, Iterable, Sequence
+
+    from narwhals.dtypes import DType
 
     from anyschema._anyschema import AnyField
     from anyschema.typing import FieldConstraints, FieldMetadata, FieldType, IntoParserPipeline
@@ -254,8 +259,12 @@ class ParserPipeline:
 
         `nullable` is the metadata value if it is set and not `None`, read after parsing so a custom step can set it.
         Otherwise the field is nullable when its field-level type contains `None`, with or without a `dtype` override:
-        `T | None` and `Literal[..., None]` are nullable, `list[T | None]` is not. Forward references are resolved with
-        the pipeline's `ForwardRefStep`.
+        `T | None` and `Literal[..., None]` are nullable, `list[T | None]` is not.
+
+        Field-level [`WithAnySchema`][anyschema.WithAnySchema] markers (in the `Annotated` layers of `input_type`,
+        optionally wrapped in a single `| None`) are merged into `metadata` in order, the last value winning per key.
+        Field-level forward references are resolved first with the pipeline's `ForwardRefStep`, so markers inside them
+        count as field level too.
 
         Arguments:
             name: The name of the field.
@@ -268,6 +277,8 @@ class ParserPipeline:
 
         Raises:
             UnsupportedDTypeError: If the type is recursive (e.g. a model with a `list` of itself).
+            ValueError: If `metadata` has both an `"anyschema"` and an `"x-anyschema"` key, or if a marker sets a key
+                that `metadata` also sets.
 
         Examples:
             >>> from anyschema.parsers import make_pipeline
@@ -286,19 +297,23 @@ class ParserPipeline:
         """
         from anyschema._anyschema import AnyField
 
+        if "anyschema" in metadata and "x-anyschema" in metadata:
+            msg = (
+                f"Field '{name}' sets both 'anyschema' and 'x-anyschema' metadata: use only one of them, "
+                "as both hold the same keys."
+            )
+            raise ValueError(msg)
+
+        forward_ref_step = next((step for step in self.steps if isinstance(step, ForwardRefStep)), None)
+        # An unresolvable ref stays as is: it only raises if it needs parsing, which a `dtype` override skips.
+        input_type, markers = split_field_markers(input_type, forward_ref_step.resolve if forward_ref_step else None)
+        if markers:
+            metadata = merge_field_markers(name, metadata, markers)
+
         # Custom steps may write into `metadata` (e.g. `nullable`), so work on a copy.
         metadata = dict(metadata)
         if (into_dtype := get_anyschema_value_by_key(metadata, key="dtype")) is not None:
-            if isinstance(into_dtype, DType):
-                dtype = into_dtype
-            elif isinstance(into_dtype, str):  # pyright: ignore[reportUnnecessaryIsInstance]
-                dtype = deserialize_dtype(into_dtype=into_dtype)
-            else:
-                msg = (
-                    f"Expected `dtype` value to be of type `narwhals.dtypes.DType` or `str`, \n"
-                    f"found '{qualified_type_name(into_dtype)}' instead."
-                )
-                raise TypeError(msg)
+            dtype = ensure_dtype(into_dtype)
         else:
             try:
                 dtype = self.parse(input_type, constraints, metadata, strict=True)
@@ -309,8 +324,7 @@ class ParserPipeline:
 
         nullable = get_anyschema_value_by_key(metadata, key="nullable")
         if nullable is None:
-            forward_ref_step = next((step for step in self.steps if isinstance(step, ForwardRefStep)), None)
-            nullable = field_contains_none(input_type, forward_ref_step.resolve if forward_ref_step else None)
+            nullable = field_contains_none(input_type)
         return AnyField(
             name=name,
             dtype=dtype,

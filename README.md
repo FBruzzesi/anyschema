@@ -50,6 +50,23 @@ pl_schema
 # Schema([('name', String), ('age', UInt64), ('classes', List(String))])
 ```
 
+Field dtypes and metadata can also be set directly in the annotation, for any spec, with the `WithAnySchema` marker:
+
+```python
+from typing import Annotated, TypedDict
+
+from anyschema import AnySchema, WithAnySchema
+
+
+class Event(TypedDict):
+    id: Annotated[int, WithAnySchema(dtype="Int32")]
+    email: Annotated[str, WithAnySchema(unique=True)]
+
+
+AnySchema(spec=Event).to_polars()
+# Schema({'id': Int32, 'email': String})
+```
+
 To read more about `anyschema` functionalities and features consider checking out the
 [documentation](https://fbruzzesi.github.io/anyschema/) website.
 

@@ -69,16 +69,14 @@ Both formats work identically in `anyschema`. Choose based on your needs:
 ## Mixing both formats
 
 !!! warning
-    You should **not** mix both formats in the same metadata dictionary.
-
-    If both `"anyschema"` and `"x-anyschema"` are present, `anyschema` will use whichever it finds first
-    (with `"anyschema"` taking precedence).
+    A field's metadata can use only one of the two formats. If both `"anyschema"` and `"x-anyschema"` are present,
+    even if one of them is empty, anyschema raises a `ValueError`.
 
 ```python
-# ❌ Don't do this - mixing both formats
+# ❌ Don't do this - mixing both formats raises a ValueError
 metadata = {
     "anyschema": {"nullable": True},
-    "x-anyschema": {"unique": True},  # This will be ignored!
+    "x-anyschema": {"unique": True},
 }
 
 # ✅ Do this - use one format consistently

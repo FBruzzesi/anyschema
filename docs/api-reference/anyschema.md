@@ -5,6 +5,7 @@
     members:
       - AnySchema
       - AnyField
+      - WithAnySchema
       - show_versions
     options:
       show_root_heading: true

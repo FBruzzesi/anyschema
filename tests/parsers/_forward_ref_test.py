@@ -5,7 +5,8 @@ from typing import Any, ForwardRef
 import narwhals as nw
 import pytest
 
-from anyschema.parsers import ForwardRefStep, ParserPipeline, PyTypeStep, UnionTypeStep
+from anyschema import WithAnySchema
+from anyschema.parsers import AnnotatedStep, ForwardRefStep, ParserPipeline, PyTypeStep, UnionTypeStep
 
 
 def forward_ref_parser_builder(
@@ -170,3 +171,11 @@ def test_build_namespace_includes_annotated_types() -> None:
         assert "Predicate" in parser.globalns
     else:  # pragma: no cover
         ...
+
+
+def test_forward_ref_resolves_markers() -> None:
+    forward_ref_step = ForwardRefStep()
+    pipeline = ParserPipeline([forward_ref_step, UnionTypeStep(), AnnotatedStep(), PyTypeStep()])
+
+    assert forward_ref_step.globalns["WithAnySchema"] is WithAnySchema
+    assert pipeline.parse(ForwardRef("Annotated[int, WithAnySchema(dtype='Int32')]"), (), {}) == nw.Int32()

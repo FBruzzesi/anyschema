@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any, ForwardRef
 from typing_extensions import evaluate_forward_ref
 
 from anyschema._dependencies import ANNOTATED_TYPES_AVAILABLE, PYDANTIC_AVAILABLE
+from anyschema._metadata import WithAnySchema
 from anyschema.parsers._base import ParserStep
 
 if TYPE_CHECKING:
@@ -71,6 +72,8 @@ class ForwardRefStep(ParserStep):
             "Set": set,
             "Union": typing.Union,
             "Tuple": tuple,
+            # anyschema markers
+            "WithAnySchema": WithAnySchema,
         }
 
         # Add annotated-types if available
@@ -117,8 +120,8 @@ class ForwardRefStep(ParserStep):
     def resolve(self, forward_ref: ForwardRef) -> FieldType:
         """Resolve a ForwardRef with this step's namespaces.
 
-        `ParserPipeline.parse_into_field` also calls it to find a field-level `None`, so a subclass that changes how
-        references resolve should override this method rather than `parse`.
+        `ParserPipeline.parse_into_field` also calls it on field-level forward references, so a subclass that changes
+        how references resolve should override this method rather than `parse`.
 
         Arguments:
             forward_ref: The forward reference to resolve.

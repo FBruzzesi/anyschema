@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 from dataclasses import dataclass
 from dataclasses import field as dc_field
 from typing import TYPE_CHECKING, Annotated, Any, ForwardRef, Literal, Optional, Union
@@ -13,7 +14,7 @@ from sqlalchemy import Column, Integer, MetaData, String, Table
 
 from anyschema import AnyField, AnySchema
 from anyschema._metadata import set_anyschema_meta
-from anyschema.parsers import ParserStep, PyTypeStep, UnionTypeStep, make_pipeline
+from anyschema.parsers import ForwardRefStep, ParserStep, PyTypeStep, UnionTypeStep, make_pipeline
 from anyschema.serde import serialize_dtype
 from tests.conftest import AttrsBookWithMetadata, AttrsPerson, user_table
 
@@ -465,9 +466,23 @@ def test_parse_into_field_nullable(
     assert field == AnyField(name="x", dtype=expected_dtype, nullable=expected_nullable)
 
 
-def test_parse_into_field_unresolvable_forward_ref_with_dtype_override_is_not_nullable() -> None:
-    # Known limit: the `None` of a forward ref that cannot be resolved is not seen. Set `nullable` explicitly.
-    field = make_pipeline().parse_into_field("x", ForwardRef("Missing | None"), (), {"anyschema": {"dtype": "Int32"}})
+@pytest.mark.parametrize(
+    ("forward_ref", "with_forward_ref_step"),
+    [(ForwardRef("Missing | None"), True), (ForwardRef("int | None"), False)],
+)
+def test_parse_into_field_unresolved_forward_ref_with_dtype_override_is_not_nullable(
+    forward_ref: ForwardRef, *, with_forward_ref_step: bool
+) -> None:
+    # Known limit: the `None` of a forward ref that is not resolved is not seen. Set `nullable` explicitly.
+    steps = [UnionTypeStep(), PyTypeStep()]
+    pipeline = make_pipeline([ForwardRefStep(), *steps] if with_forward_ref_step else steps)
+    field = pipeline.parse_into_field("x", forward_ref, (), {"anyschema": {"dtype": "Int32"}})
+    assert field == AnyField(name="x", dtype=nw.Int32(), nullable=False)
+
+
+@pytest.mark.skipif(sys.version_info < (3, 14), reason="`ForwardRef` parses its string eagerly before Python 3.14")
+def test_parse_into_field_malformed_forward_ref_with_dtype_override_is_not_nullable() -> None:
+    field = make_pipeline().parse_into_field("x", ForwardRef("int |"), (), {"anyschema": {"dtype": "Int32"}})
     assert field == AnyField(name="x", dtype=nw.Int32(), nullable=False)
 
 

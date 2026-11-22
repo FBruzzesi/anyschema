@@ -21,13 +21,13 @@ def field_contains_none(
 ) -> bool:
     """Whether the field-level type contains `None`.
 
-    The field level is the `Annotated` layers, optionally wrapped in one `| None`. `Literal[..., None]` counts as
-    `| None`. Nested types, such as the elements of `list[T | None]`, do not count.
+    The field level is the `Annotated` layers and the first union or `Literal` they wrap: `T | None` and
+    `Literal[..., None]` count, the elements of `list[T | None]` do not.
 
     Arguments:
         input_type: The field type.
-        resolve_forward_ref: Resolves forward references in the field-level layers. An unresolvable one counts as
-            not containing `None`.
+        resolve_forward_ref: Resolves forward references at the field level. An unresolvable one counts as not
+            containing `None`.
 
     Examples:
         >>> from typing import Annotated, Literal, Optional
@@ -41,7 +41,7 @@ def field_contains_none(
     if isinstance(input_type, ForwardRef) and resolve_forward_ref is not None:
         try:
             resolved_type = resolve_forward_ref(input_type)
-        except NotImplementedError:
+        except (NotImplementedError, SyntaxError):  # `SyntaxError`: a malformed ref, raised here on Python 3.14+
             return False  # shortcut: hides the `None` of an unresolvable ref, set `nullable` explicitly then
         return field_contains_none(resolved_type, resolve_forward_ref)
     if is_union_type(input_type):

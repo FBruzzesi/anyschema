@@ -963,9 +963,8 @@ except NotImplementedError as exc:
 
 ### Nullability
 
-A field-level marker setting `dtype` on a field typed `T | None` gives a nullable field,
-unless `nullable` is set explicitly. This differs from the `dtype` set via the spec's own metadata, which does not
-infer nullability (see [`dtype`](#dtype)).
+Markers follow the same rule as every other `dtype` source: a field-level `| None` (or `Literal[..., None]`) makes
+the field nullable unless `nullable` is set explicitly (see [`nullable`](#nullable)).
 
 ```python exec="true" source="above" result="python" session="annotated-markers-nullable"
 from typing import Annotated, Optional

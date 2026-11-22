@@ -18,50 +18,49 @@ if TYPE_CHECKING:
     from anyschema.typing import FieldConstraints, FieldMetadata, FieldType
 
 
-def split_field_markers(input_type: FieldType) -> tuple[FieldType, tuple[WithAnySchema, ...], bool]:
+def split_field_markers(input_type: FieldType) -> tuple[FieldType, tuple[WithAnySchema, ...]]:
     """Split the field-level `Annotated` markers off a field type.
 
     Field-level markers sit in the `Annotated` layers of the type, optionally wrapped in a single `T | None`. Deeper
     markers (e.g. inside `list[...]`) stay in place for `AnnotatedStep`.
 
     Returns:
-        A tuple of `(type without field-level markers, markers innermost first, whether the type is optional)`. The
-        input type is returned unchanged when it has no field-level markers.
+        A tuple of `(type without field-level markers, markers innermost first)`. The stripped type keeps its
+        field-level `None`. The input type is returned unchanged when it has no field-level markers.
 
     Examples:
         >>> from typing import Annotated, Optional
         >>> from anyschema import WithAnySchema
         >>> marker = WithAnySchema(unique=True)
-        >>> input_type, markers, is_optional = split_field_markers(Annotated[int, marker] | None)
-        >>> input_type == Optional[int], markers, is_optional
-        (True, (WithAnySchema(unique=True),), True)
+        >>> input_type, markers = split_field_markers(Annotated[int, marker] | None)
+        >>> input_type == Optional[int], markers
+        (True, (WithAnySchema(unique=True),))
     """
     return _split_field_markers(input_type, inside_optional=False)
 
 
 def _split_field_markers(
     input_type: FieldType, *, inside_optional: bool
-) -> tuple[FieldType, tuple[WithAnySchema, ...], bool]:
+) -> tuple[FieldType, tuple[WithAnySchema, ...]]:
     if get_origin(input_type) is Annotated:
         base_type, *extras = get_args(input_type)
-        inner_type, inner_markers, is_optional = _split_field_markers(base_type, inside_optional=inside_optional)
+        inner_type, inner_markers = _split_field_markers(base_type, inside_optional=inside_optional)
         markers, other_extras = partition_markers(extras)
         if not (markers or inner_markers):
-            return input_type, (), is_optional
+            return input_type, ()
         stripped_type = Annotated[(inner_type, *other_extras)] if other_extras else inner_type  # pyrefly: ignore[not-a-type]
-        return stripped_type, (*inner_markers, *markers), is_optional
+        return stripped_type, (*inner_markers, *markers)
 
     args = get_args(input_type)
-    is_union = is_union_type(input_type)
     # Only the first `| None` layer is field level: stop at a second one.
-    if not inside_optional and is_union and len(args) == 2 and NoneType in args:  # noqa: PLR2004
+    if not inside_optional and is_union_type(input_type) and len(args) == 2 and NoneType in args:  # noqa: PLR2004
         (non_none_type,) = (arg for arg in args if arg is not NoneType)
-        inner_type, markers, _ = _split_field_markers(non_none_type, inside_optional=True)
+        inner_type, markers = _split_field_markers(non_none_type, inside_optional=True)
         # `Union[...]` rather than `|`, which fails on ForwardRef
         stripped_type = Union[(inner_type, None)] if markers else input_type  # noqa: UP007  # pyrefly: ignore[not-a-type]
-        return stripped_type, markers, True
+        return stripped_type, markers
 
-    return input_type, (), inside_optional
+    return input_type, ()
 
 
 def field_contains_none(

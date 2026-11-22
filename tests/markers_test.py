@@ -9,7 +9,7 @@ from annotated_types import Gt
 
 from anyschema import WithAnySchema
 from anyschema.exceptions import UnsupportedDTypeError
-from anyschema.parsers._annotated import split_field_markers
+from anyschema.parsers._annotated import field_contains_none, split_field_markers
 
 
 @pytest.mark.parametrize(
@@ -109,10 +109,10 @@ D = WithAnySchema(dtype="Int32")
 def test_split_field_markers(
     tp: Any, expected_type: Any, expected_markers: tuple[Any, ...], *, expected_saw_none: bool
 ) -> None:
-    result_type, markers, saw_none = split_field_markers(tp)
+    result_type, markers = split_field_markers(tp)
     assert result_type == expected_type
     assert markers == expected_markers
-    assert saw_none is expected_saw_none
+    assert field_contains_none(result_type) is expected_saw_none
 
 
 def test_split_field_markers_returns_input_unchanged_without_markers() -> None:

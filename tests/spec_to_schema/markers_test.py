@@ -200,6 +200,7 @@ def test_user_metadata_dict_not_aliased() -> None:
         Annotated[int | None, WithAnySchema(dtype=nw.Int32())],
         Annotated[Optional[int], WithAnySchema(dtype="Int32")],
         Annotated[Annotated[int, WithAnySchema(dtype=nw.Int8())] | None, WithAnySchema(dtype=nw.Int32())],
+        Annotated[Literal["a", None], WithAnySchema(dtype=nw.Int32())],  # noqa: PYI061
     ],
 )
 def test_dtype_and_optional_is_nullable(kind: SpecKind, tp: Any) -> None:

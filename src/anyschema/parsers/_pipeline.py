@@ -313,9 +313,9 @@ class ParserPipeline:
             with suppress(NotImplementedError, SyntaxError):  # `SyntaxError`: a malformed ref on Python 3.14+
                 input_type = forward_ref_step.resolve(input_type)
 
-        input_type, markers, is_optional = split_field_markers(input_type)
+        input_type, markers = split_field_markers(input_type)
         if markers:
-            metadata = merge_field_markers(name, metadata, markers, is_optional=is_optional)
+            metadata = merge_field_markers(name, metadata, markers)
 
         # Custom steps may write into `metadata` (e.g. `nullable`), so work on a copy.
         metadata = dict(metadata)

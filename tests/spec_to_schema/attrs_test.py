@@ -77,5 +77,5 @@ def test_attrs_class(spec: AttrsClassType, expected_schema: Mapping[str, nw.dtyp
 
 def test_attrs_class_missing_decorator_raises() -> None:
     child_cls, expected_msg = create_missing_decorator_test_case()
-    with pytest.raises(AssertionError, match=expected_msg.replace("(", r"\(").replace(")", r"\)")):
+    with pytest.raises(TypeError, match=expected_msg.replace("(", r"\(").replace(")", r"\)")):
         AnySchema(spec=child_cls)

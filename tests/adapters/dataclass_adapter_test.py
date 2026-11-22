@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import sys
-from dataclasses import dataclass, field, make_dataclass
+from dataclasses import InitVar, dataclass, field, make_dataclass
 from datetime import date, datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 import pytest
 from pydantic.dataclasses import dataclass as pydantic_dataclass
@@ -51,8 +51,20 @@ def test_dataclass_adapter_missing_decorator_raises() -> None:
         "to properly define these fields."
     )
 
-    with pytest.raises(AssertionError, match=expected_msg.replace("(", r"\(").replace(")", r"\)")):
+    with pytest.raises(TypeError, match=expected_msg.replace("(", r"\(").replace(")", r"\)")):
         list(dataclass_adapter(ChildWithoutDecorator))
+
+
+def test_dataclass_adapter_skips_classvar_and_initvar() -> None:
+    @dataclass
+    class Counter:
+        x: int
+        counter: ClassVar[int] = 0
+        bare: ClassVar = 0
+        seed: InitVar[int] = 0
+        bare_seed: InitVar = 0  # type: ignore[type-arg]
+
+    assert list(dataclass_adapter(Counter)) == [("x", int, (), {})]
 
 
 def test_dataclass_adapter_with_time_metadata() -> None:

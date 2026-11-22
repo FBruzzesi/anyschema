@@ -251,10 +251,10 @@ class ParserPipeline:
         Unlike [`parse`][anyschema.parsers.ParserPipeline.parse], it also sets the field-level information:
         nullability, uniqueness, description and custom metadata.
 
-        `nullable` comes from the metadata if set and not `None`. Otherwise the field is nullable if its field-level
-        type contains `None`: the `Annotated` layers, optionally wrapped in a single `| None` (or a `Literal` with a
-        `None` value), with forward references resolved by the pipeline's `ForwardRefStep`. This holds with or without
-        a `dtype` override. `list[T | None]` is not nullable, only its elements are.
+        `nullable` is the metadata value if it is set and not `None`, read after parsing so a custom step can set it.
+        Otherwise the field is nullable when its field-level type contains `None`, with or without a `dtype` override:
+        `T | None` and `Literal[..., None]` are nullable, `list[T | None]` is not. Forward references are resolved with
+        the pipeline's `ForwardRefStep`.
 
         Arguments:
             name: The name of the field.
@@ -282,9 +282,6 @@ class ParserPipeline:
         """
         from anyschema._anyschema import AnyField
 
-        forward_ref_step = next((step for step in self.steps if isinstance(step, ForwardRefStep)), None)
-        contains_none = field_contains_none(input_type, forward_ref_step.resolve if forward_ref_step else None)
-
         # Custom steps may write into `metadata` (e.g. `nullable`), so work on a copy.
         metadata = dict(metadata)
         if (into_dtype := get_anyschema_value_by_key(metadata, key="dtype")) is not None:
@@ -301,12 +298,14 @@ class ParserPipeline:
         else:
             dtype = self.parse(input_type, constraints, metadata, strict=True)
 
-        # Read after parsing, since a custom step may set it.
-        explicit_nullable = get_anyschema_value_by_key(metadata, key="nullable")
+        nullable = get_anyschema_value_by_key(metadata, key="nullable")
+        if nullable is None:
+            forward_ref_step = next((step for step in self.steps if isinstance(step, ForwardRefStep)), None)
+            nullable = field_contains_none(input_type, forward_ref_step.resolve if forward_ref_step else None)
         return AnyField(
             name=name,
             dtype=dtype,
-            nullable=contains_none if explicit_nullable is None else explicit_nullable,
+            nullable=nullable,
             unique=get_anyschema_value_by_key(metadata, key="unique", default=False),
             description=get_anyschema_value_by_key(metadata, key="description"),
             metadata=filter_anyschema_metadata(metadata),

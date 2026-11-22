@@ -291,3 +291,20 @@ def test_pipeline_from_auto() -> None:
 def test_from_auto_explicit_position() -> None:
     pipeline = ParserPipeline.from_auto(Int32Step(), at_position=0)
     assert isinstance(pipeline.steps[0], Int32Step)
+
+
+@pytest.mark.parametrize(
+    ("input_type", "expected_name"),
+    [
+        (set[int], "set[int]"),
+        ("int", "'int'"),
+        (float, "'float'"),
+        (AnnotatedStep, "'anyschema.parsers._annotated.AnnotatedStep'"),
+    ],
+)
+def test_pipeline_parse_strict_error_names_the_type(input_type: Any, expected_name: str) -> None:
+    pipeline = ParserPipeline([Int64Step(), StrStep()])
+
+    with pytest.raises(NotImplementedError) as exc_info:
+        pipeline.parse(input_type, (), {}, strict=True)
+    assert f"could handle type: {expected_name}." in str(exc_info.value)

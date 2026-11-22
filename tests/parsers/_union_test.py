@@ -42,6 +42,12 @@ def test_parse_union_types(union_parser: UnionTypeStep, input_type: Any, expecte
     assert result == expected
 
 
+def test_parse_union_does_not_set_nullable(union_parser: UnionTypeStep) -> None:
+    metadata: dict[str, Any] = {}
+    union_parser.parse(list[int | None] | None, (), metadata)
+    assert metadata == {}
+
+
 @pytest.mark.parametrize(
     "input_type",
     [

@@ -1,14 +1,17 @@
 from __future__ import annotations
 
-from collections import OrderedDict
+from collections import Counter
+from collections.abc import Mapping
 from dataclasses import fields as dc_fields
-from typing import TYPE_CHECKING, Annotated, Literal
+from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Literal, get_origin
 
 from typing_extensions import get_type_hints
 
 from anyschema._metadata import get_anyschema_value_by_key, partition_markers, set_anyschema_meta
 
 if TYPE_CHECKING:
+    from collections.abc import Container
+
     from pydantic import BaseModel
 
     from anyschema.typing import (
@@ -43,6 +46,9 @@ def into_ordered_dict_adapter(spec: IntoOrderedDict) -> FieldSpecIterable:
         A tuple of `(field_name, field_type, constraints, metadata)` for each field.
         Both constraints and metadata are always empty for this adapter.
 
+    Raises:
+        ValueError: If a sequence spec repeats a field name.
+
     Examples:
         >>> list(into_ordered_dict_adapter({"name": str, "age": int}))
         [('name', <class 'str'>, (), {}), ('age', <class 'int'>, (), {})]
@@ -50,8 +56,31 @@ def into_ordered_dict_adapter(spec: IntoOrderedDict) -> FieldSpecIterable:
         >>> list(into_ordered_dict_adapter([("age", int), ("name", str)]))
         [('age', <class 'int'>, (), {}), ('name', <class 'str'>, (), {})]
     """
-    for field_name, field_type in OrderedDict(spec).items():
+    name_to_type = dict(spec)
+    if not isinstance(spec, Mapping) and len(name_to_type) < len(spec):
+        counts = Counter(name for name, _ in spec)
+        duplicates = ", ".join(f"'{name}'" for name, count in counts.items() if count > 1)
+        msg = f"Duplicate field names in spec: {duplicates}."
+        raise ValueError(msg)
+    for field_name, field_type in name_to_type.items():
         yield field_name, field_type, (), {}
+
+
+def _ensure_annotations_are_fields(
+    spec: type, type_hints: Mapping[str, Any], field_names: Container[str], *, kind: str, fix: str
+) -> None:
+    """Raise `TypeError` if `spec` has non-`ClassVar` annotations that are not fields.
+
+    This happens when a subclass of a dataclass or attrs class is not decorated itself.
+    """
+    if non_field_names := [
+        name
+        for name, tp in type_hints.items()
+        if name not in field_names and not (tp is ClassVar or get_origin(tp) is ClassVar)
+    ]:
+        names = ", ".join(f"'{name}'" for name in non_field_names)
+        msg = f"Class '{spec.__name__}' has annotations ({names}) that are not {kind} fields. {fix}"
+        raise TypeError(msg)
 
 
 def typed_dict_adapter(spec: TypedDictType) -> FieldSpecIterable:
@@ -106,36 +135,27 @@ def dataclass_adapter(spec: DataclassType) -> FieldSpecIterable:
         >>> list(dataclass_adapter(Student))
         [('name', <class 'str'>, (), {}), ('age', <class 'int'>, (), {'description': 'Student age'})]
     """
-    # get_type_hints eagerly evaluates annotations, which alleviates us from
-    #  needing to evaluate ForwardRef's by hand later on.
-    annot_map = get_type_hints(spec, include_extras=True)
+    # Evaluates string annotations and forward references up front.
+    type_hints = get_type_hints(spec, include_extras=True)
+    # `__dataclass_fields__` also holds the `ClassVar` and `InitVar` pseudo-fields, bare or subscripted.
+    _ensure_annotations_are_fields(
+        spec,
+        type_hints,
+        spec.__dataclass_fields__,
+        kind="dataclass",
+        fix="If this class inherits from a dataclass, you must also decorate it with @dataclass "
+        "to properly define these fields.",
+    )
 
-    # Get dataclass fields
-    dataclass_fields = dc_fields(spec)
-    dataclass_field_names = {field.name for field in dataclass_fields}
-
-    # Check for annotations that aren't dataclass fields
-    # This can happen when a class inherits from a dataclass but isn't decorated itself
-    if missing_fields := tuple(field for field in annot_map if field not in dataclass_field_names):
-        missing_str = ", ".join(f"'{f}'" for f in missing_fields)
-        msg = (
-            f"Class '{spec.__name__}' has annotations ({missing_str}) that are not dataclass fields. "
-            f"If this class inherits from a dataclass, you must also decorate it with @dataclass "
-            f"to properly define these fields."
-        )
-        raise AssertionError(msg)
-
-    for field in dataclass_fields:
-        # Extract metadata dict from dataclass field
-        # Create a copy to avoid mutating the original dataclass field metadata
+    for field in dc_fields(spec):
+        # Copy, so callers cannot mutate the dataclass field metadata.
         metadata = dict(field.metadata) if field.metadata else {}
 
-        # Python 3.14+ dataclass fields have a doc parameter
-        # Check if field has doc attribute and if it's not None
+        # `Field.doc` exists on Python 3.14+.
         if (doc := getattr(field, "doc", None)) and (get_anyschema_value_by_key(metadata, key="description") is None):
             set_anyschema_meta(metadata, key="description", value=doc)
 
-        yield field.name, annot_map[field.name], (), metadata
+        yield field.name, type_hints[field.name], (), metadata
 
 
 def pydantic_adapter(spec: type[BaseModel]) -> FieldSpecIterable:
@@ -214,39 +234,22 @@ def attrs_adapter(spec: AttrsClassType) -> FieldSpecIterable:
     """
     import attrs
 
-    # get_type_hints eagerly evaluates annotations, which alleviates us from
-    # needing to evaluate ForwardRef's by hand later on.
-    # However, it may fail for classes defined in local scopes (e.g., nested classes in functions)
-    # so we fall back to using field.type directly if get_type_hints fails.
-    try:
-        annot_map = get_type_hints(spec, include_extras=True)
-    except Exception:  # pragma: no cover  # noqa: BLE001
-        # If we can't get type hints, use field.type directly
-        annot_map = {}
-
+    # Evaluates string annotations and forward references up front.
+    type_hints = get_type_hints(spec, include_extras=True)
     attrs_fields = attrs.fields(spec)
-    attrs_field_names = {field.name for field in attrs_fields}
-
-    # Check for annotations that aren't attrs fields
-    # This can happen when a class inherits from an attrs class but isn't decorated itself
-    if annot_map and (missing_fields := tuple(field for field in annot_map if field not in attrs_field_names)):
-        missing_str = ", ".join(f"'{f}'" for f in sorted(missing_fields))
-        msg = (
-            f"Class '{spec.__name__}' has annotations ({missing_str}) that are not attrs fields. "
-            f"If this class inherits from an attrs class, you must also decorate it with @attrs.define "
-            f"or @attrs.frozen to properly define these fields."
-        )
-        raise AssertionError(msg)
+    _ensure_annotations_are_fields(
+        spec,
+        type_hints,
+        {field.name for field in attrs_fields},
+        kind="attrs",
+        fix="If this class inherits from an attrs class, you must also decorate it with @attrs.define "
+        "or @attrs.frozen to properly define these fields.",
+    )
 
     for field in attrs_fields:
-        field_name = field.name
-        field_type = annot_map.get(field_name, field.type)
-
-        # Extract metadata if present - attrs stores it as a mapping
-        # Create a copy to avoid mutating the original attrs field metadata
+        # Copy, so callers cannot mutate the attrs field metadata.
         metadata = dict(field.metadata) if field.metadata else {}
-
-        yield field_name, field_type, (), metadata
+        yield field.name, type_hints.get(field.name, field.type), (), metadata
 
 
 def sqlalchemy_adapter(spec: SQLAlchemyTableType) -> FieldSpecIterable:

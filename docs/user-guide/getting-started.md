@@ -199,10 +199,40 @@ print(schema.to_arrow())
     print(schema.to_arrow())
     ```
 
-SQLAlchemy support includes comprehensive type mapping for numeric types, strings, dates, binary data, JSON, UUIDs,
-Enums, and PostgreSQL-specific types like `ARRAY`.
+SQLAlchemy support covers numeric types, strings, dates, intervals, binary data, JSON, UUIDs, `Enum`, `ARRAY`, and
+the PostgreSQL types `INTERVAL`, `INET`, `CIDR` and `MACADDR`. Three mappings to know:
 
-Both dynamic-length arrays (converted to `List`) and fixed-dimension arrays (converted to `Array`) are supported.
+* `ARRAY(..., dimensions=N)` becomes `N` nested `List`s (`dimensions` is the nesting depth, not a length).
+* `Enum` uses the labels SQLAlchemy stores: member names by default, or member values with `values_callable`.
+* A `TypeDecorator` is parsed as its implementation type (`impl`).
+
+```python exec="true" source="above" result="python" session="sqlalchemy-types"
+import enum
+
+from anyschema import AnySchema
+from sqlalchemy import ARRAY, Column, Enum, Integer, MetaData, String, Table, TypeDecorator
+
+
+class Color(enum.Enum):
+    RED = "r"
+    BLUE = "b"
+
+
+class Email(TypeDecorator[str]):
+    impl = String(100)
+    cache_ok = True
+
+
+table = Table(
+    "example",
+    MetaData(),
+    Column("matrix", ARRAY(Integer, dimensions=2)),
+    Column("color", Enum(Color)),
+    Column("email", Email()),
+)
+
+print(AnySchema(spec=table).to_polars())
+```
 
 ### With Python Mappings
 
@@ -246,6 +276,7 @@ One of the key features of `anyschema` is accurate nullability tracking:
 
 * When you declare a field as `str`, it's non-nullable.
 * When you declare it as `str | None` (or `Optional[str]`), it's nullable.
+* When you declare it as `list[str | None]`, it's non-nullable: only its elements can be null.
 
 This distinction is especially valuable when working with PyArrow, which supports `not null` constraints:
 
@@ -447,6 +478,8 @@ schema = AnySchema(spec=Product)
 print(schema.to_polars())
 ```
 
+Bounds can be fractional: `Gt(-1.5)` allows `-1`, so it gives a signed integer.
+
 ### Overriding dtypes and metadata with `Annotated`
 
 The [`WithAnySchema`][anyschema.WithAnySchema] marker sets a field dtype and metadata directly in the annotation,
@@ -468,6 +501,47 @@ print(schema.fields["email"].unique)
 ```
 
 See [Annotated markers](metadata.md#annotated-markers) for composition, conflict and nullability rules.
+
+## Enums and literals
+
+Dataframe `Enum` dtypes hold strings, so only an `Enum` subclass or a `Literal` whose values are all strings becomes an
+`Enum` dtype. Int values get the smallest integer dtype that fits them, the same way [integer bounds](#using-annotated-types)
+do: `IntEnum` members `200` and `404` give `UInt16`, `Literal[1, 3]` gives `UInt8`. Other values get the dtype of their
+type: `Literal[True, False]` gives `Boolean`. `Flag` and `IntFlag` enums give `Int64`, because their members combine
+into values that are not listed (`READ | WRITE`).
+
+```python exec="true" source="above" result="python" session="enums-literals"
+from enum import Enum, IntEnum
+from typing import Literal
+from anyschema import AnySchema
+
+
+class Color(str, Enum):
+    RED = "red"
+    BLUE = "blue"
+
+
+class HttpStatus(IntEnum):
+    OK = 200
+    NOT_FOUND = 404
+
+
+schema = AnySchema(
+    spec={
+        "color": Color,
+        "status": HttpStatus,
+        "size": Literal["S", "M", None],
+        "retries": Literal[1, 3],
+    }
+)
+print(schema.to_polars())
+```
+
+A `None` value makes the field nullable: `Literal["S", "M", None]` works like `Optional[Literal["S", "M"]]`. This
+holds at the field level only: `list[Literal["S", None]]` is not nullable, only its elements are.
+
+An `Enum` or `Literal` whose values mix types (`Literal["a", 1]`) raises `UnsupportedDTypeError`. Set the dtype
+explicitly with `{"anyschema": {"dtype": ...}}` field metadata (see [metadata](metadata.md)).
 
 ## Supported Pydantic Types
 

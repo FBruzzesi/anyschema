@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+import narwhals as nw
 import pytest
 from narwhals import Schema
 from pydantic import BaseModel
@@ -135,3 +136,25 @@ def test_to_pyspark_with_metadata(
 
     for field, _metadata in zip(spark_schema, expected_metadata, strict=True):
         assert field.metadata == (_metadata or {})
+
+
+def test_to_pyspark_without_time_zone_does_not_start_session(monkeypatch: pytest.MonkeyPatch) -> None:
+    from pyspark.sql import SparkSession
+
+    monkeypatch.setattr(SparkSession.Builder, "getOrCreate", lambda _: pytest.fail("Spark session was started"))
+    spec = Schema({"dt": nw.Datetime("us"), "nested": nw.List(nw.Struct({"x": nw.Int64()}))})
+
+    spark_schema = AnySchema(spec=spec).to_pyspark()
+
+    assert [field.dataType for field in spark_schema] == [
+        types.TimestampNTZType(),
+        types.ArrayType(types.StructType([types.StructField("x", types.LongType())])),
+    ]
+
+
+def test_to_pyspark_nested_time_zone(pyspark_session: SparkSession) -> None:  # noqa: ARG001
+    spec = Schema({"ts": nw.List(nw.Datetime("us", time_zone="UTC"))})
+
+    spark_schema = AnySchema(spec=spec).to_pyspark()
+
+    assert spark_schema["ts"].dataType == types.ArrayType(types.TimestampType())

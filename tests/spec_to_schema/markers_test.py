@@ -264,10 +264,10 @@ def test_optional_without_dtype(kind: SpecKind) -> None:
 
 
 @pytest.mark.parametrize("kind", KINDS_WITH_METADATA)
-def test_spec_dtype_override_does_not_infer_nullable(kind: SpecKind) -> None:
-    # Existing `dtype` override from the spec's own metadata is unchanged: no nullability inference.
+def test_spec_dtype_override_infers_nullable(kind: SpecKind) -> None:
+    # The spec's own `dtype` and a marker `dtype` follow the same rule: a field-level `| None` makes it nullable.
     spec = make_spec(kind, int | None, metadata={"anyschema": {"dtype": "Int32"}})
-    assert field_of(spec) == AnyField(name="x", dtype=nw.Int32(), nullable=False)
+    assert field_of(spec) == AnyField(name="x", dtype=nw.Int32(), nullable=True)
 
 
 # --- Nested markers ----------------------------------------------------------------------------------------------

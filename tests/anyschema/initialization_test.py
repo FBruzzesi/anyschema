@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import subprocess
+import sys
 from typing import TYPE_CHECKING
 
 import narwhals as nw
@@ -60,6 +62,20 @@ def test_anyschema_with_unknown_spec_and_custom_adapter() -> None:
     assert "field2" in result
 
 
+def test_anyschema_custom_adapter_wins_over_auto_detection() -> None:
+    from pydantic import BaseModel
+
+    class Model(BaseModel):
+        name: str
+
+    def custom_adapter(spec: type[Model]) -> FieldSpecIterable:  # noqa: ARG001
+        yield "other", int, (), {}
+
+    schema = AnySchema(spec=Model, adapter=custom_adapter)
+
+    assert schema.dtypes(named=True) == {"other": nw.Int64()}
+
+
 def test_anyschema_with_narwhals_schema() -> None:
     nw_schema = Schema({"name": nw.String(), "age": nw.Int64()})
     anyschema = AnySchema(spec=nw_schema)
@@ -97,3 +113,17 @@ def test_anyschema_with_pipeline(build_pipeline: Callable[[], ParserPipeline | l
             "normal_field": nw.Int64(),
         }
     )
+
+
+def test_spec_without_pydantic_or_sqlalchemy_types_does_not_import_them() -> None:
+    # A fresh interpreter, since this test process already imported both libraries.
+    code = (
+        "import sys\n"
+        "from typing import ForwardRef, Optional\n"
+        "from anyschema import AnySchema\n"
+        "AnySchema({'a': int, 'b': Optional[list[str]], 'c': ForwardRef('dict[str, float]')})\n"
+        "print([name for name in ('pydantic', 'sqlalchemy') if name in sys.modules])\n"
+    )
+    result = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True)  # noqa: S603
+
+    assert result.stdout.strip() == "[]"

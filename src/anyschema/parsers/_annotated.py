@@ -1,14 +1,17 @@
 from __future__ import annotations
 
-from types import NoneType, UnionType
-from typing import TYPE_CHECKING, Annotated, Union
+from types import NoneType
+from typing import TYPE_CHECKING, Annotated, ForwardRef, Literal, Union
 
 from typing_extensions import get_args, get_origin  # noqa: UP035
 
 from anyschema._metadata import partition_markers
+from anyschema._utils import is_union_type
 from anyschema.parsers._base import ParserStep
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from narwhals.dtypes import DType
 
     from anyschema._metadata import WithAnySchema
@@ -49,7 +52,7 @@ def _split_field_markers(
         return stripped_type, (*inner_markers, *markers), is_optional
 
     args = get_args(input_type)
-    is_union = get_origin(input_type) is Union or isinstance(input_type, UnionType)
+    is_union = is_union_type(input_type)
     # Only the first `| None` layer is field level: stop at a second one.
     if not inside_optional and is_union and len(args) == 2 and NoneType in args:  # noqa: PLR2004
         (non_none_type,) = (arg for arg in args if arg is not NoneType)
@@ -59,6 +62,39 @@ def _split_field_markers(
         return stripped_type, markers, True
 
     return input_type, (), inside_optional
+
+
+def field_contains_none(
+    input_type: FieldType, resolve_forward_ref: Callable[[ForwardRef], FieldType] | None = None
+) -> bool:
+    """Whether the field-level type contains `None`.
+
+    The field level is the `Annotated` layers and the first union or `Literal` they wrap: `T | None` and
+    `Literal[..., None]` count, the elements of `list[T | None]` do not.
+
+    Arguments:
+        input_type: The field type.
+        resolve_forward_ref: Resolves forward references at the field level. An unresolvable one counts as not
+            containing `None`.
+
+    Examples:
+        >>> from typing import Annotated, Literal, Optional
+        >>> field_contains_none(Annotated[int, "meta"] | None), field_contains_none(Literal["a", None])
+        (True, True)
+        >>> field_contains_none(list[Optional[int]])
+        False
+    """
+    if get_origin(input_type) is Annotated:
+        return field_contains_none(get_args(input_type)[0], resolve_forward_ref)
+    if isinstance(input_type, ForwardRef) and resolve_forward_ref is not None:
+        try:
+            resolved_type = resolve_forward_ref(input_type)
+        except (NotImplementedError, SyntaxError):  # `SyntaxError`: a malformed ref, raised here on Python 3.14+
+            return False  # shortcut: hides the `None` of an unresolvable ref, set `nullable` explicitly then
+        return field_contains_none(resolved_type, resolve_forward_ref)
+    if is_union_type(input_type):
+        return NoneType in get_args(input_type)
+    return get_origin(input_type) is Literal and None in get_args(input_type)
 
 
 class AnnotatedStep(ParserStep):

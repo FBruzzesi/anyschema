@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 from contextlib import suppress
+from functools import cache
 from itertools import chain
-from typing import TYPE_CHECKING, ForwardRef, Literal, overload
+from types import GenericAlias
+from typing import TYPE_CHECKING, ForwardRef, Literal, cast, overload
 
-from typing_extensions import Self, TypeIs
+from typing_extensions import Self
 
 from anyschema._dependencies import ANNOTATED_TYPES_AVAILABLE, ATTRS_AVAILABLE, PYDANTIC_AVAILABLE, SQLALCHEMY_AVAILABLE
 from anyschema._metadata import (
@@ -14,24 +16,19 @@ from anyschema._metadata import (
     merge_field_markers,
 )
 from anyschema._utils import qualified_type_name
-from anyschema.parsers._annotated import AnnotatedStep, split_field_markers
+from anyschema.exceptions import UnsupportedDTypeError
+from anyschema.parsers._annotated import AnnotatedStep, field_contains_none, split_field_markers
 from anyschema.parsers._base import ParserStep
 from anyschema.parsers._builtin import PyTypeStep
 from anyschema.parsers._forward_ref import ForwardRefStep
 from anyschema.parsers._union import UnionTypeStep
 
 if TYPE_CHECKING:
-    from collections.abc import Generator, Sequence
+    from collections.abc import Generator, Iterable, Sequence
 
     from narwhals.dtypes import DType
 
     from anyschema._anyschema import AnyField
-    from anyschema.typing import IntoParserPipeline
-
-
-if TYPE_CHECKING:
-    from collections.abc import Sequence
-
     from anyschema.typing import FieldConstraints, FieldMetadata, FieldType, IntoParserPipeline
 
 
@@ -44,11 +41,10 @@ class ParserPipeline:
         steps: Control how parser steps are configured:
 
             - `"auto"` (default): Automatically select appropriate parser steps based on installed dependencies.
-            - A [`ParserPipeline`][anyschema.parsers.ParserPipeline] instance: Use the pipeline as-is.
-            - A sequence of [`ParserStep`][anyschema.parsers.ParserStep] instances: Create pipeline with these steps.
+            - An iterable of [`ParserStep`][anyschema.parsers.ParserStep] instances: Create pipeline with these steps.
 
     Raises:
-        TypeError: If the steps are not a sequence of `ParserStep` instances or a `ParserPipeline`.
+        TypeError: If a step is not a `ParserStep` instance.
     """
 
     steps: Sequence[ParserStep]
@@ -85,6 +81,9 @@ class ParserPipeline:
 
         Returns:
             A Narwhals DType from the first successful parser, or None if no parser succeeded and `strict=False`.
+
+        Raises:
+            NotImplementedError: If no step can parse `input_type` and `strict=True`.
         """
         for step in self.steps:
             result = step.parse(input_type, constraints, metadata)
@@ -92,8 +91,11 @@ class ParserPipeline:
                 return result
 
         if strict:
+            # On Python 3.10 `set[int]` passes `isinstance(..., type)`.
+            is_class = isinstance(input_type, type) and not isinstance(input_type, GenericAlias)
+            type_name = repr(qualified_type_name(input_type)) if is_class else repr(input_type)
             msg = (
-                f"No parser in the pipeline could handle type: '{qualified_type_name(input_type)}'.\n"
+                f"No parser in the pipeline could handle type: {type_name}.\n"
                 f"Please consider opening a feature request https://github.com/FBruzzesi/anyschema/issues"
             )
             raise NotImplementedError(msg)
@@ -251,32 +253,32 @@ class ParserPipeline:
         constraints: FieldConstraints,
         metadata: FieldMetadata,
     ) -> AnyField:
-        """Parse a field specification into a AnyField object.
+        """Parse a field specification into an [`AnyField`][anyschema.AnyField].
 
-        This is the recommended method for parsing field specifications at the top level.
-        It wraps the DType parsing with additional field-level information like nullability,
-        uniqueness, and custom metadata.
+        Unlike [`parse`][anyschema.parsers.ParserPipeline.parse], it also sets the field-level information:
+        nullability, uniqueness, description and custom metadata.
 
-        Parsing fills field-level metadata into a copy of `metadata` (e.g. `UnionTypeStep` sets
-        `{"anyschema": {"nullable": True}}` for `Optional[T]`), so forward references are resolved before
-        nullability is read. The caller's dict, and any nested dict it holds, is never modified.
+        `nullable` is the metadata value if it is set and not `None`, read after parsing so a custom step can set it.
+        Otherwise the field is nullable when its field-level type contains `None`, with or without a `dtype` override:
+        `T | None` and `Literal[..., None]` are nullable, `list[T | None]` is not. Forward references are resolved with
+        the pipeline's `ForwardRefStep`.
 
         Field-level [`WithAnySchema`][anyschema.WithAnySchema] markers (in the `Annotated` layers of `input_type`,
         optionally wrapped in a single `| None`) are merged into `metadata` in order, the last value winning per key.
-        A marker `dtype` on a `T | None` field makes it nullable unless `nullable` is set explicitly. If `input_type`
-        is a `ForwardRef`, the pipeline's `ForwardRefStep` resolves it first, so that markers inside it are field
-        level too.
+        If `input_type` is a `ForwardRef`, the pipeline's `ForwardRefStep` resolves it first, so that markers inside it
+        are field level too.
 
         Arguments:
             name: The name of the field.
             input_type: The type to parse.
             constraints: Constraints associated with the type.
-            metadata: Custom metadata dictionary. It is not modified, so one dict may be shared across fields.
+            metadata: The field metadata. It is not modified, so one dict may be shared across fields.
 
         Returns:
-            A [`AnyField`][anyschema.AnyField] instance containing the parsed dtype and field-level metadata.
+            The parsed field.
 
         Raises:
+            UnsupportedDTypeError: If the type is recursive (e.g. a model with a `list` of itself).
             ValueError: If `metadata` has both an `"anyschema"` and an `"x-anyschema"` key, or if a marker sets a key
                 that `metadata` also sets.
 
@@ -287,18 +289,13 @@ class ParserPipeline:
             >>> field
             AnyField(name='age', dtype=Int64, nullable=False, unique=False, description=None, metadata={})
 
-            With nullable=True metadata:
-
-            >>> field = pipeline.parse_into_field("email", str, (), {"anyschema": {"nullable": True}})
-            >>> field.nullable
-            True
-
-            With Optional type (auto-detected as nullable):
-
             >>> from typing import Optional
-            >>> field = pipeline.parse_into_field("email", Optional[str], (), {})
-            >>> field.nullable
+            >>> pipeline.parse_into_field("email", Optional[str], (), {}).nullable
             True
+            >>> pipeline.parse_into_field("email", Optional[str], (), {"anyschema": {"nullable": False}}).nullable
+            False
+            >>> pipeline.parse_into_field("tags", list[Optional[str]], (), {}).nullable
+            False
         """
         from anyschema._anyschema import AnyField
 
@@ -309,36 +306,43 @@ class ParserPipeline:
             )
             raise ValueError(msg)
 
-        if isinstance(input_type, ForwardRef) and (
-            forward_ref_step := next((step for step in self.steps if isinstance(step, ForwardRefStep)), None)
-        ):
+        forward_ref_step = next((step for step in self.steps if isinstance(step, ForwardRefStep)), None)
+        if isinstance(input_type, ForwardRef) and forward_ref_step is not None:
             # Resolve first so that markers inside string annotations are field level. On failure, keep the
             # unresolved type: it only raises if it needs parsing (a `dtype` override skips that).
-            with suppress(NotImplementedError):
+            with suppress(NotImplementedError, SyntaxError):  # `SyntaxError`: a malformed ref on Python 3.14+
                 input_type = forward_ref_step.resolve(input_type)
 
         input_type, markers, is_optional = split_field_markers(input_type)
         if markers:
             metadata = merge_field_markers(name, metadata, markers, is_optional=is_optional)
 
-        # Steps write into `metadata` (e.g. `nullable` for Optional), so work on a copy.
+        # Custom steps may write into `metadata` (e.g. `nullable`), so work on a copy.
         metadata = dict(metadata)
         if (into_dtype := get_anyschema_value_by_key(metadata, key="dtype")) is not None:
             dtype = ensure_dtype(into_dtype)
         else:
-            dtype = self.parse(input_type, constraints, metadata, strict=True)
+            try:
+                dtype = self.parse(input_type, constraints, metadata, strict=True)
+            except RecursionError:
+                # shortcut: a type nested ~1000 levels deep (not recursive) gets this message too, unrealistic.
+                msg = f"Recursive type is not supported (field '{name}'): a dataframe schema cannot represent it."
+                raise UnsupportedDTypeError(msg) from None
 
+        nullable = get_anyschema_value_by_key(metadata, key="nullable")
+        if nullable is None:
+            nullable = field_contains_none(input_type, forward_ref_step.resolve if forward_ref_step else None)
         return AnyField(
             name=name,
             dtype=dtype,
-            nullable=get_anyschema_value_by_key(metadata, key="nullable", default=False),
+            nullable=nullable,
             unique=get_anyschema_value_by_key(metadata, key="unique", default=False),
             description=get_anyschema_value_by_key(metadata, key="description"),
             metadata=filter_anyschema_metadata(metadata),
         )
 
 
-def make_pipeline(steps: IntoParserPipeline = "auto") -> ParserPipeline:
+def make_pipeline(steps: ParserPipeline | IntoParserPipeline = "auto") -> ParserPipeline:
     """Create a [`ParserPipeline`][anyschema.parsers.ParserPipeline] with the specified steps.
 
     Arguments:
@@ -346,7 +350,7 @@ def make_pipeline(steps: IntoParserPipeline = "auto") -> ParserPipeline:
 
             - `"auto"` (default): Automatically select appropriate parser steps based on installed dependencies.
             - A [`ParserPipeline`][anyschema.parsers.ParserPipeline] instance: Return the pipeline as-is.
-            - A sequence of [`ParserStep`][anyschema.parsers.ParserStep] instances: Create pipeline with these steps.
+            - An iterable of [`ParserStep`][anyschema.parsers.ParserStep] instances: Create pipeline with these steps.
 
     Returns:
         A [`ParserPipeline`][anyschema.parsers.ParserPipeline] instance with the configured steps.
@@ -364,9 +368,18 @@ def make_pipeline(steps: IntoParserPipeline = "auto") -> ParserPipeline:
         (ForwardRefStep, UnionTypeStep, ..., PydanticTypeStep, SQLAlchemyTypeStep, PyTypeStep)
 
     Raises:
-        TypeError: If the steps are not a sequence of `ParserStep` instances or a `ParserPipeline`.
+        TypeError: If a step is not a `ParserStep` instance.
     """
-    return ParserPipeline(steps)
+    return steps if isinstance(steps, ParserPipeline) else ParserPipeline(steps)
+
+
+@cache
+def shared_auto_pipeline() -> ParserPipeline:
+    """Return the "auto" pipeline that `AnySchema` uses by default, built once and never handed to users.
+
+    Steps hold no mutable state and `parse_into_field` copies the metadata, so threads can share it.
+    """
+    return ParserPipeline("auto")
 
 
 def _auto_pipeline() -> tuple[ParserStep, ...]:
@@ -420,35 +433,10 @@ def _auto_pipeline() -> tuple[ParserStep, ...]:
     return tuple(_generate_steps())
 
 
-def _is_parser_step(obj: object) -> TypeIs[ParserStep]:
-    return isinstance(obj, ParserStep)
-
-
-def _is_all_parser_steps(steps: Sequence[object]) -> TypeIs[Sequence[ParserStep]]:
-    return all(_is_parser_step(step) for step in steps)
-
-
-def _ensure_steps(steps: Sequence[object]) -> Sequence[ParserStep]:
-    """Ensure that all steps in a sequence are ParserStep instances before returning them.
-
-    Arguments:
-        steps: A sequence of objects that should be ParserStep instances.
-
-    Returns:
-        A tuple of ParserStep instances if all steps are valid.
-
-    Raises:
-        TypeError: If any step in the sequence is not a ParserStep instance.
-            The error message includes the qualified type names of invalid steps.
-    """
-    if _is_all_parser_steps(steps):
-        return tuple(steps)
-
-    not_step_types = tuple(not isinstance(step, ParserStep) for step in steps)
-    bad_steps = tuple(
-        qualified_type_name(type(step))
-        for step, not_step_type in zip(steps, not_step_types, strict=False)
-        if not_step_type
-    )
-    msg = f"Expected a sequence of `ParserStep` instances, found {', '.join(bad_steps)}"
-    raise TypeError(msg)
+def _ensure_steps(steps: Iterable[object]) -> tuple[ParserStep, ...]:
+    """Return `steps` as a tuple, or raise a `TypeError` naming every step that is not a `ParserStep`."""
+    steps = tuple(steps)  # Materialize first: the check below would exhaust a generator.
+    if invalid_names := [qualified_type_name(step) for step in steps if not isinstance(step, ParserStep)]:
+        msg = f"Expected a sequence of `ParserStep` instances, found {', '.join(invalid_names)}"
+        raise TypeError(msg)
+    return cast("tuple[ParserStep, ...]", steps)

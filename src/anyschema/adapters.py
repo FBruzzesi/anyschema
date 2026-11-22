@@ -233,11 +233,8 @@ def attrs_adapter(spec: AttrsClassType) -> FieldSpecIterable:
     """
     import attrs
 
-    # get_type_hints may fail for classes defined in local scopes, so fall back to `field.type`.
-    try:
-        type_hints = get_type_hints(spec, include_extras=True)
-    except Exception:  # pragma: no cover  # noqa: BLE001
-        type_hints = {}
+    # Evaluates string annotations and forward references up front.
+    type_hints = get_type_hints(spec, include_extras=True)
     attrs_fields = attrs.fields(spec)
     _ensure_annotations_are_fields(
         spec,

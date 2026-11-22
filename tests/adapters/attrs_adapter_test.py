@@ -59,6 +59,15 @@ def test_attrs_adapter_skips_classvar() -> None:
     assert list(attrs_adapter(Counter)) == [("x", int, (), {})]
 
 
+def test_attrs_adapter_unresolvable_annotation_raises() -> None:
+    @attrs.define
+    class Local:
+        x: Undefined  # type: ignore[name-defined] # noqa: F821  # pyright: ignore[reportUndefinedVariable]
+
+    with pytest.raises(NameError, match="Undefined"):
+        list(attrs_adapter(Local))
+
+
 def test_attrs_adapter_with_time_metadata() -> None:
     result = tuple(attrs_adapter(AttrsEventWithTimeMetadata))
     expected: tuple[FieldSpec, ...] = (

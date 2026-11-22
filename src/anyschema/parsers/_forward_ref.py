@@ -112,24 +112,31 @@ class ForwardRefStep(ParserStep):
         if not isinstance(input_type, ForwardRef):
             return None
 
-        # Added at parse time so that building the step does not import pydantic. User globals win.
+        return self.pipeline.parse(self.resolve(input_type), constraints, metadata, strict=True)
+
+    def resolve(self, forward_ref: ForwardRef) -> FieldType:
+        """Resolve a ForwardRef with this step's namespaces.
+
+        Arguments:
+            forward_ref: The forward reference to resolve.
+
+        Returns:
+            The resolved type.
+
+        Raises:
+            NotImplementedError: If the forward reference cannot be resolved.
+        """
+        # Added at resolve time so that building the step does not import pydantic. User globals win.
         globalns = (
             {**_pydantic_namespace(), **self.globalns}
             if PYDANTIC_AVAILABLE and "pydantic" in sys.modules
             else self.globalns
         )
         try:
-            resolved_type = evaluate_forward_ref(
-                forward_ref=input_type,
-                globals=globalns,
-                locals=self.localns,
-            )
+            return evaluate_forward_ref(forward_ref=forward_ref, globals=globalns, locals=self.localns)
         except (NameError, AttributeError, TypeError) as e:
-            # If resolution fails, we can't handle this type
-            msg = f"Failed to resolve ForwardRef '{input_type.__forward_arg__}': {e}"
+            msg = f"Failed to resolve ForwardRef '{forward_ref.__forward_arg__}': {e}"
             raise NotImplementedError(msg) from e
-
-        return self.pipeline.parse(resolved_type, constraints, metadata, strict=True)
 
 
 @cache

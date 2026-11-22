@@ -74,6 +74,12 @@ result = pipeline.parse(Color, constraints=(), metadata={})
 print(result)
 ```
 
+!!! note "Nullability"
+    A parser step returns a dtype, not nullability. The field is nullable when its field-level type contains `None`
+    (see [`nullable`](metadata.md#nullable)), so a step that unwraps a custom type into `T | None` does not make the
+    field nullable. To make it nullable, set `{"anyschema": {"nullable": True}}` in `metadata`:
+    [`parse_into_field`][anyschema.parsers.ParserPipeline.parse_into_field] reads it after parsing.
+
 ### Custom Parser with Nested Types
 
 This example shows how to handle a custom generic type. Note how we use

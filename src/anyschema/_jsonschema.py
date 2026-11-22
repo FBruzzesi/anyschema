@@ -48,6 +48,8 @@ def inline_refs(schema: JsonSchema, root: JsonSchema, _expanding: tuple[str, ...
         merged.update((key, value) for key, value in schema.items() if key != "$ref")
         if isinstance(definition.get("properties"), Mapping) and isinstance(schema.get("properties"), Mapping):
             merged["properties"] = {**definition["properties"], **schema["properties"]}
+        # shortcut: a definition is expanded again at each use, so a deep DAG of shared `$ref`s grows exponentially.
+        # The resulting Struct is as large, so cache expansions only if such schemas show up.
         return inline_refs(merged, root, (*_expanding, ref))
 
     inlined = dict(schema)

@@ -53,8 +53,8 @@ class JsonSchemaStep(ParserStep):
     - `null` branches in `anyOf`/`oneOf`, `"null"` in a `type` list and `null` values in `enum` are skipped:
         [`jsonschema_adapter`][anyschema.adapters.jsonschema_adapter] marks the field nullable when the property's
         own schema allows `null`.
-    - Keywords next to `anyOf`/`oneOf`/`allOf` apply to every branch. `anyOf: [number, string]` becomes `Decimal`, as
-        Pydantic emits it for `Decimal` fields. Other unions of different types are rejected.
+    - Keywords next to `anyOf`/`oneOf`/`allOf` apply to every branch. Branches with the same dtype give that dtype,
+        and `anyOf: [number, string]` gives `Decimal`, as Pydantic emits it for `Decimal` fields. Other unions raise.
     - A schema without `type` or constraints (such as `{}` for `typing.Any`) and `{"type": "null"}` become `Object`.
     - Other scalars are parsed as the equivalent Python type (e.g. `"format": "date-time"` as `datetime`), so
         metadata such as `time_zone` and `time_unit` applies as for any other spec.
@@ -128,12 +128,13 @@ class JsonSchemaStep(ParserStep):
         non_null_branches = [branch for branch in branches if branch.get("type") != "null"]
         if not non_null_branches:
             return nw.Object()
-        if len(non_null_branches) == 1:
-            return self.pipeline.parse(non_null_branches[0], constraints, metadata)
         if _is_decimal_union(non_null_branches):
             return self.pipeline.parse(Decimal, constraints, metadata)
-        msg = "Union with mixed types is not supported."
-        raise UnsupportedDTypeError(msg)
+        dtypes = [self.pipeline.parse(branch, constraints, metadata) for branch in non_null_branches]
+        if any(dtype != dtypes[0] for dtype in dtypes):
+            msg = "Union with mixed types is not supported."
+            raise UnsupportedDTypeError(msg)
+        return dtypes[0]
 
     def _parse_enum(
         self, values: Sequence[Any], schema: JsonSchema, constraints: FieldConstraints, metadata: FieldMetadata

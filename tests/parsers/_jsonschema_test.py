@@ -50,6 +50,7 @@ def pipeline() -> ParserPipeline:
         ({"properties": {"a": {"type": "boolean"}}}, nw.Struct([nw.Field("a", nw.Boolean())])),  # implicit object
         ({"allOf": [{"type": "integer"}]}, nw.Int64()),
         ({"anyOf": [{"type": "number"}, {"type": "string"}]}, nw.Decimal()),  # Pydantic `Decimal`
+        ({"type": "string", "anyOf": [{"format": "email"}, {"format": "uri"}]}, nw.String()),  # same dtype
     ],
 )
 def test_jsonschema_step_types(pipeline: ParserPipeline, schema: dict[str, Any], expected: DType) -> None:

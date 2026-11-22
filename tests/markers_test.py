@@ -84,7 +84,7 @@ D = WithAnySchema(dtype="Int32")
 
 
 @pytest.mark.parametrize(
-    ("tp", "expected_type", "expected_markers", "expected_saw_none"),
+    ("tp", "expected_type", "expected_markers", "expected_nullable"),
     [
         (int, int, (), False),
         (Optional[int], Optional[int], (), True),
@@ -107,12 +107,12 @@ D = WithAnySchema(dtype="Int32")
     ],
 )
 def test_split_field_markers(
-    tp: Any, expected_type: Any, expected_markers: tuple[Any, ...], *, expected_saw_none: bool
+    tp: Any, expected_type: Any, expected_markers: tuple[Any, ...], *, expected_nullable: bool
 ) -> None:
     result_type, markers = split_field_markers(tp)
     assert result_type == expected_type
     assert markers == expected_markers
-    assert field_contains_none(result_type) is expected_saw_none
+    assert field_contains_none(result_type) is expected_nullable
 
 
 def test_split_field_markers_returns_input_unchanged_without_markers() -> None:

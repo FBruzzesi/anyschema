@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import TYPE_CHECKING, Any, Final, TypeVar, overload
+from typing import TYPE_CHECKING, Any, Final
 
 from anyschema._metadata import get_anyschema_value_by_key, set_anyschema_meta
 from anyschema.exceptions import UnsupportedDTypeError
@@ -12,8 +12,6 @@ if TYPE_CHECKING:
     from anyschema.typing import FieldMetadata, JsonSchema
 
 __all__ = ("allows_null", "extract_field_metadata", "inline_refs", "union_branches")
-
-_T = TypeVar("_T")
 
 _SUBSCHEMA_KEYWORDS: Final = frozenset({"items", "prefixItems", "anyOf", "oneOf", "allOf"})
 """Keywords holding a subschema or a list of subschemas that `JsonSchemaStep` reads, besides `properties`.
@@ -54,24 +52,18 @@ def inline_refs(schema: JsonSchema, root: JsonSchema, _expanding: tuple[str, ...
 
     inlined = dict(schema)
     if isinstance(properties := schema.get("properties"), Mapping):
-        inlined["properties"] = {name: _inline_refs_in(sub, root, _expanding) for name, sub in properties.items()}
+        inlined["properties"] = {name: _inline_subschemas(sub, root, _expanding) for name, sub in properties.items()}
     for keyword in _SUBSCHEMA_KEYWORDS & schema.keys():
-        inlined[keyword] = _inline_refs_in(schema[keyword], root, _expanding)
+        inlined[keyword] = _inline_subschemas(schema[keyword], root, _expanding)
     return inlined
 
 
-@overload
-def _inline_refs_in(value: JsonSchema, root: JsonSchema, expanding: tuple[str, ...]) -> JsonSchema: ...
-@overload
-def _inline_refs_in(value: list[Any], root: JsonSchema, expanding: tuple[str, ...]) -> list[Any]: ...
-@overload
-def _inline_refs_in(value: _T, root: JsonSchema, expanding: tuple[str, ...]) -> _T: ...
-def _inline_refs_in(value: object, root: JsonSchema, expanding: tuple[str, ...]) -> object:
+def _inline_subschemas(value: Any, root: JsonSchema, expanding: tuple[str, ...]) -> Any:
     """Inline refs in a subschema or a list of subschemas. Boolean subschemas are returned unchanged."""
     if isinstance(value, Mapping):
         return inline_refs(value, root, expanding)
     if isinstance(value, list):
-        return [_inline_refs_in(item, root, expanding) for item in value]
+        return [_inline_subschemas(item, root, expanding) for item in value]
     return value
 
 

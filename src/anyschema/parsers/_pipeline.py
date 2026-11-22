@@ -2,14 +2,16 @@ from __future__ import annotations
 
 from functools import cache
 from itertools import chain
-from typing import TYPE_CHECKING, Literal, overload
+from types import GenericAlias
+from typing import TYPE_CHECKING, Literal, cast, overload
 
 from narwhals.dtypes import DType
-from typing_extensions import Self, TypeIs
+from typing_extensions import Self
 
 from anyschema._dependencies import ANNOTATED_TYPES_AVAILABLE, ATTRS_AVAILABLE, PYDANTIC_AVAILABLE, SQLALCHEMY_AVAILABLE
 from anyschema._metadata import filter_anyschema_metadata, get_anyschema_value_by_key
 from anyschema._utils import qualified_type_name
+from anyschema.exceptions import UnsupportedDTypeError
 from anyschema.parsers._annotated import AnnotatedStep, field_contains_none
 from anyschema.parsers._base import ParserStep
 from anyschema.parsers._builtin import PyTypeStep
@@ -18,15 +20,9 @@ from anyschema.parsers._union import UnionTypeStep
 from anyschema.serde import deserialize_dtype
 
 if TYPE_CHECKING:
-    from collections.abc import Generator, Sequence
+    from collections.abc import Generator, Iterable, Sequence
 
     from anyschema._anyschema import AnyField
-    from anyschema.typing import IntoParserPipeline
-
-
-if TYPE_CHECKING:
-    from collections.abc import Sequence
-
     from anyschema.typing import FieldConstraints, FieldMetadata, FieldType, IntoParserPipeline
 
 
@@ -39,11 +35,10 @@ class ParserPipeline:
         steps: Control how parser steps are configured:
 
             - `"auto"` (default): Automatically select appropriate parser steps based on installed dependencies.
-            - A [`ParserPipeline`][anyschema.parsers.ParserPipeline] instance: Use the pipeline as-is.
-            - A sequence of [`ParserStep`][anyschema.parsers.ParserStep] instances: Create pipeline with these steps.
+            - An iterable of [`ParserStep`][anyschema.parsers.ParserStep] instances: Create pipeline with these steps.
 
     Raises:
-        TypeError: If the steps are not a sequence of `ParserStep` instances or a `ParserPipeline`.
+        TypeError: If a step is not a `ParserStep` instance.
     """
 
     steps: Sequence[ParserStep]
@@ -80,6 +75,9 @@ class ParserPipeline:
 
         Returns:
             A Narwhals DType from the first successful parser, or None if no parser succeeded and `strict=False`.
+
+        Raises:
+            NotImplementedError: If no step can parse `input_type` and `strict=True`.
         """
         for step in self.steps:
             result = step.parse(input_type, constraints, metadata)
@@ -87,8 +85,11 @@ class ParserPipeline:
                 return result
 
         if strict:
+            # On Python 3.10 `set[int]` passes `isinstance(..., type)`.
+            is_class = isinstance(input_type, type) and not isinstance(input_type, GenericAlias)
+            type_name = repr(qualified_type_name(input_type)) if is_class else repr(input_type)
             msg = (
-                f"No parser in the pipeline could handle type: '{qualified_type_name(input_type)}'.\n"
+                f"No parser in the pipeline could handle type: {type_name}.\n"
                 f"Please consider opening a feature request https://github.com/FBruzzesi/anyschema/issues"
             )
             raise NotImplementedError(msg)
@@ -265,6 +266,9 @@ class ParserPipeline:
         Returns:
             The parsed field.
 
+        Raises:
+            UnsupportedDTypeError: If the type is recursive (e.g. a model with a `list` of itself).
+
         Examples:
             >>> from anyschema.parsers import make_pipeline
             >>> pipeline = make_pipeline()
@@ -296,7 +300,12 @@ class ParserPipeline:
                 )
                 raise TypeError(msg)
         else:
-            dtype = self.parse(input_type, constraints, metadata, strict=True)
+            try:
+                dtype = self.parse(input_type, constraints, metadata, strict=True)
+            except RecursionError:
+                # shortcut: a type nested ~1000 levels deep (not recursive) gets this message too, unrealistic.
+                msg = f"Recursive type is not supported (field '{name}'): a dataframe schema cannot represent it."
+                raise UnsupportedDTypeError(msg) from None
 
         nullable = get_anyschema_value_by_key(metadata, key="nullable")
         if nullable is None:
@@ -312,7 +321,7 @@ class ParserPipeline:
         )
 
 
-def make_pipeline(steps: IntoParserPipeline = "auto") -> ParserPipeline:
+def make_pipeline(steps: ParserPipeline | IntoParserPipeline = "auto") -> ParserPipeline:
     """Create a [`ParserPipeline`][anyschema.parsers.ParserPipeline] with the specified steps.
 
     Arguments:
@@ -320,7 +329,7 @@ def make_pipeline(steps: IntoParserPipeline = "auto") -> ParserPipeline:
 
             - `"auto"` (default): Automatically select appropriate parser steps based on installed dependencies.
             - A [`ParserPipeline`][anyschema.parsers.ParserPipeline] instance: Return the pipeline as-is.
-            - A sequence of [`ParserStep`][anyschema.parsers.ParserStep] instances: Create pipeline with these steps.
+            - An iterable of [`ParserStep`][anyschema.parsers.ParserStep] instances: Create pipeline with these steps.
 
     Returns:
         A [`ParserPipeline`][anyschema.parsers.ParserPipeline] instance with the configured steps.
@@ -338,9 +347,9 @@ def make_pipeline(steps: IntoParserPipeline = "auto") -> ParserPipeline:
         (ForwardRefStep, UnionTypeStep, ..., PydanticTypeStep, SQLAlchemyTypeStep, PyTypeStep)
 
     Raises:
-        TypeError: If the steps are not a sequence of `ParserStep` instances or a `ParserPipeline`.
+        TypeError: If a step is not a `ParserStep` instance.
     """
-    return ParserPipeline(steps)
+    return steps if isinstance(steps, ParserPipeline) else ParserPipeline(steps)
 
 
 @cache
@@ -403,35 +412,10 @@ def _auto_pipeline() -> tuple[ParserStep, ...]:
     return tuple(_generate_steps())
 
 
-def _is_parser_step(obj: object) -> TypeIs[ParserStep]:
-    return isinstance(obj, ParserStep)
-
-
-def _is_all_parser_steps(steps: Sequence[object]) -> TypeIs[Sequence[ParserStep]]:
-    return all(_is_parser_step(step) for step in steps)
-
-
-def _ensure_steps(steps: Sequence[object]) -> Sequence[ParserStep]:
-    """Ensure that all steps in a sequence are ParserStep instances before returning them.
-
-    Arguments:
-        steps: A sequence of objects that should be ParserStep instances.
-
-    Returns:
-        A tuple of ParserStep instances if all steps are valid.
-
-    Raises:
-        TypeError: If any step in the sequence is not a ParserStep instance.
-            The error message includes the qualified type names of invalid steps.
-    """
-    if _is_all_parser_steps(steps):
-        return tuple(steps)
-
-    not_step_types = tuple(not isinstance(step, ParserStep) for step in steps)
-    bad_steps = tuple(
-        qualified_type_name(type(step))
-        for step, not_step_type in zip(steps, not_step_types, strict=False)
-        if not_step_type
-    )
-    msg = f"Expected a sequence of `ParserStep` instances, found {', '.join(bad_steps)}"
-    raise TypeError(msg)
+def _ensure_steps(steps: Iterable[object]) -> tuple[ParserStep, ...]:
+    """Return `steps` as a tuple, or raise a `TypeError` naming every step that is not a `ParserStep`."""
+    steps = tuple(steps)  # Materialize first: the check below would exhaust a generator.
+    if invalid_names := [qualified_type_name(step) for step in steps if not isinstance(step, ParserStep)]:
+        msg = f"Expected a sequence of `ParserStep` instances, found {', '.join(invalid_names)}"
+        raise TypeError(msg)
+    return cast("tuple[ParserStep, ...]", steps)

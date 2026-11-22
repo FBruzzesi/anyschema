@@ -201,6 +201,7 @@ def test_jsonschema_adapter_keeps_recursive_reference() -> None:
         ({"properties": {"x": {"type": "string"}}}, True),  # `type` is optional
         ({"$ref": "#/$defs/A", "$defs": {}}, True),  # root `$ref`
         ({"allOf": [{"$ref": "#/$defs/A"}], "$defs": {}}, True),  # root `$ref` before Pydantic 2.9
+        ({"$ref": "#/definitions/A", "definitions": {}}, True),  # draft-07 root `$ref`
         ({"name": int, "age": int}, False),  # plain field mapping (IntoOrderedDict)
         ({"$ref": "SomeType"}, False),  # plain field mapping with a forward reference
         ({"type": "array", "items": {}}, False),

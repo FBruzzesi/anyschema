@@ -81,14 +81,15 @@ def is_into_ordered_dict(obj: object) -> TypeIs[IntoOrderedDict]:
 
 # `TypeGuard`, not `TypeIs`: most mappings are not JSON Schema objects, so `TypeIs` would wrongly narrow on False.
 def is_jsonschema(obj: object) -> TypeGuard[JsonSchema]:
-    """Check if the object looks like a JSON Schema object.
+    """Check if the object is a JSON Schema object that `jsonschema_adapter` accepts.
 
-    That is a mapping with either a `"properties"` mapping and `"type": "object"` (or no `type`), or a root `"$ref"`
-    (or `"allOf"`, before Pydantic 2.9) next to `"$defs"`, as Pydantic emits for self-referencing models.
+    That is a mapping with a `"properties"` mapping and `"type": "object"` (or no `type`), or with a root `"$ref"` (or
+    a single-item `"allOf"`, before Pydantic 2.9) next to `"$defs"` or `"definitions"`, as emitted for self-referencing
+    models.
     """
     if not isinstance(obj, Mapping):
         return False
-    if isinstance(obj.get("$defs"), Mapping) and (
+    if isinstance(obj.get("$defs", obj.get("definitions")), Mapping) and (
         isinstance(obj.get("$ref"), str) or isinstance(obj.get("allOf"), list)
     ):
         return True

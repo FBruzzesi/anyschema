@@ -48,6 +48,14 @@ If you are prompted the following error message:
 it means that the dataframe libraries don't support true union types.
 `Optional[T]` (i.e., `T | None`) is supported, however true union types such as `float | str` are not.
 
+### Recursive Type Error
+
+> UnsupportedDTypeError: Recursive type is not supported (field 'children'): a dataframe schema cannot represent it.
+
+The named field refers back to its own model, e.g. `children: list[Node]` inside `Node`.
+A dataframe schema has a fixed depth, so it cannot represent such a type.
+Give the field a non-recursive type, or set its `dtype` explicitly through [field metadata](metadata.md).
+
 ### Custom Parser Not Being Called
 
 There could be multiple reasons why your custom parser's `parse` method never gets invoked.

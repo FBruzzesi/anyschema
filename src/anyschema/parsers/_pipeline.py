@@ -11,6 +11,7 @@ from typing_extensions import Self
 from anyschema._dependencies import ANNOTATED_TYPES_AVAILABLE, ATTRS_AVAILABLE, PYDANTIC_AVAILABLE, SQLALCHEMY_AVAILABLE
 from anyschema._metadata import filter_anyschema_metadata, get_anyschema_value_by_key
 from anyschema._utils import qualified_type_name
+from anyschema.exceptions import UnsupportedDTypeError
 from anyschema.parsers._annotated import AnnotatedStep, field_contains_none
 from anyschema.parsers._base import ParserStep
 from anyschema.parsers._builtin import PyTypeStep
@@ -265,6 +266,9 @@ class ParserPipeline:
         Returns:
             The parsed field.
 
+        Raises:
+            UnsupportedDTypeError: If the type is recursive (e.g. a model with a `list` of itself).
+
         Examples:
             >>> from anyschema.parsers import make_pipeline
             >>> pipeline = make_pipeline()
@@ -296,7 +300,12 @@ class ParserPipeline:
                 )
                 raise TypeError(msg)
         else:
-            dtype = self.parse(input_type, constraints, metadata, strict=True)
+            try:
+                dtype = self.parse(input_type, constraints, metadata, strict=True)
+            except RecursionError:
+                # shortcut: a type nested ~1000 levels deep (not recursive) gets this message too, unrealistic.
+                msg = f"Recursive type is not supported (field '{name}'): a dataframe schema cannot represent it."
+                raise UnsupportedDTypeError(msg) from None
 
         nullable = get_anyschema_value_by_key(metadata, key="nullable")
         if nullable is None:

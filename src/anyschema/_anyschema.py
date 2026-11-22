@@ -230,7 +230,7 @@ class AnySchema:
     Raises:
         ValueError: If `spec` type is unknown and `adapter` is not specified.
         NotImplementedError: If a type in the spec cannot be parsed by any parser in the pipeline.
-        UnsupportedDTypeError: If a type is explicitly unsupported (e.g., Union with mixed types).
+        UnsupportedDTypeError: If a type is explicitly unsupported (e.g., Union with mixed types) or recursive.
 
     Examples:
         Basic usage with a Pydantic model:

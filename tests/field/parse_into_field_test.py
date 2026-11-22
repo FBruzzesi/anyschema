@@ -14,6 +14,7 @@ from sqlalchemy import Column, Integer, MetaData, String, Table
 
 from anyschema import AnyField, AnySchema
 from anyschema._metadata import set_anyschema_meta
+from anyschema.exceptions import UnsupportedDTypeError
 from anyschema.parsers import ForwardRefStep, ParserStep, PyTypeStep, UnionTypeStep, make_pipeline
 from anyschema.serde import serialize_dtype
 from tests.conftest import AttrsBookWithMetadata, AttrsPerson, user_table
@@ -521,3 +522,33 @@ def test_parse_into_field_dtype_override_invalid_type_raises(dtype: Any) -> None
 
     with pytest.raises(TypeError, match="Expected `dtype` value to be of type"):
         pipeline.parse_into_field("test", int, (), {"anyschema": {"dtype": dtype}})
+
+
+class RecursivePydanticNode(BaseModel):
+    name: str
+    children: list[RecursivePydanticNode]
+
+
+@dataclass
+class RecursiveDataclassNode:
+    name: str
+    parent: Optional[RecursiveDataclassNode]
+
+
+@pytest.mark.parametrize(
+    ("name", "py_type"), [("children", list[RecursivePydanticNode]), ("parent", RecursiveDataclassNode)]
+)
+def test_parse_into_field_recursive_type_raises(name: str, py_type: FieldType) -> None:
+    pipeline = make_pipeline()
+
+    with pytest.raises(
+        UnsupportedDTypeError, match=f"Recursive type is not supported \\(field '{name}'\\)"
+    ) as exc_info:
+        pipeline.parse_into_field(name, py_type, (), {})
+    assert exc_info.value.__cause__ is None
+    assert exc_info.value.__suppress_context__
+
+
+def test_anyschema_recursive_pydantic_model_raises() -> None:
+    with pytest.raises(UnsupportedDTypeError, match="field 'children'"):
+        AnySchema(spec=RecursivePydanticNode)

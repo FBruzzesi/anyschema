@@ -28,9 +28,9 @@ _UNION_KEYWORDS: Final = ("anyOf", "oneOf", "allOf")
 def inline_refs(schema: JsonSchema, root: JsonSchema, _expanding: tuple[str, ...] = ()) -> JsonSchema:
     """Return a copy of `schema` with every local `$ref` replaced by the definition it points to.
 
-    Keywords next to a `$ref` override the referenced ones. The referenced `title` and `description` are dropped, so
-    a model docstring does not become the description of every field of that model type. A recursive `$ref` is kept
-    as is, for `JsonSchemaStep` to reject unless the field sets a `dtype`.
+    Keywords next to a `$ref` override the referenced ones, except `properties`, which are merged. The referenced
+    `title` and `description` are dropped, so a model docstring does not become the description of every field of
+    that model type. A recursive `$ref` is kept as is, for `JsonSchemaStep` to reject unless the field sets a `dtype`.
 
     Arguments:
         schema: The (sub)schema to resolve.
@@ -46,6 +46,8 @@ def inline_refs(schema: JsonSchema, root: JsonSchema, _expanding: tuple[str, ...
         definition = _resolve_json_pointer(root, ref)
         merged = {key: value for key, value in definition.items() if key not in _DEFINITION_DOC_KEYWORDS}
         merged.update((key, value) for key, value in schema.items() if key != "$ref")
+        if isinstance(definition.get("properties"), Mapping) and isinstance(schema.get("properties"), Mapping):
+            merged["properties"] = {**definition["properties"], **schema["properties"]}
         return inline_refs(merged, root, (*_expanding, ref))
 
     inlined = dict(schema)

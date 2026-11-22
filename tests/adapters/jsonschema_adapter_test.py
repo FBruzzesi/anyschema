@@ -45,6 +45,16 @@ def test_jsonschema_adapter_ref_siblings_take_precedence() -> None:
     assert metadata == {"anyschema": {"description": "home"}}
 
 
+def test_jsonschema_adapter_ref_sibling_properties_are_merged() -> None:
+    spec = json_object_schema(
+        {"x": {"$ref": "#/$defs/Address", "properties": {"zipcode": {"type": "integer"}}}},
+        **{"$defs": {"Address": _ADDRESS}},
+    )
+    assert next(jsonschema_adapter(spec))[1] == json_object_schema(
+        {"street": {"type": "string"}, "zipcode": {"type": "integer"}}
+    )
+
+
 def test_jsonschema_adapter_referenced_description_is_not_field_description() -> None:
     # A model docstring ends up in its `$defs` entry: it documents the model, not the field using it.
     spec = json_object_schema(

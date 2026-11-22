@@ -1,9 +1,7 @@
 from __future__ import annotations
 
 import ast
-import re
-from itertools import takewhile
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Final, TypeVar
 
 from narwhals.dtypes import (
     Array,
@@ -15,7 +13,6 @@ from narwhals.dtypes import (
     Decimal,
     Duration,
     Enum,
-    Field,
     Float32,
     Float64,
     Int8,
@@ -40,15 +37,23 @@ from anyschema.exceptions import UnsupportedDTypeError
 
 if TYPE_CHECKING:
     from narwhals.dtypes import DType
-    from narwhals.typing import TimeUnit
 
+__all__ = (
+    "deserialize_dtype",
+    "serialize_dtype",
+)
 
-NON_COMPLEX_MAPPING = {
+T = TypeVar("T")
+
+# Dtypes accepted as a bare name. Parametric ones (`Datetime`, `Duration`, `Decimal`) give their default instance.
+_DTYPE_BY_NAME: Final[dict[str, DType]] = {
     "Binary": Binary(),
     "Boolean": Boolean(),
     "Categorical": Categorical(),
     "Date": Date(),
+    "Datetime": Datetime(),
     "Decimal": Decimal(),
+    "Duration": Duration(),
     "Float32": Float32(),
     "Float64": Float64(),
     "Int8": Int8(),
@@ -67,113 +72,15 @@ NON_COMPLEX_MAPPING = {
     "Unknown": Unknown(),
 }
 
-RGX_ARRAY = re.compile(
-    r"""^
-    Array\(                 # Literal "Array("
-        (?P<inner_type>.+)  # Capture inner dtype (e.g., "Int32", "List(String)")
-        ,\s                 # Comma and whitespace
-        shape=              # Literal "shape="
-        (?P<shape>\(.+?\))  # Capture shape tuple (e.g., "(2,)", "(3, 4)")
-    \)                      # Closing parenthesis
-    $""",
-    re.VERBOSE,
-)
-
-RGX_DATETIME = re.compile(
-    r"""^
-    Datetime\(                            # Literal "Datetime("
-        time_unit='(?P<time_unit>[^']+)'  # Capture time_unit value (s, ms, us, or ns)
-        ,\s                               # Comma and whitespace
-        time_zone=                        # Literal "time_zone="
-        (?:                               # Begin non-capturing group for timezone value
-            '(?P<time_zone>[^']+)'        # Capture quoted timezone (e.g., 'UTC', 'America/New_York')
-            |                             # OR
-            None                          # Literal "None"
-        )
-    \)                                    # Closing parenthesis
-    $""",
-    re.VERBOSE,
-)
-
-RGX_DECIMAL = re.compile(
-    r"""^
-    Decimal\(                                     # Literal "Decimal("
-        precision=(?P<precision>\d+)              # Capture precision (digits)
-        ,\s                                       # Comma and whitespace
-        scale=(?P<scale>\d+)                      # Capture scale (digits)
-    \)                                            # Closing parenthesis
-    $""",
-    re.VERBOSE,
-)
-
-RGX_DURATION = re.compile(
-    r"""^
-    Duration\(                            # Literal "Duration("
-        time_unit='(?P<time_unit>[^']+)'  # Capture time_unit value (s, ms, us, or ns)
-    \)                                    # Closing parenthesis
-    $""",
-    re.VERBOSE,
-)
-
-RGX_ENUM = re.compile(
-    r"""^
-    Enum\(                       # Literal "Enum("
-        categories=              # Literal "categories="
-        (?P<categories>\[.*?\])  # Capture categories list (e.g., "['a', 'b']", "[1, 2]")
-    \)                           # Closing parenthesis
-    $""",
-    re.VERBOSE,
-)
-
-RGX_LIST = re.compile(
-    r"""^
-    List\(                  # Literal "List("
-        (?P<inner_type>.+)  # Capture inner dtype (e.g., "String", "Struct({'a': Int64})")
-    \)                      # Closing parenthesis
-    $""",
-    re.VERBOSE,
-)
-
-RGX_STRUCT = re.compile(
-    r"""^
-    Struct\(                # Literal "Struct("
-        \{                  # Opening brace for dict
-            (?P<fields>.*)  # Capture field definitions (e.g., "'a': Int64, 'b': String")
-        \}                  # Closing brace for dict
-    \)                      # Closing parenthesis
-    $""",
-    re.VERBOSE,
-)
-
-RGX_FIELD_NAME = re.compile(
-    r"""
-    ,?                       # Optional comma (for subsequent fields after first)
-    \s?                      # Optional space (after comma in Narwhals format)
-    '(?P<field_name>[^']+)'  # Capture field name within single quotes
-    :                        # Colon separator before dtype
-    """,
-    re.VERBOSE,
-)
-
-
-__all__ = (
-    "deserialize_dtype",
-    "serialize_dtype",
-)
-
 
 def serialize_dtype(dtype: DType) -> str:
-    """Serialize a Narwhals dtype to its string representation.
-
-    Converts a Narwhals dtype object into a string that can be stored or transmitted
-    and later reconstructed using `deserialize_dtype`. The serialization is based on
-    the dtype's string representation.
+    """Serialize a Narwhals dtype to a string that `deserialize_dtype` can read back.
 
     Arguments:
-        dtype: A Narwhals DType object to serialize
+        dtype: The Narwhals dtype to serialize.
 
     Returns:
-        String representation of the dtype (e.g., "Int64", "List(String)", "Struct({'a': Int64, 'b': String})")
+        The dtype repr, e.g. `"List(String)"`.
 
     Examples:
         >>> serialize_dtype(Int64())
@@ -189,16 +96,20 @@ def serialize_dtype(dtype: DType) -> str:
 
 
 def deserialize_dtype(into_dtype: str) -> DType:
-    """Deserialize a string representation of a Narwhals dtype back to the dtype object.
+    """Deserialize a string produced by `serialize_dtype` back into a Narwhals dtype.
 
-    Handles both simple and complex nested types using regex and recursion.
+    The string is parsed with `ast.parse` and never evaluated. Each dtype accepts only its repr form, e.g.
+    `Datetime(time_unit=..., time_zone=...)` with the keywords in that order. A bare name such as `"Datetime"` gives
+    the default instance.
 
     Arguments:
-        into_dtype: String representation of the dtype (e.g., "Int64", "List(String)",
-            "Struct({'a': Int64, 'b': List(String)})")
+        into_dtype: The dtype repr, e.g. `"Struct({'a': Int64, 'b': List(String)})"`.
 
     Returns:
-        The corresponding Narwhals DType object
+        The Narwhals dtype.
+
+    Raises:
+        UnsupportedDTypeError: If `into_dtype` is not the repr of a supported dtype.
 
     Examples:
         >>> deserialize_dtype("Int64")
@@ -207,128 +118,90 @@ def deserialize_dtype(into_dtype: str) -> DType:
         List(String)
         >>> deserialize_dtype("Datetime(time_unit='ms', time_zone='UTC')")
         Datetime(time_unit='ms', time_zone='UTC')
+        >>> deserialize_dtype("Datetime")
+        Datetime(time_unit='us', time_zone=None)
     """
-    if (dtype := NON_COMPLEX_MAPPING.get(into_dtype)) is not None:
-        return dtype
-
-    if datetime_match := RGX_DATETIME.match(into_dtype):
-        time_unit = cast("TimeUnit", datetime_match.group("time_unit"))
-        time_zone = datetime_match.group("time_zone")
-        return Datetime(time_unit=time_unit, time_zone=time_zone)
-
-    if decimal_match := RGX_DECIMAL.match(into_dtype):
-        precision = int(decimal_match.group("precision"))
-        scale = int(decimal_match.group("scale"))
-        return Decimal(precision=precision, scale=scale)
-
-    if duration_match := RGX_DURATION.match(into_dtype):
-        time_unit = cast("TimeUnit", duration_match.group("time_unit"))
-        return Duration(time_unit=time_unit)
-
-    if enum_match := RGX_ENUM.match(into_dtype):
-        categories = ast.literal_eval(enum_match.group("categories"))
-        return Enum(categories=categories)
-
-    if list_match := RGX_LIST.match(into_dtype):
-        inner_type = deserialize_dtype(list_match.group("inner_type"))
-        return List(inner_type)
-
-    if array_match := RGX_ARRAY.match(into_dtype):
-        inner_type = deserialize_dtype(array_match.group("inner_type"))
-        shape = ast.literal_eval(array_match.group("shape"))
-        return Array(inner_type, shape=shape)
-
-    if struct_match := RGX_STRUCT.match(into_dtype):
-        fields = _parse_struct_fields(struct_match.group("fields"))
-        return Struct(fields)
-
-    msg = f"Unable to deserialize '{into_dtype}' into a Narwhals DType"
-    raise UnsupportedDTypeError(msg)
+    try:
+        return _to_dtype(ast.parse(into_dtype, mode="eval").body)
+    # `ast.parse` raises `MemoryError` when its stack overflows, e.g. on `"-" * 100_000 + "1"`.
+    except (SyntaxError, MemoryError, RecursionError, TypeError, ValueError) as exc:
+        msg = f"Unable to deserialize '{into_dtype}' into a Narwhals DType"
+        raise UnsupportedDTypeError(msg) from exc
 
 
-def _extract_field_name(fields_str: str, start_pos: int) -> tuple[str, int]:
-    """Extract a field name from the struct string and progress the position.
+def _to_dtype(node: ast.expr) -> DType:
+    """Match `node` against the repr of each dtype, raise `ValueError` if none fits."""
+    match node:
+        case ast.Name(id=name) if name in _DTYPE_BY_NAME:
+            return _DTYPE_BY_NAME[name]
 
-    Arguments:
-        fields_str: The full struct fields string
-        start_pos: Position to start extracting from
+        case ast.Call(
+            func=ast.Name(id="Datetime"),
+            args=[],
+            keywords=[
+                ast.keyword(arg="time_unit", value=ast.Constant(value="ns" | "us" | "ms" | "s" as time_unit)),
+                ast.keyword(arg="time_zone", value=ast.Constant(value=str() | None as time_zone)),
+            ],
+        ):
+            return Datetime(time_unit=time_unit, time_zone=time_zone)
 
-    Returns:
-        Tuple of (field_name, new_position) after the field name
+        case ast.Call(
+            func=ast.Name(id="Duration"),
+            args=[],
+            keywords=[ast.keyword(arg="time_unit", value=ast.Constant(value="ns" | "us" | "ms" | "s" as time_unit))],
+        ):
+            return Duration(time_unit=time_unit)
 
-    Note:
-        Assumes well-formed input from Narwhals dtype string representation.
-        Field names are always quoted with single quotes.
-        Expected formats:
-            * "'fieldname': dtype"
-            * ", 'fieldname': dtype"
-    """
-    if match := RGX_FIELD_NAME.match(fields_str, start_pos):
-        field_name = match.group("field_name")
-        new_pos = match.end()
+        case ast.Call(
+            func=ast.Name(id="Decimal"),
+            args=[],
+            keywords=[
+                ast.keyword(arg="precision", value=ast.Constant(value=int() as precision)),
+                ast.keyword(arg="scale", value=ast.Constant(value=int() as scale)),
+            ],
+        ):
+            return Decimal(precision=precision, scale=scale)
 
-        return field_name, new_pos
+        case ast.Call(
+            func=ast.Name(id="Enum"),
+            args=[],
+            keywords=[ast.keyword(arg="categories", value=ast.List() as categories)],
+        ):
+            # `literal_eval` accepts negative numbers, e.g. `Enum(categories=[-1, 2])` from an int `enum.Enum`.
+            return Enum(categories=ast.literal_eval(categories))
 
-    msg = f"Failed to parse field name from: {fields_str[start_pos:]}"
-    raise ValueError(msg)
+        case ast.Call(func=ast.Name(id="List"), args=[inner], keywords=[]):
+            return List(_to_dtype(inner))
+
+        case ast.Call(
+            func=ast.Name(id="Array"),
+            args=[inner],
+            keywords=[ast.keyword(arg="shape", value=ast.Tuple(elts=dims))],
+        ):
+            return Array(_to_dtype(inner), shape=tuple(_to_constant(dim, int) for dim in dims))
+
+        case ast.Call(
+            func=ast.Name(id="Struct"),
+            args=[ast.Dict(keys=field_names, values=field_dtypes)],
+            keywords=[],
+        ):
+            return Struct(
+                {
+                    _to_constant(name, str): _to_dtype(dtype)
+                    for name, dtype in zip(field_names, field_dtypes, strict=True)
+                }
+            )
+
+        case _:
+            msg = f"not a dtype: {ast.unparse(node)}"
+            raise ValueError(msg)
 
 
-def _extract_field_dtype(fields_str: str, start_pos: int) -> tuple[str, int]:
-    """Extract a dtype value string, tracking depth for nested structures.
-
-    Arguments:
-        fields_str: The full struct fields string
-        start_pos: Position to start extracting from
-
-    Returns:
-        Tuple of (dtype_string, new_position) after the dtype value
-
-    Note:
-        Assumes well-formed input from Narwhals dtype string representation.
-    """
-    depth = 0
-    end_pos = start_pos
-
-    for char in fields_str[start_pos:]:
-        if char in "({[":
-            depth += 1
-        elif char in ")}]":
-            depth -= 1
-        elif char == "," and depth == 0:  # Fields separator, return only if depth is 0
-            break
-        end_pos += 1
-
-    return fields_str[start_pos:end_pos].strip(), end_pos
-
-
-def _parse_struct_fields(fields_str: str) -> list[Field]:
-    """Parse a Struct fields string into a list of Field objects.
-
-    Handles nested structures by tracking bracket depth.
-
-    Arguments:
-        fields_str: String representation of struct fields (e.g., "{'a': Int64, 'b': List(String)}")
-
-    Returns:
-        List of Field objects with deserialized dtypes
-
-    Note:
-        Assumes well-formed input from Narwhals dtype string representation.
-    """
-    if (n_chars := len(fields_str)) == 0:  # Empty struct case
-        return []
-
-    fields = []
-    pos = 0
-
-    while pos < n_chars:
-        field_name, pos = _extract_field_name(fields_str, pos)
-
-        # Skip whitespace after colon
-        pos += sum(1 for _ in takewhile(str.isspace, fields_str[pos]))
-
-        into_dtype, pos = _extract_field_dtype(fields_str, pos)
-        dtype = deserialize_dtype(into_dtype)
-        fields.append(Field(field_name, dtype))
-
-    return fields
+def _to_constant(node: ast.expr | None, kind: type[T]) -> T:
+    """Return the value of a `kind` constant node, raise `ValueError` otherwise."""
+    match node:
+        case ast.Constant(value=value) if isinstance(value, kind):
+            return value
+        case _:  # `None` is a `**` unpacking inside a dict
+            msg = f"expected a {kind.__name__} constant"
+            raise ValueError(msg)

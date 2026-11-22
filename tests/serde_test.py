@@ -35,12 +35,17 @@ from narwhals.dtypes import (
 )
 
 from anyschema.exceptions import UnsupportedDTypeError
-from anyschema.serde import _extract_field_name, deserialize_dtype, serialize_dtype
+from anyschema.serde import deserialize_dtype, serialize_dtype
 
 
 class Color(enum.Enum):
     BLUE = 1
     RED = 2
+
+
+class Sign(enum.Enum):
+    NEG = -1
+    POS = 2
 
 
 @pytest.mark.parametrize(
@@ -163,13 +168,58 @@ def test_deserialize(into_dtype: str, expected: DType) -> None:
     assert serialize_dtype(result) == into_dtype
 
 
-@pytest.mark.parametrize("into_dtype", ["InvalidType", "List(", "not a dtype at all"])
+@pytest.mark.parametrize(
+    ("into_dtype", "expected"),
+    [
+        ("""Struct({"it's": Int64})""", Struct({"it's": Int64()})),
+        ("Struct({'x': Enum(categories=['a)']), 'y': Int8})", Struct({"x": Enum(["a)"]), "y": Int8()})),
+        ("Enum(categories=[-1, 2])", Enum(Sign)),
+        ("Datetime", Datetime()),
+        ("Duration", Duration()),
+        ("Decimal", Decimal()),
+    ],
+)
+def test_deserialize_extra_valid_inputs(into_dtype: str, expected: DType) -> None:
+    assert deserialize_dtype(into_dtype) == expected
+
+
+@pytest.mark.parametrize(
+    "into_dtype",
+    [
+        "InvalidType",
+        "List(",
+        "not a dtype at all",
+        "",
+        "__import__('os').system('true')",
+        "().__class__",
+        "Int64.__class__",
+        "Foo(1)",
+        "List(String",
+        "Datetime(time_unit='ms')",
+        "Datetime(time_unit='bogus', time_zone=None)",
+        "Duration(time_unit='bogus')",
+        "Int64(1)",
+        "Struct",
+        "DType",
+        "NumericType",
+        "Field('a', Int64)",
+        "List(**{'inner': Int64})",
+        "Struct({**{'a': Int64}})",
+        "List(*[Int64])",
+        "List[Int64]",
+        "lambda: Int64",
+        "1",
+        "[Int64]",
+        "List(1)",
+        "Array('a', shape=(2,))",
+        "Array(Int32, shape=(1.5,))",
+        "Struct({'a': 1})",
+        "Struct({1: Int64})",
+        "Int64\x00",
+        "List(" * 10_000 + "Int64" + ")" * 10_000,
+        "-" * 100_000 + "1",
+    ],
+)
 def test_deserialize_invalid_dtype_raises(into_dtype: str) -> None:
     with pytest.raises(UnsupportedDTypeError, match="Unable to deserialize"):
         deserialize_dtype(into_dtype)
-
-
-@pytest.mark.parametrize("field_str", ["fieldname: Int64", "123: Int64"])
-def test_extract_field_name_invalid_raises(field_str: str) -> None:
-    with pytest.raises(ValueError, match="Failed to parse field name"):
-        _extract_field_name(field_str, start_pos=0)

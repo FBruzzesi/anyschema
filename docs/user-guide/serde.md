@@ -12,7 +12,12 @@ Two main functions are available:
 * `serialize_dtype(dtype: DType) -> str`: Converts a Narwhals dtype to its string representation.
 * `deserialize_dtype(into_dtype: str) -> DType`: Reconstructs a Narwhals dtype from a string.
 
-These functions support all Narwhals dtypes, including complex nested structures like `List`, `Struct`, and `Array`.
+These functions support every Narwhals dtype except `Float16`, including nested ones like `List`, `Struct`, and
+`Array`.
+
+`deserialize_dtype` parses the string with `ast.parse` and never evaluates it, so untrusted input cannot run code. It
+accepts only the form `serialize_dtype` produces and raises `UnsupportedDTypeError` on anything else. A bare dtype
+name gives its default instance: `deserialize_dtype("Datetime")` returns `Datetime(time_unit='us', time_zone=None)`.
 
 ## Why Serialization Matters
 

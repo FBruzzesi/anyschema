@@ -386,36 +386,54 @@ def test_parse_into_field_dtype_override_with_nullable() -> None:
     assert field.unique is True
 
 
-def test_parse_into_field_nested_optional_does_not_mutate_metadata() -> None:
-    metadata: dict[str, Any] = {}
-    make_pipeline().parse_into_field("x", Optional[list[Optional[int]]], (), metadata)
-    assert metadata == {}
-
-
 class MaybeInt:
     """A user type that a custom step parses as `int | None`."""
 
 
 class MaybeIntStep(ParserStep):
-    def __init__(self, *, set_nullable: bool) -> None:
-        self.set_nullable = set_nullable
+    """Parses `MaybeInt` as `int | None`, and writes `nullable` into the metadata unless it is `None`."""
+
+    def __init__(self, *, nullable: bool | None) -> None:
+        self.nullable = nullable
 
     def parse(self, input_type: FieldType, constraints: FieldConstraints, metadata: FieldMetadata) -> DType | None:
         if input_type is not MaybeInt:
             return None
-        if self.set_nullable:
-            set_anyschema_meta(metadata, key="nullable", value=True)
+        if self.nullable is not None:
+            set_anyschema_meta(metadata, key="nullable", value=self.nullable)
         return self.pipeline.parse(Optional[int], constraints, metadata, strict=True)
 
 
-@pytest.mark.parametrize("set_nullable", [True, False])
-def test_parse_into_field_custom_step_sets_nullable(*, set_nullable: bool) -> None:
-    pipeline = make_pipeline([MaybeIntStep(set_nullable=set_nullable), UnionTypeStep(), PyTypeStep()])
-    field = pipeline.parse_into_field("x", MaybeInt, (), {})
-    assert field == AnyField(name="x", dtype=nw.Int64(), nullable=set_nullable)
+@pytest.mark.parametrize(
+    ("py_type", "step_nullable", "expected_nullable"),
+    [
+        (MaybeInt, None, False),  # The step's `int | None` is not at the field level
+        (MaybeInt, True, True),
+        (Optional[MaybeInt], None, True),
+        (Optional[MaybeInt], False, False),  # A value the step writes beats the field-level `| None`
+    ],
+)
+def test_parse_into_field_custom_step_nullable(
+    py_type: Any, *, step_nullable: bool | None, expected_nullable: bool
+) -> None:
+    pipeline = make_pipeline([MaybeIntStep(nullable=step_nullable), UnionTypeStep(), PyTypeStep()])
+    field = pipeline.parse_into_field("x", py_type, (), {})
+    assert field == AnyField(name="x", dtype=nw.Int64(), nullable=expected_nullable)
 
 
-def test_parse_into_field_without_forward_ref_step_is_nullable() -> None:
+def test_parse_into_field_custom_step_write_does_not_leak_into_shared_metadata() -> None:
+    shared: dict[str, Any] = {"anyschema": {"unique": True}}
+    pipeline = make_pipeline([MaybeIntStep(nullable=True), UnionTypeStep(), PyTypeStep()])
+
+    maybe = pipeline.parse_into_field("maybe", MaybeInt, (), shared)
+    other = pipeline.parse_into_field("other", int, (), shared)
+
+    assert maybe.nullable is True
+    assert other.nullable is False
+    assert shared == {"anyschema": {"unique": True}}
+
+
+def test_parse_into_field_optional_string_annotation_without_forward_ref_step_is_nullable() -> None:
     pipeline = make_pipeline([UnionTypeStep(), PyTypeStep()])
     field = pipeline.parse_into_field("x", Optional["int"], (), {"anyschema": {"dtype": "Int32"}})
     assert field == AnyField(name="x", dtype=nw.Int32(), nullable=True)

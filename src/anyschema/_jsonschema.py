@@ -61,7 +61,9 @@ def inline_refs(schema: JsonSchema, root: JsonSchema, _expanding: tuple[str, ...
 
 
 def _inline_subschemas(value: Any, root: JsonSchema, expanding: tuple[str, ...]) -> Any:
-    """Inline refs in a subschema or a list of subschemas. Boolean subschemas are returned unchanged."""
+    """Inline refs in a subschema or a list of subschemas. The boolean subschema `true` becomes its equivalent `{}`."""
+    if value is True:
+        return {}
     if isinstance(value, Mapping):
         return inline_refs(value, root, expanding)
     if isinstance(value, list):

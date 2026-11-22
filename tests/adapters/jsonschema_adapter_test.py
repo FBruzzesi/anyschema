@@ -121,7 +121,8 @@ def test_jsonschema_adapter_same_ref_twice_is_not_a_cycle() -> None:
             {"type": "string", "description": "json", "anyschema": {"description": "explicit"}},
             {"anyschema": {"description": "explicit"}},
         ),
-        (True, {}),  # boolean subschema
+        (True, {}),  # boolean subschemas carry no metadata
+        (False, {}),
         # Nullable when the property's own schema allows `null`.
         ({"anyOf": [{"type": "integer"}, {"type": "null"}]}, {"anyschema": {"nullable": True}}),
         ({"oneOf": [{"type": "null"}, {"type": "integer"}]}, {"anyschema": {"nullable": True}}),

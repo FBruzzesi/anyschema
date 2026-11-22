@@ -22,6 +22,7 @@ from anyschema.parsers._base import ParserStep, parse_struct
 if TYPE_CHECKING:
     from narwhals.dtypes import DType
 
+    from anyschema.parsers._pipeline import ParserPipeline
     from anyschema.typing import FieldConstraints, FieldMetadata, FieldType
 
 # `IPv4Interface`/`IPv6Interface` subclass the `Address` types
@@ -69,8 +70,8 @@ class PyTypeStep(ParserStep):
             if issubclass(input_type, Flag):  # Members combine (`READ | WRITE`), so the values are unbounded.
                 return nw.Int64()
             if issubclass(input_type, Enum):
-                return self._parse_enum_values(
-                    [member.value for member in input_type], input_type, constraints, metadata
+                return parse_enum_values(
+                    self.pipeline, [member.value for member in input_type], input_type, constraints, metadata
                 )
             if issubclass(input_type, _STDLIB_STRING_TYPES):
                 return nw.String()
@@ -132,7 +133,7 @@ class PyTypeStep(ParserStep):
         if origin is Literal:
             # `parse_into_field` makes a field-level `Literal[..., None]` nullable.
             values = [value for value in get_args(input_type) if value is not None]
-            return self._parse_enum_values(values, input_type, constraints, metadata)
+            return parse_enum_values(self.pipeline, values, input_type, constraints, metadata)
 
         if origin in {dict, Mapping}:
             # For now, we treat dict[K, V] as an empty Struct
@@ -155,27 +156,42 @@ class PyTypeStep(ParserStep):
 
         return nw.List(inner_dtype)
 
-    def _parse_enum_values(
-        self, values: list[Any], source: FieldType, constraints: FieldConstraints, metadata: FieldMetadata
-    ) -> DType:
-        """Parse the values of an `Enum` or `Literal`.
 
-        Strings give an `Enum` dtype (Narwhals `Enum` categories must be strings), ints the smallest int dtype that
-        fits them, and any other type its own dtype.
+def parse_enum_values(
+    pipeline: ParserPipeline,
+    values: Sequence[Any],
+    source: FieldType,
+    constraints: FieldConstraints,
+    metadata: FieldMetadata,
+) -> DType:
+    """Parse the values of an `Enum`, a `Literal` or a JSON Schema `enum`/`const`.
 
-        Raises:
-            UnsupportedDTypeError: If there are no values, or they have more than one type.
-        """
-        value_types = {type(value) for value in values}
-        if len(value_types) != 1:
-            msg = (
-                f"Cannot infer a dtype for {source}: its values must be non-empty and of a single type. "
-                "Set the dtype explicitly with `{'anyschema': {'dtype': ...}}` metadata."
-            )
-            raise UnsupportedDTypeError(msg)
-        value_type = value_types.pop()
-        if value_type is str:
-            return nw.Enum(values)
-        if value_type is int:
-            return int_dtype_from_bounds(min(values), max(values))
-        return self.pipeline.parse(value_type, constraints=constraints, metadata=metadata)
+    Strings give an `Enum` dtype (Narwhals `Enum` categories must be strings), ints the smallest int dtype that
+    fits them, and any other type its own dtype. `None` is not special here: callers drop it first.
+
+    Arguments:
+        pipeline: The pipeline that parses the type of non-string, non-int values.
+        values: The values.
+        source: The type or schema the values come from, for the error message.
+        constraints: Constraints passed on to the pipeline.
+        metadata: Metadata passed on to the pipeline.
+
+    Returns:
+        The Narwhals dtype of the values.
+
+    Raises:
+        UnsupportedDTypeError: If there are no values, or they have more than one type.
+    """
+    value_types = {type(value) for value in values}
+    if len(value_types) != 1:
+        msg = (
+            f"Cannot infer a dtype for {source}: its values must be non-empty and of a single type. "
+            "Set the dtype explicitly with `{'anyschema': {'dtype': ...}}` metadata."
+        )
+        raise UnsupportedDTypeError(msg)
+    value_type = value_types.pop()
+    if value_type is str:
+        return nw.Enum(values)
+    if value_type is int:
+        return int_dtype_from_bounds(min(values), max(values))
+    return pipeline.parse(value_type, constraints=constraints, metadata=metadata)

@@ -311,8 +311,11 @@ Local `$ref`s (including a root `$ref`), nested objects, arrays, enums and integ
 
     - `Decimal` fields are emitted as `anyOf: [number, string]`, without `max_digits`/`decimal_places`. `anyschema`
         reads that union as a `Decimal` with default precision, and reads a `float | str` field the same way.
-    - Non-string `Literal`/`Enum` values become their scalar dtype (e.g. `Int64`), since a Narwhals `Enum` only holds
-        strings.
+    - `IntFlag` fields are emitted as their member values (`enum: [1, 2]`), so they get the smallest int dtype that
+        fits them instead of `Int64`. That holds any combination of members, but not the arbitrary ints that `IntFlag`
+        accepts on Python 3.11+.
+    - `Literal[1, 2.5]` is emitted as `enum: [1, 2.5]`, which becomes `Float64`, as JSON does not tell `1` from
+        `1.0`. The model itself raises `UnsupportedDTypeError` for mixed value types.
     - `AwareDatetime` is emitted as a plain `date-time` string, so it becomes a `Datetime` without time zone instead
         of raising. Set `time_zone` through `json_schema_extra={"anyschema": {...}}` to keep it.
     - A self-referencing model raises `UnsupportedDTypeError`, unless the recursion only goes through `dict` values

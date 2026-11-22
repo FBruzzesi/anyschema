@@ -14,6 +14,7 @@ from anyschema._metadata import get_anyschema_value_by_key, set_anyschema_meta
 from anyschema._utils import INT64_MIN, UINT64_MAX, int_dtype_from_bounds
 from anyschema.exceptions import UnsupportedDTypeError
 from anyschema.parsers._base import ParserStep
+from anyschema.parsers._builtin import parse_enum_values
 
 if TYPE_CHECKING:
     from narwhals.dtypes import DType
@@ -30,13 +31,6 @@ _PY_TYPE_BY_STRING_FORMAT: Final[Mapping[str, type]] = {
     "time": time,
     "duration": timedelta,
     "binary": bytes,
-}
-
-_PY_TYPE_BY_ENUM_VALUE_TYPES: Final[Mapping[frozenset[type], type]] = {
-    frozenset({bool}): bool,
-    frozenset({int}): int,
-    frozenset({float}): float,
-    frozenset({int, float}): float,
 }
 
 _ANNOTATION_KEYWORDS: Final = frozenset(
@@ -57,7 +51,9 @@ class JsonSchemaStep(ParserStep):
         for `tuple[int, int]`).
     - `integer` bounds (`minimum`, `maximum`, `exclusiveMinimum`, `exclusiveMaximum`) pick the smallest integer dtype
         that fits, e.g. `{"type": "integer", "exclusiveMinimum": 0}` becomes `UInt64`.
-    - String `enum`/`const` values become an `Enum`, other values the dtype of their Python type.
+    - `enum`/`const` values follow the same rule as `Enum` and `Literal`: strings give an `Enum`, ints the smallest
+        int dtype that fits them, other values the dtype of their Python type, and mixed types raise. One exception:
+        a mix of ints and floats gives `Float64`, as JSON does not tell `1` from `1.0`.
     - A `null` branch in `anyOf`/`oneOf`, or `"null"` in a `type` list, marks the field nullable. Keywords next to
         `anyOf`/`oneOf`/`allOf` apply to every branch. `anyOf: [number, string]` becomes `Decimal`, as Pydantic emits
         it for `Decimal` fields. Other unions of different types are rejected.
@@ -91,9 +87,9 @@ class JsonSchemaStep(ParserStep):
         if (branches := _union_branches(schema)) is not None:
             return self._parse_union(branches, constraints, metadata)
         if "const" in schema:
-            return self._parse_enum([schema["const"]], metadata)
+            return self._parse_enum([schema["const"]], schema, constraints, metadata)
         if "enum" in schema:
-            return self._parse_enum(schema["enum"], metadata)
+            return self._parse_enum(schema["enum"], schema, constraints, metadata)
 
         json_type = schema.get("type", "object" if "properties" in schema else None)
         if json_type is None:
@@ -132,15 +128,16 @@ class JsonSchemaStep(ParserStep):
         msg = "Union with mixed types is not supported."
         raise UnsupportedDTypeError(msg)
 
-    def _parse_enum(self, values: Sequence[Any], metadata: FieldMetadata) -> DType:
+    def _parse_enum(
+        self, values: Sequence[Any], schema: JsonSchema, constraints: FieldConstraints, metadata: FieldMetadata
+    ) -> DType:
         non_null_values = [value for value in values if value is not None]
         if len(non_null_values) < len(values):
             _mark_nullable(metadata)
-        value_types = frozenset(type(value) for value in non_null_values)
-        if value_types == frozenset({str}):
-            return nw.Enum(non_null_values)
-        # Narwhals `Enum` categories must be strings.
-        return self.pipeline.parse(_PY_TYPE_BY_ENUM_VALUE_TYPES.get(value_types, object), (), metadata)
+        # JSON does not tell `1` from `1.0`. `type`, not `isinstance`: `bool` is an `int` and `[1, true]` must raise.
+        if {type(value) for value in non_null_values} == {int, float}:
+            non_null_values = [float(value) for value in non_null_values]
+        return parse_enum_values(self.pipeline, non_null_values, schema, constraints, metadata)
 
     def _parse_array(self, schema: JsonSchema, constraints: FieldConstraints, metadata: FieldMetadata) -> DType:
         if prefix_items := schema.get("prefixItems"):

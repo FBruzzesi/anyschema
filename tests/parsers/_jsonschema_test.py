@@ -78,16 +78,23 @@ def test_jsonschema_step_integer_bounds(pipeline: ParserPipeline, schema: dict[s
     [
         ({"enum": ["a", "b"]}, nw.Enum(["a", "b"])),
         ({"const": "a"}, nw.Enum(["a"])),
-        ({"enum": [1, 2]}, nw.Int64()),
-        ({"enum": [1, 2.5]}, nw.Float64()),
+        ({"enum": [1, 2]}, nw.UInt8()),
+        ({"const": 5}, nw.UInt8()),
+        ({"const": -1}, nw.Int8()),
+        ({"enum": [1, 2.5]}, nw.Float64()),  # JSON does not tell `1` from `1.0`
         ({"enum": [True, False]}, nw.Boolean()),
-        ({"enum": [1, "a"]}, nw.Object()),
-        ({"enum": [[1], [2]]}, nw.Object()),
-        ({"enum": [None]}, nw.Object()),
+        ({"enum": [[1], [2]]}, nw.List(nw.Object())),
+        ({"enum": ["a", None]}, nw.Enum(["a"])),
     ],
 )
 def test_jsonschema_step_enum_const(pipeline: ParserPipeline, schema: dict[str, Any], expected: DType) -> None:
     assert pipeline.parse(schema, (), {}) == expected
+
+
+@pytest.mark.parametrize("values", [(1, "a"), (1, True), (None,), ()])
+def test_jsonschema_step_enum_mixed_or_empty_raises(pipeline: ParserPipeline, values: tuple[Any, ...]) -> None:
+    with pytest.raises(UnsupportedDTypeError, match="non-empty and of a single type"):
+        pipeline.parse({"enum": list(values)}, (), {})
 
 
 @pytest.mark.parametrize(
@@ -96,7 +103,6 @@ def test_jsonschema_step_enum_const(pipeline: ParserPipeline, schema: dict[str, 
         {"anyOf": [{"type": "integer"}, {"type": "null"}]},
         {"oneOf": [{"type": "null"}, {"type": "integer"}]},
         {"type": ["integer", "null"]},
-        {"enum": [1, None]},
     ],
 )
 def test_jsonschema_step_nullable(pipeline: ParserPipeline, schema: dict[str, Any]) -> None:

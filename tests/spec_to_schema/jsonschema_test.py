@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from decimal import Decimal  # noqa: TC003 (pydantic resolves annotations at runtime)
-from enum import Enum
+from enum import Enum, IntEnum
 from importlib.metadata import version
 from typing import Any, Literal, Mapping
 
@@ -90,8 +90,8 @@ def test_mixed_union_is_rejected() -> None:
 @pytest.mark.parametrize(
     ("json_schema", "expected_dtype"),
     [
-        ({"enum": [1, 2, 3]}, nw.Int64()),
-        ({"const": 5}, nw.Int64()),
+        ({"enum": [1, 2, 3]}, nw.UInt8()),
+        ({"const": 5}, nw.UInt8()),
         ({"enum": [1.5, 2.5]}, nw.Float64()),
         ({"enum": [True, False]}, nw.Boolean()),
     ],
@@ -167,6 +167,16 @@ class _RoundTripColor(str, Enum):
     BLUE = "blue"
 
 
+class _RoundTripStatus(IntEnum):
+    OK = 200
+    NOT_FOUND = 404
+
+
+class _RoundTripLevel(Enum):
+    LOW = -1
+    HIGH = 1
+
+
 class _RoundTripModel(BaseModel):
     """Exercises the nested-constraint, list-of-constrained, enum and optional paths together."""
 
@@ -179,6 +189,9 @@ class _RoundTripModel(BaseModel):
     pair: tuple[int, int]
     maybe_address: _RoundTripAddress | None
     color: _RoundTripColor
+    status: _RoundTripStatus
+    level: _RoundTripLevel
+    odd: Literal[1, 3]
     price: Decimal
     maybe_price: Decimal | None
     retries: int = 5
@@ -219,6 +232,17 @@ def test_pydantic_json_schema_round_trip(model: type[BaseModel]) -> None:
     from_model = AnySchema(spec=model)
     from_json = AnySchema(spec=model.model_json_schema())
     assert from_json == from_model
+
+
+class _MixedLiteral(BaseModel):
+    x: Literal[1, "a"]
+
+
+def test_mixed_type_literal_raises_from_model_and_json_schema() -> None:
+    with pytest.raises(UnsupportedDTypeError, match="single type"):
+        AnySchema(spec=_MixedLiteral)
+    with pytest.raises(UnsupportedDTypeError, match="single type"):
+        AnySchema(spec=_MixedLiteral.model_json_schema())
 
 
 class _RecursiveNode(BaseModel):

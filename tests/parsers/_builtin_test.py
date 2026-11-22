@@ -157,16 +157,6 @@ def test_parse_enum_values_without_single_type_raises(py_type_parser: PyTypeStep
         py_type_parser.parse(input_type, (), {})
 
 
-@pytest.mark.parametrize(("explicit_nullable", "expected"), [(None, True), (False, False)])
-def test_literal_with_none_is_nullable(
-    auto_pipeline: ParserPipeline, *, explicit_nullable: bool | None, expected: bool
-) -> None:
-    metadata = {} if explicit_nullable is None else {"anyschema": {"nullable": explicit_nullable}}
-    field = auto_pipeline.parse_into_field("size", Literal["S", None], (), metadata)  # noqa: PYI061
-    assert field.dtype == nw.Enum(["S"])
-    assert field.nullable is expected
-
-
 @pytest.mark.parametrize(("input_type", "expected"), [(int, nw.Int64()), (list[int], nw.List(nw.Int64()))])
 def test_parse_with_metadata(py_type_parser: PyTypeStep, input_type: Any, expected: nw.dtypes.DType) -> None:
     result = py_type_parser.parse(input_type, constraints=("some", "constraints"), metadata={"key": "value"})

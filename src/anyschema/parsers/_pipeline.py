@@ -10,7 +10,7 @@ from typing_extensions import Self, TypeIs
 from anyschema._dependencies import ANNOTATED_TYPES_AVAILABLE, ATTRS_AVAILABLE, PYDANTIC_AVAILABLE, SQLALCHEMY_AVAILABLE
 from anyschema._metadata import filter_anyschema_metadata, get_anyschema_value_by_key
 from anyschema._utils import qualified_type_name
-from anyschema.parsers._annotated import AnnotatedStep
+from anyschema.parsers._annotated import AnnotatedStep, field_contains_none
 from anyschema.parsers._base import ParserStep
 from anyschema.parsers._builtin import PyTypeStep
 from anyschema.parsers._forward_ref import ForwardRefStep
@@ -246,24 +246,24 @@ class ParserPipeline:
         constraints: FieldConstraints,
         metadata: FieldMetadata,
     ) -> AnyField:
-        """Parse a field specification into a AnyField object.
+        """Parse a field specification into an [`AnyField`][anyschema.AnyField].
 
-        This is the recommended method for parsing field specifications at the top level.
-        It wraps the DType parsing with additional field-level information like nullability,
-        uniqueness, and custom metadata.
+        Unlike [`parse`][anyschema.parsers.ParserPipeline.parse], it also sets the field-level information:
+        nullability, uniqueness, description and custom metadata.
 
-        Parsing fills field-level metadata into a copy of `metadata` (e.g. `UnionTypeStep` sets
-        `{"anyschema": {"nullable": True}}` for `Optional[T]`), so forward references are resolved before
-        nullability is read. The caller's dict, and any nested dict it holds, is never modified.
+        `nullable` comes from the metadata if set and not `None`. Otherwise the field is nullable if its field-level
+        type contains `None`: the `Annotated` layers, optionally wrapped in a single `| None` (or a `Literal` with a
+        `None` value), with forward references resolved by the pipeline's `ForwardRefStep`. This holds with or without
+        a `dtype` override. `list[T | None]` is not nullable, only its elements are.
 
         Arguments:
             name: The name of the field.
             input_type: The type to parse.
             constraints: Constraints associated with the type.
-            metadata: Custom metadata dictionary. It is not modified, so one dict may be shared across fields.
+            metadata: The field metadata. It is not modified, so one dict may be shared across fields.
 
         Returns:
-            A [`AnyField`][anyschema.AnyField] instance containing the parsed dtype and field-level metadata.
+            The parsed field.
 
         Examples:
             >>> from anyschema.parsers import make_pipeline
@@ -272,22 +272,20 @@ class ParserPipeline:
             >>> field
             AnyField(name='age', dtype=Int64, nullable=False, unique=False, description=None, metadata={})
 
-            With nullable=True metadata:
-
-            >>> field = pipeline.parse_into_field("email", str, (), {"anyschema": {"nullable": True}})
-            >>> field.nullable
-            True
-
-            With Optional type (auto-detected as nullable):
-
             >>> from typing import Optional
-            >>> field = pipeline.parse_into_field("email", Optional[str], (), {})
-            >>> field.nullable
+            >>> pipeline.parse_into_field("email", Optional[str], (), {}).nullable
             True
+            >>> pipeline.parse_into_field("email", Optional[str], (), {"anyschema": {"nullable": False}}).nullable
+            False
+            >>> pipeline.parse_into_field("tags", list[Optional[str]], (), {}).nullable
+            False
         """
         from anyschema._anyschema import AnyField
 
-        # Steps write into `metadata` (e.g. `nullable` for Optional), so work on a copy.
+        forward_ref_step = next((step for step in self.steps if isinstance(step, ForwardRefStep)), None)
+        contains_none = field_contains_none(input_type, forward_ref_step.resolve if forward_ref_step else None)
+
+        # Custom steps may write into `metadata` (e.g. `nullable`), so work on a copy.
         metadata = dict(metadata)
         if (into_dtype := get_anyschema_value_by_key(metadata, key="dtype")) is not None:
             if isinstance(into_dtype, DType):
@@ -303,10 +301,12 @@ class ParserPipeline:
         else:
             dtype = self.parse(input_type, constraints, metadata, strict=True)
 
+        # Read after parsing, since a custom step may set it.
+        explicit_nullable = get_anyschema_value_by_key(metadata, key="nullable")
         return AnyField(
             name=name,
             dtype=dtype,
-            nullable=get_anyschema_value_by_key(metadata, key="nullable", default=False),
+            nullable=contains_none if explicit_nullable is None else explicit_nullable,
             unique=get_anyschema_value_by_key(metadata, key="unique", default=False),
             description=get_anyschema_value_by_key(metadata, key="description"),
             metadata=filter_anyschema_metadata(metadata),

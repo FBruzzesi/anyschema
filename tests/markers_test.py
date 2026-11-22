@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import FrozenInstanceError
-from typing import Annotated, Any, Optional, Union
+from typing import Annotated, Any, ForwardRef, Optional, Union
 
 import narwhals as nw
 import pytest
@@ -9,6 +9,7 @@ from annotated_types import Gt
 
 from anyschema import WithAnySchema
 from anyschema.exceptions import UnsupportedDTypeError
+from anyschema.parsers import ForwardRefStep
 from anyschema.parsers._annotated import field_contains_none, split_field_markers
 
 
@@ -118,3 +119,25 @@ def test_split_field_markers(
 def test_split_field_markers_returns_input_unchanged_without_markers() -> None:
     tp = int | None
     assert split_field_markers(tp)[0] is tp
+
+
+REF = ForwardRef("Annotated[int, WithAnySchema(dtype='Int32')]")
+INT_REF = ForwardRef("int")
+
+
+@pytest.mark.parametrize(
+    ("tp", "expected_type", "expected_markers"),
+    [
+        (REF, int, (D,)),
+        (Optional[REF], Optional[int], (D,)),  # pyrefly: ignore[not-a-type]
+        (Annotated[REF, A], int, (D, A)),  # pyrefly: ignore[not-a-type]
+        (Optional[INT_REF], Optional[int], ()),  # pyrefly: ignore[not-a-type]
+        (ForwardRef("Missing"), ForwardRef("Missing"), ()),
+    ],
+)
+def test_split_field_markers_resolves_field_level_forward_refs(
+    tp: Any, expected_type: Any, expected_markers: tuple[Any, ...]
+) -> None:
+    result_type, markers = split_field_markers(tp, ForwardRefStep().resolve)
+    assert result_type == expected_type
+    assert markers == expected_markers

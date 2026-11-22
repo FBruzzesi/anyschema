@@ -944,8 +944,8 @@ Deeper than that, e.g. inside `list[...]` or in the fields of a nested model, da
 * A marker setting anything other than `dtype` raises a `NotImplementedError`, since nested elements have no field
     metadata.
 
-A field type that is still a forward reference (a string annotation) when anyschema reads it is resolved first, with
-the namespace of the pipeline's `ForwardRefStep`, so the same placement rules apply inside it.
+Forward references (string annotations) at the field level are resolved first, with the namespace of the pipeline's
+`ForwardRefStep`, so the same placement rules apply inside them.
 
 ```python exec="true" source="above" result="python" session="annotated-markers-nested"
 from typing import Annotated

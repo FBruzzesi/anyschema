@@ -241,6 +241,14 @@ def test_forward_ref_markers_are_field_level(annotation: str, expected: AnyField
     assert field_of({"x": ForwardRef(annotation)}) == expected
 
 
+def test_nested_forward_ref_markers_are_field_level() -> None:
+    ref = ForwardRef("Annotated[int, WithAnySchema(unique=True)]")
+    optional_type = Optional[ref]  # type: ignore[valid-type]  # pyrefly: ignore[not-a-type]
+    annotated_type = Annotated[ref, WithAnySchema(description="d")]  # type: ignore[valid-type]  # pyrefly: ignore[not-a-type]
+    assert field_of({"x": optional_type}) == AnyField(name="x", dtype=nw.Int64(), nullable=True, unique=True)
+    assert field_of({"x": annotated_type}) == AnyField(name="x", dtype=nw.Int64(), unique=True, description="d")
+
+
 def test_unresolvable_forward_ref_with_spec_dtype_override() -> None:
     # The spec's own `dtype` skips parsing, so an unresolvable forward ref does not raise.
     field = make_pipeline().parse_into_field("x", ForwardRef("Missing"), (), {"anyschema": {"dtype": "Int32"}})

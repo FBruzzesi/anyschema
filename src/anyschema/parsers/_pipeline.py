@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-from contextlib import suppress
 from functools import cache
 from itertools import chain
 from types import GenericAlias
-from typing import TYPE_CHECKING, ForwardRef, Literal, cast, overload
+from typing import TYPE_CHECKING, Literal, cast, overload
 
 from typing_extensions import Self
 
@@ -260,13 +259,12 @@ class ParserPipeline:
 
         `nullable` is the metadata value if it is set and not `None`, read after parsing so a custom step can set it.
         Otherwise the field is nullable when its field-level type contains `None`, with or without a `dtype` override:
-        `T | None` and `Literal[..., None]` are nullable, `list[T | None]` is not. Forward references are resolved with
-        the pipeline's `ForwardRefStep`.
+        `T | None` and `Literal[..., None]` are nullable, `list[T | None]` is not.
 
         Field-level [`WithAnySchema`][anyschema.WithAnySchema] markers (in the `Annotated` layers of `input_type`,
         optionally wrapped in a single `| None`) are merged into `metadata` in order, the last value winning per key.
-        If `input_type` is a `ForwardRef`, the pipeline's `ForwardRefStep` resolves it first, so that markers inside it
-        are field level too.
+        Field-level forward references are resolved first with the pipeline's `ForwardRefStep`, so markers inside them
+        count as field level too.
 
         Arguments:
             name: The name of the field.
@@ -307,13 +305,8 @@ class ParserPipeline:
             raise ValueError(msg)
 
         forward_ref_step = next((step for step in self.steps if isinstance(step, ForwardRefStep)), None)
-        if isinstance(input_type, ForwardRef) and forward_ref_step is not None:
-            # Resolve first so that markers inside string annotations are field level. On failure, keep the
-            # unresolved type: it only raises if it needs parsing (a `dtype` override skips that).
-            with suppress(NotImplementedError, SyntaxError):  # `SyntaxError`: a malformed ref on Python 3.14+
-                input_type = forward_ref_step.resolve(input_type)
-
-        input_type, markers = split_field_markers(input_type)
+        # An unresolvable ref stays as is: it only raises if it needs parsing, which a `dtype` override skips.
+        input_type, markers = split_field_markers(input_type, forward_ref_step.resolve if forward_ref_step else None)
         if markers:
             metadata = merge_field_markers(name, metadata, markers)
 
@@ -331,7 +324,7 @@ class ParserPipeline:
 
         nullable = get_anyschema_value_by_key(metadata, key="nullable")
         if nullable is None:
-            nullable = field_contains_none(input_type, forward_ref_step.resolve if forward_ref_step else None)
+            nullable = field_contains_none(input_type)
         return AnyField(
             name=name,
             dtype=dtype,

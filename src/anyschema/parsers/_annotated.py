@@ -18,15 +18,26 @@ if TYPE_CHECKING:
     from anyschema.typing import FieldConstraints, FieldMetadata, FieldType
 
 
-def split_field_markers(input_type: FieldType) -> tuple[FieldType, tuple[WithAnySchema, ...]]:
-    """Split the field-level `Annotated` markers off a field type.
+def split_field_markers(
+    input_type: FieldType,
+    resolve_forward_ref: Callable[[ForwardRef], FieldType] | None = None,
+    *,
+    inside_optional: bool = False,
+) -> tuple[FieldType, tuple[WithAnySchema, ...]]:
+    """Split the field-level `WithAnySchema` markers off a field type.
 
-    Field-level markers sit in the `Annotated` layers of the type, optionally wrapped in a single `T | None`. Deeper
-    markers (e.g. inside `list[...]`) stay in place for `AnnotatedStep`.
+    The field level is the `Annotated` layers of the type, optionally wrapped in a single `T | None`. Deeper markers
+    (e.g. inside `list[...]`) stay in place for `AnnotatedStep`. Field-level forward references are resolved with
+    `resolve_forward_ref`; one that fails to resolve is kept as is.
+
+    Arguments:
+        input_type: The field type.
+        resolve_forward_ref: Resolves forward references. `None` leaves them unresolved.
+        inside_optional: Whether a `| None` layer was already crossed. A second one is not field level.
 
     Returns:
-        A tuple of `(type without field-level markers, markers innermost first)`. The stripped type keeps its
-        field-level `None`. The input type is returned unchanged when it has no field-level markers.
+        The type without field-level markers, which keeps its `| None`, and the markers, innermost first. The input
+        type itself when there is nothing to strip or resolve.
 
     Examples:
         >>> from typing import Annotated, Optional
@@ -36,45 +47,40 @@ def split_field_markers(input_type: FieldType) -> tuple[FieldType, tuple[WithAny
         >>> input_type == Optional[int], markers
         (True, (WithAnySchema(unique=True),))
     """
-    return _split_field_markers(input_type, inside_optional=False)
+    if isinstance(input_type, ForwardRef) and resolve_forward_ref is not None:
+        try:
+            resolved_type = resolve_forward_ref(input_type)
+        except (NotImplementedError, SyntaxError):  # `SyntaxError`: a malformed ref, raised here on Python 3.14+
+            return input_type, ()  # shortcut: hides the `None` of an unresolvable ref, set `nullable` explicitly then
+        return split_field_markers(resolved_type, resolve_forward_ref, inside_optional=inside_optional)
 
-
-def _split_field_markers(
-    input_type: FieldType, *, inside_optional: bool
-) -> tuple[FieldType, tuple[WithAnySchema, ...]]:
     if get_origin(input_type) is Annotated:
         base_type, *extras = get_args(input_type)
-        inner_type, inner_markers = _split_field_markers(base_type, inside_optional=inside_optional)
+        inner_type, inner_markers = split_field_markers(base_type, resolve_forward_ref, inside_optional=inside_optional)
         markers, other_extras = partition_markers(extras)
-        if not (markers or inner_markers):
+        if not markers and inner_type is base_type:
             return input_type, ()
         stripped_type = Annotated[(inner_type, *other_extras)] if other_extras else inner_type  # pyrefly: ignore[not-a-type]
         return stripped_type, (*inner_markers, *markers)
 
     args = get_args(input_type)
-    # Only the first `| None` layer is field level: stop at a second one.
     if not inside_optional and is_union_type(input_type) and len(args) == 2 and NoneType in args:  # noqa: PLR2004
         (non_none_type,) = (arg for arg in args if arg is not NoneType)
-        inner_type, markers = _split_field_markers(non_none_type, inside_optional=True)
-        # `Union[...]` rather than `|`, which fails on ForwardRef
-        stripped_type = Union[(inner_type, None)] if markers else input_type  # noqa: UP007  # pyrefly: ignore[not-a-type]
-        return stripped_type, markers
+        inner_type, markers = split_field_markers(non_none_type, resolve_forward_ref, inside_optional=True)
+        if inner_type is non_none_type:
+            return input_type, ()
+        # `Union[...]` because `|` fails on a `ForwardRef`
+        return Union[(inner_type, None)], markers  # noqa: UP007  # pyrefly: ignore[not-a-type]
 
     return input_type, ()
 
 
-def field_contains_none(
-    input_type: FieldType, resolve_forward_ref: Callable[[ForwardRef], FieldType] | None = None
-) -> bool:
+def field_contains_none(input_type: FieldType) -> bool:
     """Whether the field-level type contains `None`.
 
     The field level is the `Annotated` layers and the first union or `Literal` they wrap: `T | None` and
-    `Literal[..., None]` count, the elements of `list[T | None]` do not.
-
-    Arguments:
-        input_type: The field type.
-        resolve_forward_ref: Resolves forward references at the field level. An unresolvable one counts as not
-            containing `None`.
+    `Literal[..., None]` count, the elements of `list[T | None]` do not. A forward reference counts as not containing
+    `None`: resolve it first with [`split_field_markers`][anyschema.parsers._annotated.split_field_markers].
 
     Examples:
         >>> from typing import Annotated, Literal, Optional
@@ -84,13 +90,7 @@ def field_contains_none(
         False
     """
     if get_origin(input_type) is Annotated:
-        return field_contains_none(get_args(input_type)[0], resolve_forward_ref)
-    if isinstance(input_type, ForwardRef) and resolve_forward_ref is not None:
-        try:
-            resolved_type = resolve_forward_ref(input_type)
-        except (NotImplementedError, SyntaxError):  # `SyntaxError`: a malformed ref, raised here on Python 3.14+
-            return False  # shortcut: hides the `None` of an unresolvable ref, set `nullable` explicitly then
-        return field_contains_none(resolved_type, resolve_forward_ref)
+        return field_contains_none(get_args(input_type)[0])
     if is_union_type(input_type):
         return NoneType in get_args(input_type)
     return get_origin(input_type) is Literal and None in get_args(input_type)

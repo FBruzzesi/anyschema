@@ -4,10 +4,9 @@ from collections.abc import Mapping, Sequence
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 from math import ceil, floor
-from typing import TYPE_CHECKING, Any, Final
+from typing import TYPE_CHECKING, Any, Final, TypeGuard
 
 import narwhals as nw
-from typing_extensions import TypeIs
 
 from anyschema._jsonschema import extract_field_metadata, union_branches
 from anyschema._utils import INT64_MIN, UINT64_MAX, int_dtype_from_bounds
@@ -170,5 +169,6 @@ def _integer_bounds(schema: JsonSchema) -> tuple[int, int] | None:
     return None if (lower, upper) == (INT64_MIN, UINT64_MAX) else (lower, upper)
 
 
-def _is_number(value: object) -> TypeIs[int | float]:
+# `TypeGuard`, not `TypeIs`: a `bool` is an `int` but returns False, so `TypeIs` would wrongly narrow on False.
+def _is_number(value: object) -> TypeGuard[int | float]:
     return isinstance(value, (int, float)) and not isinstance(value, bool)

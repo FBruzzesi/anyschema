@@ -79,7 +79,8 @@ def is_into_ordered_dict(obj: object) -> TypeIs[IntoOrderedDict]:
     )
 
 
-def is_jsonschema(obj: object) -> TypeIs[JsonSchema]:
+# `TypeGuard`, not `TypeIs`: most mappings are not JSON Schema objects, so `TypeIs` would wrongly narrow on False.
+def is_jsonschema(obj: object) -> TypeGuard[JsonSchema]:
     """Check if the object looks like a JSON Schema object.
 
     That is a mapping with either a `"properties"` mapping and `"type": "object"` (or no `type`), or a root `"$ref"`

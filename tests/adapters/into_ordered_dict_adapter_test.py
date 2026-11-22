@@ -21,3 +21,9 @@ def test_into_ordered_dict_adapter(spec: IntoOrderedDict) -> None:
     expected: tuple[FieldSpec, ...] = (("name", str, (), {}), ("age", int, (), {}))
     result = tuple(into_ordered_dict_adapter(spec))
     assert result == expected
+
+
+def test_into_ordered_dict_adapter_duplicate_names_raises() -> None:
+    spec = [("a", int), ("b", str), ("a", str), ("b", int), ("c", int)]
+    with pytest.raises(ValueError, match=r"Duplicate field names in spec: 'a', 'b'"):
+        list(into_ordered_dict_adapter(spec))

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from collections import OrderedDict
+from collections import Counter
+from collections.abc import Mapping
 from dataclasses import fields as dc_fields
 from typing import TYPE_CHECKING, Literal
 
@@ -43,6 +44,9 @@ def into_ordered_dict_adapter(spec: IntoOrderedDict) -> FieldSpecIterable:
         A tuple of `(field_name, field_type, constraints, metadata)` for each field.
         Both constraints and metadata are always empty for this adapter.
 
+    Raises:
+        ValueError: If a sequence spec repeats a field name.
+
     Examples:
         >>> list(into_ordered_dict_adapter({"name": str, "age": int}))
         [('name', <class 'str'>, (), {}), ('age', <class 'int'>, (), {})]
@@ -50,7 +54,13 @@ def into_ordered_dict_adapter(spec: IntoOrderedDict) -> FieldSpecIterable:
         >>> list(into_ordered_dict_adapter([("age", int), ("name", str)]))
         [('age', <class 'int'>, (), {}), ('name', <class 'str'>, (), {})]
     """
-    for field_name, field_type in OrderedDict(spec).items():
+    name_to_type = dict(spec)
+    if not isinstance(spec, Mapping) and len(name_to_type) < len(spec):
+        counts = Counter(name for name, _ in spec)
+        duplicates = ", ".join(f"'{name}'" for name, count in counts.items() if count > 1)
+        msg = f"Duplicate field names in spec: {duplicates}."
+        raise ValueError(msg)
+    for field_name, field_type in name_to_type.items():
         yield field_name, field_type, (), {}
 
 

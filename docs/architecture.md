@@ -232,9 +232,17 @@ The pipeline processes this as:
 2. `AnnotatedStep` extracts constraints: `(Gt(gt=0),)` and passes through
 3. `AnnotatedTypesStep` refines based on constraints and converts to `UInt64` (instead of `Int64`)
 
-Steps may write field-level keys into `metadata`, e.g. `UnionTypeStep` sets `nullable` for `Optional[T]`.
+Custom steps may write field-level keys into `metadata`, e.g. `nullable` (see [Nullability](#nullability)).
 `parse_into_field` hands the steps a shallow copy of the field metadata, and the nested `anyschema` dict is replaced
 rather than edited, so the user's spec is never modified and fields that share one metadata dict stay independent.
+
+### Nullability
+
+`ParserPipeline.parse_into_field` sets `AnyField.nullable` from the `nullable` metadata key, read after parsing. If the
+key is missing or `None`, the field is nullable when its field-level type contains `None`: the `Annotated` layers,
+optionally wrapped in a single `| None` (or a `Literal` with a `None` value), with forward references resolved by the
+pipeline's `ForwardRefStep`. The built-in steps never set the key: `UnionTypeStep` and `PyTypeStep` also parse nested
+types, and the `| None` in `list[T | None]` belongs to the elements, not the field. A custom step may still set it.
 
 ## Recursion and Nested Types
 
@@ -319,7 +327,7 @@ Complete processing flow:
         * `AnnotatedTypesStep`: No metadata -> returns `None`
         * `PydanticTypeStep`: Not a Pydantic type -> returns `None`
         * `PyTypeStep`: `list[str]` -> recursively parse `str` (within the generic) -> returns `List(String())`
-        * **Result**: `List(String())` (nullable)
+        * **Result**: `List(String())`, and `parse_into_field` marks the field nullable (field-level `| None`)
 
 5. Final Schema:
 

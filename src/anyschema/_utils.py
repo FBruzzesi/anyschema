@@ -1,9 +1,11 @@
 # ruff: noqa: T201
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Final
+from types import UnionType
+from typing import TYPE_CHECKING, Any, Final, Union
 
 import narwhals as nw
+from typing_extensions import get_origin  # noqa: UP035
 
 if TYPE_CHECKING:
     from narwhals.dtypes import IntegerType, SignedIntegerType, UnsignedIntegerType
@@ -26,6 +28,11 @@ INT_RANGES: Final[dict[SignedIntegerType, tuple[int, int]]] = {
 
 INT64_MIN: Final[int] = -9_223_372_036_854_775_808
 UINT64_MAX: Final[int] = 18_446_744_073_709_551_615
+
+
+def is_union_type(tp: object) -> bool:
+    """Whether `tp` is a union type: `X | Y`, `Union[X, Y]` or `Optional[X]`."""
+    return get_origin(tp) is Union or isinstance(tp, UnionType)
 
 
 def int_dtype_from_bounds(lower_bound: int, upper_bound: int) -> IntegerType:

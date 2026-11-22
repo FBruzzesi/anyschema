@@ -90,7 +90,7 @@ class AnySchemaMetadata(TypedDict, total=False):
     Attributes:
         description: Human-readable description of the field.
         dtype: Narwhals DType (or its serialized/string representation)
-        nullable: Whether the field can contain null values.
+        nullable: Whether the field can contain null values. `None` means unset: nullability follows the type.
         precision: Total number of digits for decimal fields.
         scale: Number of digits after decimal point for decimal fields.
         time_zone: Timezone for datetime fields (e.g., "UTC", "Europe/Berlin").
@@ -104,7 +104,7 @@ class AnySchemaMetadata(TypedDict, total=False):
 
     description: str | None
     dtype: str | DType
-    nullable: bool
+    nullable: bool | None
     precision: int
     scale: int
     time_zone: str

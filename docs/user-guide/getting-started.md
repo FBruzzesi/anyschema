@@ -276,6 +276,7 @@ One of the key features of `anyschema` is accurate nullability tracking:
 
 * When you declare a field as `str`, it's non-nullable.
 * When you declare it as `str | None` (or `Optional[str]`), it's nullable.
+* When you declare it as `list[str | None]`, it's non-nullable: only its elements can be null.
 
 This distinction is especially valuable when working with PyArrow, which supports `not null` constraints:
 
@@ -514,7 +515,8 @@ schema = AnySchema(
 print(schema.to_polars())
 ```
 
-A `None` value makes the field nullable: `Literal["S", "M", None]` works like `Optional[Literal["S", "M"]]`.
+A `None` value makes the field nullable: `Literal["S", "M", None]` works like `Optional[Literal["S", "M"]]`. This
+holds at the field level only: `list[Literal["S", None]]` is not nullable, only its elements are.
 
 An `Enum` or `Literal` whose values mix types (`Literal["a", 1]`) raises `UnsupportedDTypeError`. Set the dtype
 explicitly with `{"anyschema": {"dtype": ...}}` field metadata (see [metadata](metadata.md)).

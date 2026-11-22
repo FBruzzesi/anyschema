@@ -13,7 +13,7 @@ import narwhals as nw
 from typing_extensions import get_args, get_origin, get_type_hints  # noqa: UP035
 
 from anyschema._dependencies import is_dataclass, is_typed_dict
-from anyschema._metadata import get_anyschema_value_by_key, set_anyschema_meta
+from anyschema._metadata import get_anyschema_value_by_key
 from anyschema._utils import int_dtype_from_bounds
 from anyschema.adapters import dataclass_adapter
 from anyschema.exceptions import UnsupportedDTypeError
@@ -130,10 +130,8 @@ class PyTypeStep(ParserStep):
             A Narwhals DType if this parser can handle the type, None otherwise.
         """
         if origin is Literal:
-            literal_args = get_args(input_type)
-            if None in literal_args and get_anyschema_value_by_key(metadata, key="nullable") is None:
-                set_anyschema_meta(metadata, key="nullable", value=True)
-            values = [value for value in literal_args if value is not None]
+            # `parse_into_field` makes a field-level `Literal[..., None]` nullable.
+            values = [value for value in get_args(input_type) if value is not None]
             return self._parse_enum_values(values, input_type, constraints, metadata)
 
         if origin in {dict, Mapping}:

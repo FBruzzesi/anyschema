@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Literal, get_args, overload
+from typing import TYPE_CHECKING, Any, Literal, TypeVar, get_args, overload
 
 from narwhals.dtypes import DType
 
@@ -185,24 +185,26 @@ def filter_anyschema_metadata(metadata: Mapping[str, Any]) -> FieldMetadata:
     return {key: value for key, value in metadata.items() if key not in {"anyschema", "x-anyschema"}}
 
 
-_NAMESPACE_KEYS = frozenset(get_args(AnySchemaNamespaceKey))
-_ANYSCHEMA_KEYS = frozenset(get_args(AnySchemaMetadataKey))
+_T = TypeVar("_T")
+
+_NAMESPACE_KEYS: frozenset[AnySchemaNamespaceKey] = frozenset(get_args(AnySchemaNamespaceKey))
+_METADATA_KEYS: frozenset[AnySchemaMetadataKey] = frozenset(get_args(AnySchemaMetadataKey))
 
 
-def ensure_dtype(dtype: object) -> DType:
-    """Return `dtype` as a Narwhals `DType`, deserializing it first if it is a string.
+def ensure_dtype(into_dtype: object) -> DType:
+    """Return `into_dtype` as a Narwhals `DType`, deserializing it first if it is a string.
 
     Raises:
-        TypeError: If `dtype` is neither a `DType` instance nor a `str`.
-        UnsupportedDTypeError: If `dtype` is a string that cannot be deserialized.
+        TypeError: If `into_dtype` is neither a `DType` instance nor a `str`.
+        UnsupportedDTypeError: If `into_dtype` is a string that cannot be deserialized.
     """
-    if isinstance(dtype, DType):
-        return dtype
-    if isinstance(dtype, str):
-        return deserialize_dtype(dtype)
+    if isinstance(into_dtype, DType):
+        return into_dtype
+    if isinstance(into_dtype, str):
+        return deserialize_dtype(into_dtype)
     msg = (
         "Expected `dtype` value to be of type `narwhals.dtypes.DType` or `str`, "
-        f"found '{qualified_type_name(dtype)}' instead."
+        f"found '{qualified_type_name(into_dtype)}' instead."
     )
     raise TypeError(msg)
 
@@ -219,7 +221,7 @@ class WithAnySchema:
     in the `Annotated` layers of a field type, optionally wrapped in a single `| None`.
 
     Arguments:
-        custom: Custom metadata. It is copied on construction.
+        custom: Custom metadata, copied on construction.
         **anyschema: Anyschema metadata keys. A `dtype` string is deserialized on construction (see
             [`deserialize_dtype`][anyschema.serde.deserialize_dtype]).
 
@@ -252,10 +254,10 @@ class WithAnySchema:
     custom: Mapping[str, Any]
 
     def __init__(self, *, custom: Mapping[str, Any] | None = None, **anyschema: Unpack[AnySchemaMetadata]) -> None:
-        if unknown := sorted(anyschema.keys() - _ANYSCHEMA_KEYS):
+        if unknown := sorted(anyschema.keys() - _METADATA_KEYS):
             msg = (
                 f"Unknown anyschema metadata key(s): {', '.join(map(repr, unknown))}. "
-                f"Expected any of {', '.join(map(repr, sorted(_ANYSCHEMA_KEYS)))}; pass other metadata via `custom=`."
+                f"Expected any of {', '.join(map(repr, sorted(_METADATA_KEYS)))}; pass other metadata via `custom=`."
             )
             raise TypeError(msg)
         custom = {} if custom is None else custom
@@ -290,37 +292,32 @@ class WithAnySchema:
         return f"{type(self).__name__}({', '.join(args)})"
 
 
-def partition_markers(items: Iterable[object]) -> tuple[tuple[WithAnySchema, ...], tuple[object, ...]]:
+def partition_markers(extras: Iterable[_T]) -> tuple[tuple[WithAnySchema, ...], tuple[_T, ...]]:
     """Split `Annotated` extras into `(markers, everything else)`, keeping their order."""
     markers: list[WithAnySchema] = []
-    others: list[object] = []
-    for item in items:
-        if isinstance(item, WithAnySchema):
-            markers.append(item)
+    others: list[_T] = []
+    for extra in extras:
+        if isinstance(extra, WithAnySchema):
+            markers.append(extra)
         else:
-            others.append(item)
+            others.append(extra)
     return tuple(markers), tuple(others)
 
 
 def merge_field_markers(field_name: str, metadata: FieldMetadata, markers: Iterable[WithAnySchema]) -> FieldMetadata:
-    """Merge field-level markers into the spec's own field metadata.
+    """Merge field-level markers into a copy of the spec's own field metadata.
 
-    Markers are applied in order (innermost first) and the last value wins per key: anyschema keys one by one,
-    `custom` keys shallow-merged.
+    The last marker wins per key: anyschema keys one by one, `custom` keys shallow-merged.
 
     Arguments:
         field_name: The field name, used in error messages.
-        metadata: The spec's own field metadata, with at most one of the `"anyschema"` / `"x-anyschema"` keys. It is
-            not mutated.
+        metadata: The spec's own field metadata, with at most one of the `"anyschema"` / `"x-anyschema"` keys.
         markers: The field-level markers, innermost first.
-
-    Returns:
-        A new metadata dictionary.
 
     Raises:
         ValueError: If a key is set both by a marker and by the spec's own metadata, even with equal values.
     """
-    marker_anyschema: dict[str, Any] = {}
+    marker_anyschema: AnySchemaMetadata = {}
     marker_custom: dict[str, Any] = {}
     for marker in markers:
         marker_anyschema.update(marker.anyschema)

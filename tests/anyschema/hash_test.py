@@ -49,3 +49,15 @@ def test_different_hash_object(other: Any) -> None:
     schema = AnySchema(spec={"name": str})
 
     assert hash(schema) != hash(other)
+
+
+def test_hash_with_unhashable_metadata() -> None:
+    from pydantic import BaseModel, Field
+
+    class Model(BaseModel):
+        x: int = Field(json_schema_extra={"examples": [1, 2], "extra": {"nested": {"a": [3]}}})
+
+    schema1, schema2 = AnySchema(spec=Model), AnySchema(spec=Model)
+
+    assert hash(schema1) == hash(schema2)
+    assert len({schema1, schema2}) == 1

@@ -138,3 +138,13 @@ NESTED_PARSING_CASES: list[tuple[type[BaseModel], nw.dtypes.DType]] = [
 def test_nested_parsing(auto_pipeline: ParserPipeline, input_type: type, expected: nw.dtypes.DType) -> None:
     result = auto_pipeline.parse(input_type, (), {})
     assert result == expected
+
+
+def test_make_pipeline_returns_pipeline_as_is(auto_pipeline: ParserPipeline) -> None:
+    assert make_pipeline(auto_pipeline) is auto_pipeline
+
+
+def test_pipeline_from_generator_of_steps() -> None:
+    pipeline = ParserPipeline(step for step in [PyTypeStep()])
+    assert len(pipeline.steps) == 1
+    assert pipeline.parse(int, (), {}) == nw.Int64()

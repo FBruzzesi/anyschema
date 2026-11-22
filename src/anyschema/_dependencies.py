@@ -1,18 +1,17 @@
 from __future__ import annotations
 
 import sys
+import warnings
 from collections.abc import Mapping, Sequence
 from dataclasses import is_dataclass as dc_is_dataclass
 from importlib.metadata import version as get_version
 from importlib.util import find_spec
-from typing import TYPE_CHECKING, TypeAlias
+from typing import TYPE_CHECKING, TypeAlias, TypeGuard
 
 from narwhals.utils import parse_version
 from typing_extensions import TypeIs, is_typeddict
 
 if TYPE_CHECKING:
-    from types import ModuleType
-
     from pydantic import BaseModel
     from pydantic_extra_types.color import Color
 
@@ -36,30 +35,32 @@ MIN_VERSIONS: dict[str, Version] = {
 
 
 def check_version(package: str) -> bool:
-    """Check if a package is installed and meets the minimum version requirement.
+    """Check if a package is installed and meets the minimum version anyschema supports.
 
     Arguments:
         package: Name of the package to check.
 
     Returns:
-        True if the package is installed and meets the minimum version requirement.
+        True if the package is installed and meets the minimum version.
 
-    Raises:
-        ImportError: If the package is installed but does not meet the minimum version.
+    Warns:
+        UserWarning: If the package is older than the minimum. anyschema then treats it as not installed.
     """
-    # Not installed case
     if find_spec(package) is None:
         return False
 
-    # Installed & no min version requirement case
     if (min_version := MIN_VERSIONS.get(package)) is None:
         return True
 
     installed_version = get_version(package)
     if parse_version(installed_version) < min_version:
         min_version_str = ".".join(str(v) for v in min_version)
-        msg = f"anyschema requires {package}>={min_version_str}, but version {installed_version} is installed."
-        raise ImportError(msg)
+        msg = (
+            f"anyschema requires {package}>={min_version_str}, but version {installed_version} is installed. "
+            "anyschema will ignore it."
+        )
+        warnings.warn(msg, stacklevel=2)
+        return False
 
     return True
 
@@ -68,16 +69,6 @@ ANNOTATED_TYPES_AVAILABLE = find_spec("annotated_types") is not None
 PYDANTIC_AVAILABLE = check_version("pydantic")
 ATTRS_AVAILABLE = check_version("attrs")
 SQLALCHEMY_AVAILABLE = check_version("sqlalchemy")
-
-
-def get_pydantic() -> ModuleType | None:
-    """Get pydantic module (if already imported - else return None)."""
-    return sys.modules.get("pydantic", None)
-
-
-def get_attrs() -> ModuleType | None:
-    """Get attrs module (if already imported - else return None)."""
-    return sys.modules.get("attrs", None)
 
 
 def is_into_ordered_dict(obj: object) -> TypeIs[IntoOrderedDict]:
@@ -103,12 +94,13 @@ def is_jsonschema(obj: object) -> TypeIs[JsonSchema]:
     return isinstance(obj.get("properties"), Mapping) and obj.get("type", "object") == "object"
 
 
-def is_typed_dict(obj: object) -> TypeIs[TypedDictType]:
+# `TypeGuard`, not `TypeIs`: `type[Any]` matches these protocols, so `TypeIs` narrows the False branch to `Never`.
+def is_typed_dict(obj: object) -> TypeGuard[TypedDictType]:
     """Check if the object is a TypedDict and narrows type checkers."""
     return is_typeddict(obj)
 
 
-def is_dataclass(obj: object) -> TypeIs[DataclassType]:
+def is_dataclass(obj: object) -> TypeGuard[DataclassType]:
     """Check if the object is a dataclass and narrows type checkers."""
     return dc_is_dataclass(obj)
 
@@ -116,8 +108,10 @@ def is_dataclass(obj: object) -> TypeIs[DataclassType]:
 def is_pydantic_base_model(obj: object) -> TypeIs[type[BaseModel]]:
     """Check if the object is a pydantic BaseModel."""
     return (
-        (pydantic := get_pydantic()) is not None
+        PYDANTIC_AVAILABLE
+        and (pydantic := sys.modules.get("pydantic")) is not None
         and isinstance(obj, type)
+        # On Python 3.10 `list[int]` passes the check above, and with pydantic 2.0 `issubclass` then raises.
         and isinstance(obj, type(pydantic.BaseModel))
         and issubclass(obj, pydantic.BaseModel)
     )
@@ -138,17 +132,7 @@ def is_attrs_class(obj: object) -> TypeIs[AttrsClassType]:
     Uses attrs.has() to check if a class is an attrs class.
     Supports @attrs.define/@attrs.frozen decorators.
     """
-    return (attrs := get_attrs()) is not None and attrs.has(obj)
-
-
-def get_sqlalchemy() -> ModuleType | None:
-    """Get sqlalchemy module (if already imported - else return None)."""
-    return sys.modules.get("sqlalchemy", None)
-
-
-def get_sqlalchemy_orm() -> ModuleType | None:
-    """Get sqlalchemy.orm module (if already imported - else return None)."""
-    return sys.modules.get("sqlalchemy.orm", None)
+    return ATTRS_AVAILABLE and (attrs := sys.modules.get("attrs")) is not None and attrs.has(obj)
 
 
 def is_sqlalchemy_table(obj: object) -> TypeIs[SQLAlchemyTableType]:
@@ -159,9 +143,11 @@ def is_sqlalchemy_table(obj: object) -> TypeIs[SQLAlchemyTableType]:
     - SQLAlchemy Table instances (Core)
     - SQLAlchemy ORM mapped classes (DeclarativeBase subclasses)
     """
-    is_table = (sql := get_sqlalchemy()) is not None and isinstance(obj, sql.Table)
+    if not SQLALCHEMY_AVAILABLE:
+        return False
+    is_table = (sql := sys.modules.get("sqlalchemy")) is not None and isinstance(obj, sql.Table)
     is_declarative_base = (
-        (sql_orm := get_sqlalchemy_orm()) is not None
+        (sql_orm := sys.modules.get("sqlalchemy.orm")) is not None
         and isinstance(obj, type)
         and issubclass(obj, sql_orm.DeclarativeBase)
     )

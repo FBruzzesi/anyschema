@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 from datetime import date, datetime
 from typing import Any
 
@@ -258,3 +259,9 @@ def test_parse_model_with_pydantic_types(auto_pipeline: ParserPipeline) -> None:
         ]
     )
     assert result == expected
+
+
+def test_pydantic_step_skips_when_pydantic_is_not_imported(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delitem(sys.modules, "pydantic")
+
+    assert PydanticTypeStep().parse(SecretBytes, (), {}) is None

@@ -5,16 +5,20 @@ from copy import copy
 from threading import Lock
 from typing import TYPE_CHECKING
 
+import narwhals as nw
+
 from anyschema.exceptions import UnavailablePipelineError
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     from narwhals.dtypes import DType
     from typing_extensions import Self
 
     from anyschema.parsers._pipeline import ParserPipeline
-    from anyschema.typing import FieldConstraints, FieldMetadata, FieldType
+    from anyschema.typing import FieldConstraints, FieldMetadata, FieldSpec, FieldType
 
-__all__ = ("ParserStep",)
+__all__ = ("ParserStep", "parse_struct")
 
 # Serializes the check-and-set in `ParserStep.pipeline`, so two threads cannot both claim one step.
 _PIPELINE_CLAIM_LOCK = Lock()
@@ -165,3 +169,21 @@ class ParserStep(ABC):
         cloned = copy(self)
         cloned._pipeline = None  # noqa: SLF001
         return cloned
+
+
+def parse_struct(pipeline: ParserPipeline, field_specs: Iterable[FieldSpec]) -> nw.Struct:
+    """Parse field specs, such as an adapter's output, into a `Struct` with one field per spec, in order.
+
+    Arguments:
+        pipeline: The pipeline that parses each field type.
+        field_specs: `(name, type, constraints, metadata)` tuples.
+
+    Returns:
+        The Narwhals `Struct`.
+    """
+    return nw.Struct(
+        [
+            nw.Field(name=name, dtype=pipeline.parse(field_type, constraints, metadata, strict=True))
+            for name, field_type, constraints, metadata in field_specs
+        ]
+    )

@@ -2,15 +2,14 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import narwhals as nw
-
 from anyschema._dependencies import is_attrs_class
-from anyschema.parsers._base import ParserStep
+from anyschema.adapters import attrs_adapter
+from anyschema.parsers._base import ParserStep, parse_struct
 
 if TYPE_CHECKING:
     from narwhals.dtypes import DType
 
-    from anyschema.typing import AttrsClassType, FieldConstraints, FieldMetadata, FieldType
+    from anyschema.typing import FieldConstraints, FieldMetadata, FieldType
 
 
 __all__ = ("AttrsTypeStep",)
@@ -44,28 +43,7 @@ class AttrsTypeStep(ParserStep):
             A Narwhals DType if this parser can handle the type, None otherwise.
         """
         if is_attrs_class(input_type):
-            return self._parse_attrs_class(input_type)
+            return parse_struct(self.pipeline, attrs_adapter(input_type))
 
         # This parser doesn't handle this type
         return None
-
-    def _parse_attrs_class(self, attrs_class: AttrsClassType) -> DType:
-        """Parse an attrs class into a Struct type.
-
-        Arguments:
-            attrs_class: The attrs class.
-
-        Returns:
-            A Narwhals Struct dtype.
-        """
-        from anyschema.adapters import attrs_adapter
-
-        return nw.Struct(
-            [
-                nw.Field(
-                    name=field_name,
-                    dtype=self.pipeline.parse(field_type, field_constraints, field_metadata, strict=True),
-                )
-                for field_name, field_type, field_constraints, field_metadata in attrs_adapter(attrs_class)
-            ]
-        )

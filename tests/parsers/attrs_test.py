@@ -94,5 +94,5 @@ def test_parse_attrs_with_inheritance(attrs_parser: AttrsTypeStep) -> None:
 
 def test_parse_attrs_missing_decorator_raises(attrs_parser: AttrsTypeStep) -> None:
     child_cls, expected_msg = create_missing_decorator_test_case()
-    with pytest.raises(AssertionError, match=expected_msg.replace("(", r"\(").replace(")", r"\)")):
+    with pytest.raises(TypeError, match=expected_msg.replace("(", r"\(").replace(")", r"\)")):
         attrs_parser.parse(child_cls, (), {})

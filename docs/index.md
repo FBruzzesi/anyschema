@@ -27,8 +27,10 @@ any package manager. For instance:
 We suggest to install also `pydantic`, `attrs`, or `sqlalchemy` to follow along with the examples.
 
 - `anyschema` interoperability with pydantic models requires `pydantic>=2.0.0`.
-- `anyschema` interoperability with attrs classes requires `attrs>=24.0.0`.
+- `anyschema` interoperability with attrs classes requires `attrs>=22.1.0`.
 - `anyschema` interoperability with SQLAlchemy tables requires `sqlalchemy>=2.0.0`.
+
+If an older version is installed, `anyschema` warns on import and ignores that library.
 
 === "pip"
 

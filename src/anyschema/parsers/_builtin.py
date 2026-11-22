@@ -3,25 +3,26 @@ from __future__ import annotations
 from collections.abc import Iterable, Mapping, Sequence
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
-from enum import Enum
+from enum import Enum, Flag
 from ipaddress import IPv4Address, IPv4Network, IPv6Address, IPv6Network
 from pathlib import PurePath
 from typing import TYPE_CHECKING, Any, Literal
 from uuid import UUID
 
 import narwhals as nw
-from typing_extensions import get_args, get_origin, get_type_hints  # noqa: UP035
+from typing_extensions import get_args, get_origin  # noqa: UP035
 
 from anyschema._dependencies import is_dataclass, is_typed_dict
 from anyschema._metadata import get_anyschema_value_by_key
-from anyschema.adapters import dataclass_adapter
+from anyschema._utils import int_dtype_from_bounds
+from anyschema.adapters import dataclass_adapter, typed_dict_adapter
 from anyschema.exceptions import UnsupportedDTypeError
-from anyschema.parsers._base import ParserStep
+from anyschema.parsers._base import ParserStep, parse_struct
 
 if TYPE_CHECKING:
     from narwhals.dtypes import DType
 
-    from anyschema.typing import DataclassType, FieldConstraints, FieldMetadata, FieldType, TypedDictType
+    from anyschema.typing import FieldConstraints, FieldMetadata, FieldType
 
 # `IPv4Interface`/`IPv6Interface` subclass the `Address` types
 _STDLIB_STRING_TYPES = (str, UUID, PurePath, IPv4Address, IPv6Address, IPv4Network, IPv6Network)
@@ -32,8 +33,9 @@ class PyTypeStep(ParserStep):
 
     Handles:
 
-    - `int`, `float`, `decimal`, `str`, `bytes`, `bool`, `date`, `datetime`, `timedelta`, `time`, `object`, `Enum`,
-        `Literal`
+    - `int`, `float`, `decimal`, `str`, `bytes`, `bool`, `date`, `datetime`, `timedelta`, `time`, `object`
+    - `Enum` and `Literal`: string values give an `Enum` dtype, int values the smallest int dtype that fits them
+        (`Literal[1, 2]` gives `UInt8`), other values the dtype of their type. `Flag` enums give `Int64`.
     - `UUID`, `pathlib` paths and `ipaddress` types, as String
     - generics: `list[T]`, `Sequence[T]`, `Iterable[T]`, `tuple[T, ...]`
     - `dict`, `Mapping[K, V]`, typed dictionaries (`TypedDict`) and dataclasses
@@ -64,8 +66,12 @@ class PyTypeStep(ParserStep):
             #   * issubclass(bool, int) -> True
             #   * issubclass(TypedDict, dict) -> True
             #   * issubclass(datetime, date) -> True
+            if issubclass(input_type, Flag):  # Members combine (`READ | WRITE`), so the values are unbounded.
+                return nw.Int64()
             if issubclass(input_type, Enum):
-                return nw.Enum(input_type)
+                return self._parse_enum_values(
+                    [member.value for member in input_type], input_type, constraints, metadata
+                )
             if issubclass(input_type, _STDLIB_STRING_TYPES):
                 return nw.String()
             if issubclass(input_type, bool):
@@ -93,9 +99,9 @@ class PyTypeStep(ParserStep):
             if issubclass(input_type, bytes):
                 return nw.Binary()
             if is_typed_dict(input_type):
-                return self._parse_typed_dict(input_type, constraints, metadata)
+                return parse_struct(self.pipeline, typed_dict_adapter(input_type))
             if is_dataclass(input_type):
-                return self._parse_dataclass(input_type)
+                return parse_struct(self.pipeline, dataclass_adapter(input_type))
             if issubclass(input_type, dict):  # Plain dict without type parameters -> Struct with Object fields
                 return nw.Struct([])
             # TODO(FBruzzesi): https://github.com/FBruzzesi/anyschema/issues/56
@@ -112,7 +118,7 @@ class PyTypeStep(ParserStep):
     def _parse_generic(
         self, input_type: FieldType, origin: Any, constraints: FieldConstraints, metadata: FieldMetadata
     ) -> DType | None:
-        """Parse generic types like list[int], dict[str, int].
+        """Parse generic types like `list[int]`, `dict[str, int]` and `Literal[...]`.
 
         Arguments:
             input_type: The generic type to parse.
@@ -124,65 +130,52 @@ class PyTypeStep(ParserStep):
             A Narwhals DType if this parser can handle the type, None otherwise.
         """
         if origin is Literal:
-            return nw.Enum(get_args(input_type))
+            # `parse_into_field` makes a field-level `Literal[..., None]` nullable.
+            values = [value for value in get_args(input_type) if value is not None]
+            return self._parse_enum_values(values, input_type, constraints, metadata)
 
         if origin in {dict, Mapping}:
             # For now, we treat dict[K, V] as an empty Struct
             # TODO(FBruzzesi): What's a better way to map this? We should introspect the mapping values
             return nw.Struct([])
 
-        args = get_args(input_type)
+        if origin not in {list, Sequence, Iterable, tuple}:
+            return None
+
+        if not (args := get_args(input_type)):  # Bare `typing.List`, `typing.Sequence`, ...
+            return nw.List(nw.Object())
+
         inner_dtype = self.pipeline.parse(args[0], constraints=constraints, metadata=metadata, strict=True)
 
-        if origin in {list, Sequence, Iterable}:
-            return nw.List(inner_dtype)
-
-        if origin is tuple:
-            if len(args) == 2 and args[1] is Ellipsis:  # noqa: PLR2004
-                # tuple[T, ...] - variable length tuple
-                return nw.List(inner_dtype)
-
+        if origin is tuple and args[-1] is not Ellipsis:  # Fixed length: `tuple[T, T]`
             if len(set(args)) != 1:
                 msg = f"Tuple with mixed types is not supported: {input_type}"
                 raise UnsupportedDTypeError(msg)
-
             return nw.Array(inner_dtype, shape=len(args))
 
-        return None
+        return nw.List(inner_dtype)
 
-    def _parse_typed_dict(
-        self,
-        typed_dict: TypedDictType,
-        constraints: FieldConstraints,  # noqa: ARG002
-        metadata: FieldMetadata,  # noqa: ARG002
+    def _parse_enum_values(
+        self, values: list[Any], source: FieldType, constraints: FieldConstraints, metadata: FieldMetadata
     ) -> DType:
-        """Parse a TypedDict into a Struct type.
+        """Parse the values of an `Enum` or `Literal`.
 
-        Arguments:
-            typed_dict: The TypedDict class.
-            constraints: Constraints associated with the type.
-            metadata: Custom metadata dictionary.
+        Strings give an `Enum` dtype (Narwhals `Enum` categories must be strings), ints the smallest int dtype that
+        fits them, and any other type its own dtype.
 
-        Returns:
-            A Narwhals Struct dtype.
+        Raises:
+            UnsupportedDTypeError: If there are no values, or they have more than one type.
         """
-        try:
-            type_hints = get_type_hints(typed_dict, include_extras=True)
-        except Exception:  # pragma: no cover  # noqa: BLE001
-            # If we can't get type hints, use __annotations__
-            type_hints = getattr(typed_dict, "__annotations__", {})
-
-        fields = [
-            nw.Field(name=field_name, dtype=self.pipeline.parse(field_type, constraints=(), metadata={}))
-            for field_name, field_type in type_hints.items()
-        ]
-        return nw.Struct(fields)
-
-    def _parse_dataclass(self, dataclass: DataclassType) -> DType:
-        """Parse a dataclass into a Struct, forwarding each field's metadata to the pipeline."""
-        return nw.Struct(
-            [
-                nw.Field(name=field_name, dtype=self.pipeline.parse(field_type, field_constraints, field_metadata))
-                for field_name, field_type, field_constraints, field_metadata in dataclass_adapter(dataclass)
-            ]
-        )
+        value_types = {type(value) for value in values}
+        if len(value_types) != 1:
+            msg = (
+                f"Cannot infer a dtype for {source}: its values must be non-empty and of a single type. "
+                "Set the dtype explicitly with `{'anyschema': {'dtype': ...}}` metadata."
+            )
+            raise UnsupportedDTypeError(msg)
+        value_type = value_types.pop()
+        if value_type is str:
+            return nw.Enum(values)
+        if value_type is int:
+            return int_dtype_from_bounds(min(values), max(values))
+        return self.pipeline.parse(value_type, constraints=constraints, metadata=metadata)

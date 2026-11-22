@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import sys
+import typing
+from functools import cache
 from typing import TYPE_CHECKING, Any, ForwardRef
 
 from typing_extensions import evaluate_forward_ref
@@ -25,7 +28,8 @@ class ForwardRefStep(ParserStep):
 
     Initialization can be customized by providing a global and local namespace that will be used to evaluate the
     forward references when resolving the type. The default namespace is built with common types, yet you can override
-    it with your own types.
+    it with your own types. Common pydantic names (`BaseModel`, `PositiveInt`, `conint`, ...) are also available once
+    pydantic has been imported.
 
     Arguments:
         globalns: Global namespace for evaluating forward references. Defaults to a namespace with common types.
@@ -49,7 +53,7 @@ class ForwardRefStep(ParserStep):
         Returns:
             A namespace with built-in types and typing constructs.
         """
-        namespace = {
+        namespace: dict[str, Any] = {
             # Built-in types
             "int": int,
             "str": str,
@@ -60,40 +64,14 @@ class ForwardRefStep(ParserStep):
             "tuple": tuple,
             "set": set,
             # Typing constructs
-            "Annotated": __import__("typing").Annotated,
-            "Dict": __import__("typing").Dict,
-            "List": __import__("typing").List,
-            "Optional": __import__("typing").Optional,
-            "Set": __import__("typing").Set,
-            "Union": __import__("typing").Union,
-            "Tuple": __import__("typing").Tuple,
+            "Annotated": typing.Annotated,
+            "Dict": dict,
+            "List": list,
+            "Optional": typing.Optional,
+            "Set": set,
+            "Union": typing.Union,
+            "Tuple": tuple,
         }
-
-        # Add pydantic types if available
-        if PYDANTIC_AVAILABLE:
-            import pydantic
-
-            pydantic_types = {
-                "BaseModel": pydantic.BaseModel,
-                "Field": pydantic.Field,
-                # Constrained integers
-                "PositiveInt": pydantic.PositiveInt,
-                "NegativeInt": pydantic.NegativeInt,
-                "NonPositiveInt": pydantic.NonPositiveInt,
-                "NonNegativeInt": pydantic.NonNegativeInt,
-                # Constrained floats
-                "PositiveFloat": pydantic.PositiveFloat,
-                "NegativeFloat": pydantic.NegativeFloat,
-                "NonPositiveFloat": pydantic.NonPositiveFloat,
-                "NonNegativeFloat": pydantic.NonNegativeFloat,
-                # constraints
-                "constr": pydantic.constr,
-                "conint": pydantic.conint,
-                "confloat": pydantic.confloat,
-                "conlist": pydantic.conlist,
-                "conset": pydantic.conset,
-            }
-            namespace.update(pydantic_types)
 
         # Add annotated-types if available
         if ANNOTATED_TYPES_AVAILABLE:
@@ -134,15 +112,58 @@ class ForwardRefStep(ParserStep):
         if not isinstance(input_type, ForwardRef):
             return None
 
+        return self.pipeline.parse(self.resolve(input_type), constraints, metadata, strict=True)
+
+    def resolve(self, forward_ref: ForwardRef) -> FieldType:
+        """Resolve a ForwardRef with this step's namespaces.
+
+        `ParserPipeline.parse_into_field` also calls it to find a field-level `None`, so a subclass that changes how
+        references resolve should override this method rather than `parse`.
+
+        Arguments:
+            forward_ref: The forward reference to resolve.
+
+        Returns:
+            The resolved type.
+
+        Raises:
+            NotImplementedError: If the forward reference cannot be resolved.
+        """
+        # Added at resolve time so that building the step does not import pydantic. User globals win.
+        globalns = (
+            {**_pydantic_namespace(), **self.globalns}
+            if PYDANTIC_AVAILABLE and "pydantic" in sys.modules
+            else self.globalns
+        )
         try:
-            resolved_type = evaluate_forward_ref(
-                forward_ref=input_type,
-                globals=self.globalns,
-                locals=self.localns,
-            )
+            return evaluate_forward_ref(forward_ref=forward_ref, globals=globalns, locals=self.localns)
         except (NameError, AttributeError, TypeError) as e:
-            # If resolution fails, we can't handle this type
-            msg = f"Failed to resolve ForwardRef '{input_type.__forward_arg__}': {e}"
+            msg = f"Failed to resolve ForwardRef '{forward_ref.__forward_arg__}': {e}"
             raise NotImplementedError(msg) from e
 
-        return self.pipeline.parse(resolved_type, constraints, metadata, strict=True)
+
+@cache
+def _pydantic_namespace() -> dict[str, Any]:
+    """Pydantic names that forward references can use. Call it only after pydantic is imported."""
+    import pydantic
+
+    return {
+        "BaseModel": pydantic.BaseModel,
+        "Field": pydantic.Field,
+        # Constrained integers
+        "PositiveInt": pydantic.PositiveInt,
+        "NegativeInt": pydantic.NegativeInt,
+        "NonPositiveInt": pydantic.NonPositiveInt,
+        "NonNegativeInt": pydantic.NonNegativeInt,
+        # Constrained floats
+        "PositiveFloat": pydantic.PositiveFloat,
+        "NegativeFloat": pydantic.NegativeFloat,
+        "NonPositiveFloat": pydantic.NonPositiveFloat,
+        "NonNegativeFloat": pydantic.NonNegativeFloat,
+        # constraints
+        "constr": pydantic.constr,
+        "conint": pydantic.conint,
+        "confloat": pydantic.confloat,
+        "conlist": pydantic.conlist,
+        "conset": pydantic.conset,
+    }

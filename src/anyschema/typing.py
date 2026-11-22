@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Callable, Generator, Mapping, Sequence
+from collections.abc import Callable, Generator, Iterable, Mapping, Sequence
 from typing import TYPE_CHECKING, Annotated, Any, Literal, Protocol, TypeAlias, TypedDict
 
 if TYPE_CHECKING:
@@ -30,10 +30,10 @@ We check for the object to be either a mapping or a sequence of sized 2 tuples.
 [ordered-dict]: https://docs.python.org/3/library/collections.html#collections.OrderedDict
 """
 
-IntoParserPipeline: TypeAlias = "Literal['auto'] | Sequence[ParserStep]"
+IntoParserPipeline: TypeAlias = "Literal['auto'] | Iterable[ParserStep]"
 """An object that can be converted into a [`ParserPipeline`][anyschema.parsers.ParserPipeline].
 
-Either "auto" or a sequence of [`ParserStep`][anyschema.parsers.ParserStep].
+Either "auto" or an iterable of [`ParserStep`][anyschema.parsers.ParserStep].
 """
 
 JsonSchema: TypeAlias = Mapping[str, Any]
@@ -96,7 +96,7 @@ class AnySchemaMetadata(TypedDict, total=False):
     Attributes:
         description: Human-readable description of the field.
         dtype: Narwhals DType (or its serialized/string representation)
-        nullable: Whether the field can contain null values.
+        nullable: Whether the field can contain null values. `None` means unset: nullability follows the type.
         precision: Total number of digits for decimal fields.
         scale: Number of digits after decimal point for decimal fields.
         time_zone: Timezone for datetime fields (e.g., "UTC", "Europe/Berlin").
@@ -110,7 +110,7 @@ class AnySchemaMetadata(TypedDict, total=False):
 
     description: str | None
     dtype: str | DType
-    nullable: bool
+    nullable: bool | None
     precision: int
     scale: int
     time_zone: str

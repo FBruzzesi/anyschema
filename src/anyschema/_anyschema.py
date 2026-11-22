@@ -5,6 +5,7 @@ from operator import attrgetter
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Literal, TypeAlias, TypeVar, cast, overload
 
+import narwhals as nw
 from narwhals.schema import Schema
 
 from anyschema._dependencies import (
@@ -27,6 +28,7 @@ from anyschema.adapters import (
 )
 from anyschema.exceptions import UnsupportedDTypeError
 from anyschema.parsers import ParserPipeline
+from anyschema.parsers._pipeline import shared_auto_pipeline
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable, Mapping
@@ -54,6 +56,55 @@ _get_nullable: AnyFieldAttrAccessor[bool] = attrgetter("nullable")
 _get_unique: AnyFieldAttrAccessor[bool] = attrgetter("unique")
 
 
+def _enums_to_categorical(dtype: IntoDType) -> IntoDType:
+    """Return `dtype` with every nested `Enum` replaced by `Categorical`."""
+    if isinstance(dtype, nw.Enum):
+        return nw.Categorical()
+    if isinstance(dtype, nw.List):
+        return nw.List(_enums_to_categorical(dtype.inner))
+    if isinstance(dtype, nw.Array):
+        return nw.Array(_enums_to_categorical(dtype.inner), dtype.size)
+    if isinstance(dtype, nw.Struct):
+        return nw.Struct([nw.Field(field.name, _enums_to_categorical(field.dtype)) for field in dtype.fields])
+    return dtype
+
+
+def _infer_adapter(spec: Spec) -> Adapter:
+    """Return the built-in adapter for the type of `spec`.
+
+    Raises:
+        ValueError: If no built-in adapter supports `spec`.
+    """
+    # Before is_into_ordered_dict: a JSON Schema is also a mapping.
+    if is_jsonschema(spec):
+        return jsonschema_adapter
+    if is_into_ordered_dict(spec):
+        return into_ordered_dict_adapter
+    if is_typed_dict(spec):
+        return typed_dict_adapter
+    if is_dataclass(spec):
+        return dataclass_adapter
+    if is_pydantic_base_model(spec):
+        return pydantic_adapter
+    if is_attrs_class(spec):
+        return attrs_adapter
+    if is_sqlalchemy_table(spec):
+        return sqlalchemy_adapter
+    msg = "`spec` type is unknown and `adapter` is not specified."
+    raise ValueError(msg)
+
+
+def _contains_tz_aware_datetime(dtype: IntoDType) -> bool:
+    """Return whether `dtype`, or any dtype nested in it, is a timezone-aware `Datetime`."""
+    if isinstance(dtype, nw.Datetime):
+        return dtype.time_zone is not None
+    if isinstance(dtype, (nw.List, nw.Array)):
+        return _contains_tz_aware_datetime(dtype.inner)
+    if isinstance(dtype, nw.Struct):
+        return any(_contains_tz_aware_datetime(field.dtype) for field in dtype.fields)
+    return False
+
+
 @dataclass(frozen=True, slots=True, kw_only=True)
 class AnyField:
     """A structured field descriptor.
@@ -70,10 +121,9 @@ class AnyField:
         name: The name of the field.
         dtype: The Narwhals data type of the field.
         nullable: Whether the field can contain null values. Defaults to False.
-            Parsing a type specification will flag this as True if:
-
-            - The `{"anyschema": {"nullable": True}}` metadata key is explicitly set to True, or
-            - The type is `Optional[T]` or `T | None` (which automatically sets the metadata)
+            When parsing a spec, the `{"anyschema": {"nullable": ...}}` metadata key wins if set. Otherwise the field
+            is nullable if its field-level type contains `None` (e.g. `T | None`, but not `list[T | None]`), whether
+            or not `dtype` is overridden.
         unique: Whether all values in this field must be unique. Defaults to False.
             Determined by the `{"anyschema": {"unique": ...}}` metadata key or SQLAlchemy column unique argument.
         description: Human-readable field description.
@@ -119,11 +169,10 @@ class AnyField:
     def __hash__(self) -> int:
         """Return hash of the instance.
 
-        Creates a hashable tuple representation.
-        `metadata` is a dict and not hashable, we convert it to a sorted tuple of items
+        Leaves out `metadata`, whose values can be unhashable (lists, dicts). Equal fields still hash equal
+        because `__eq__` compares every hashed attribute.
         """
-        metadata_tuple = tuple(sorted(self.metadata.items()))
-        return hash((self.name, self.dtype, self.nullable, self.unique, self.description, metadata_tuple))
+        return hash((self.name, self.dtype, self.nullable, self.unique, self.description))
 
 
 class AnySchema:
@@ -181,6 +230,7 @@ class AnySchema:
                 (e.g., from `json_schema_extra` in Pydantic Field's, `metadata` in attrs and dataclasses field's)
 
             This allows for custom field specification logic and extensibility from user-defined adapters.
+            When given, it is used for every spec, including types anyschema recognizes.
 
     Attributes:
         fields: A mapping from field names to [`AnyField`][anyschema.AnyField] objects,
@@ -189,7 +239,7 @@ class AnySchema:
     Raises:
         ValueError: If `spec` type is unknown and `adapter` is not specified.
         NotImplementedError: If a type in the spec cannot be parsed by any parser in the pipeline.
-        UnsupportedDTypeError: If a type is explicitly unsupported (e.g., Union with mixed types).
+        UnsupportedDTypeError: If a type is explicitly unsupported (e.g., Union with mixed types) or recursive.
 
     Examples:
         Basic usage with a Pydantic model:
@@ -272,34 +322,18 @@ class AnySchema:
             self._nw_schema = spec
             return
 
-        parser_pipeline = pipeline if isinstance(pipeline, ParserPipeline) else ParserPipeline(pipeline)
-        adapter_f: Adapter
-
-        if is_jsonschema(spec):
-            # Checked before `is_into_ordered_dict` since a JSON Schema is also a mapping.
-            adapter_f = jsonschema_adapter
-        elif is_into_ordered_dict(spec):
-            adapter_f = into_ordered_dict_adapter
-        elif is_typed_dict(spec):
-            adapter_f = typed_dict_adapter
-        elif is_dataclass(spec):
-            adapter_f = dataclass_adapter
-        elif is_pydantic_base_model(spec):
-            adapter_f = pydantic_adapter
-        elif is_attrs_class(spec):
-            adapter_f = attrs_adapter
-        elif is_sqlalchemy_table(spec):
-            adapter_f = sqlalchemy_adapter
-        elif adapter is not None:
-            adapter_f = adapter
+        if isinstance(pipeline, ParserPipeline):
+            parser_pipeline = pipeline
+        elif pipeline == "auto":
+            parser_pipeline = shared_auto_pipeline()
         else:
-            msg = "`spec` type is unknown and `adapter` is not specified."
-            raise ValueError(msg)
+            parser_pipeline = ParserPipeline(pipeline)
+        spec_adapter = adapter if adapter is not None else _infer_adapter(spec)
 
         self._fields = MappingProxyType(
             {
                 name: parser_pipeline.parse_into_field(name, input_type, constraints, metadata)
-                for name, input_type, constraints, metadata in adapter_f(cast("Any", spec))
+                for name, input_type, constraints, metadata in spec_adapter(cast("Any", spec))
             }
         )
         self._nw_schema = Schema({name: field.dtype for name, field in self._fields.items()})
@@ -361,17 +395,6 @@ class AnySchema:
             ['id', 'name']
         """
         return dict(self._fields)
-
-    @overload
-    def _get_field_attribute(self, attr_getter: AnyFieldAttrAccessor[T], *, named: Literal[True]) -> dict[str, T]: ...
-
-    @overload
-    def _get_field_attribute(self, attr_getter: AnyFieldAttrAccessor[T], *, named: Literal[False]) -> tuple[T, ...]: ...
-
-    @overload
-    def _get_field_attribute(
-        self, attr_getter: AnyFieldAttrAccessor[T], *, named: bool
-    ) -> dict[str, T] | tuple[T, ...]: ...
 
     def _get_field_attribute(
         self, attr_getter: AnyFieldAttrAccessor[T], *, named: bool
@@ -565,6 +588,9 @@ class AnySchema:
     def to_arrow(self) -> pa.Schema:
         """Converts input model into pyarrow schema.
 
+        `Enum` and `Literal` fields, at any nesting level, become dictionary-encoded strings
+        (`dictionary<values=string, indices=uint32>`).
+
         Returns:
             The converted pyarrow schema.
 
@@ -588,11 +614,15 @@ class AnySchema:
         """
         import pyarrow as pa
 
+        # NOTE: narwhals cannot convert Enum to pyarrow, but converts Categorical to an Arrow dictionary.
+        arrow_schema = Schema(
+            {name: _enums_to_categorical(dtype) for name, dtype in self._nw_schema.items()}
+        ).to_arrow()
         return pa.schema(
             pa_field.with_nullable(field.nullable).with_metadata({k: str(v) for k, v in field.metadata.items()})
             if field.metadata
             else pa_field.with_nullable(field.nullable)
-            for pa_field, field in zip(self._nw_schema.to_arrow(), self._fields.values(), strict=True)
+            for pa_field, field in zip(arrow_schema, self._fields.values(), strict=True)
         )
 
     def to_pandas(
@@ -777,7 +807,9 @@ class AnySchema:
         from narwhals.utils import Version
         from pyspark.sql import SparkSession, types
 
-        session = SparkSession.builder.getOrCreate()
+        # NOTE: narwhals reads the session only for timezone-aware datetimes, and starting one can boot a JVM.
+        needs_session = any(_contains_tz_aware_datetime(field.dtype) for field in self._fields.values())
+        session = SparkSession.builder.getOrCreate() if needs_session else None
         version = Version.MAIN
 
         return types.StructType(

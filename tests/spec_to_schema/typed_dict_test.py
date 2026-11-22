@@ -111,8 +111,8 @@ class AddressTypedDictWithZipcodeModel(TypedDict):
             {
                 "name": nw.String(),
                 "log_level": nw.Enum(["debug", "info", "warning", "error"]),
-                "max_retries": nw.Enum([1, 2, 3, 5, 10]),  # type: ignore[list-item]
-                "enabled": nw.Enum([True, False]),  # type: ignore[list-item]
+                "max_retries": nw.UInt8(),
+                "enabled": nw.Boolean(),
             },
         ),
         (

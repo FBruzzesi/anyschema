@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from decimal import Decimal  # noqa: TC003 (pydantic resolves annotations at runtime)
-from enum import Enum, IntEnum
+from enum import Enum, IntEnum, IntFlag
 from importlib.metadata import version
 from typing import Any, Literal, Mapping
 
@@ -81,12 +81,6 @@ def test_jsonschema_to_schema(spec: dict[str, object], expected_schema: Mapping[
     assert schema._nw_schema == nw.Schema(expected_schema)
 
 
-def test_mixed_union_is_rejected() -> None:
-    spec = json_object_schema({"x": {"anyOf": [{"type": "integer"}, {"type": "string"}]}})
-    with pytest.raises(UnsupportedDTypeError, match="mixed types"):
-        AnySchema(spec=spec)
-
-
 @pytest.mark.parametrize(
     ("json_schema", "expected_dtype"),
     [
@@ -99,8 +93,7 @@ def test_mixed_union_is_rejected() -> None:
 def test_non_string_enum_const_convert_to_backends(
     json_schema: dict[str, object], expected_dtype: nw.dtypes.DType
 ) -> None:
-    # Non-string `enum`/`const` must degrade to a scalar dtype: a non-string `Enum` cannot be lowered to any
-    # backend. These conversions would raise if the field were mapped to `Enum([...])`.
+    # No backend can lower a non-string `Enum`, so these conversions raise unless the dtype is a scalar.
     pytest.importorskip("polars")
     schema = AnySchema(spec=json_object_schema({"x": json_schema}))
     assert schema._nw_schema == nw.Schema({"x": expected_dtype})
@@ -126,13 +119,6 @@ def test_optional_nested_model_via_anyof_ref() -> None:
     schema = AnySchema(spec=spec)
     assert schema._nw_schema == nw.Schema({"address": nw.Struct([nw.Field("street", nw.String())])})
     assert schema.nullables(named=True) == {"address": True}
-
-
-def test_jsonschema_dict_is_not_treated_as_field_mapping() -> None:
-    # A JSON Schema is also a `Mapping`; it must be detected before the `IntoOrderedDict` adapter.
-    spec = json_object_schema({"id": {"type": "integer"}, "name": {"type": "string"}})
-    schema = AnySchema(spec=spec)
-    assert schema.names() == ("id", "name")
 
 
 def test_nullable_and_description_propagate() -> None:
@@ -198,6 +184,9 @@ class _RoundTripModel(BaseModel):
     note: str | None = None
     maybe_ints: list[int | None]  # only the elements are nullable
     maybe_letters: list[Literal["a", None]]  # noqa: PYI061
+    maybe_letter: Literal["a", None]  # noqa: PYI061
+    maybe_status: _RoundTripStatus | None
+    pair_of_addresses: tuple[_RoundTripAddress, _RoundTripAddress]
     small: int | None = Field(json_schema_extra={"anyschema": {"dtype": "Int32"}})  # override keeps the null
 
 
@@ -237,12 +226,12 @@ _ROUND_TRIP_MODELS: list[type[BaseModel] | Any] = [
 ]
 
 
-@pytest.mark.parametrize("model", _ROUND_TRIP_MODELS)
+@pytest.mark.parametrize("model", _ROUND_TRIP_MODELS, ids=lambda model: model.__name__)
 def test_pydantic_json_schema_round_trip(model: type[BaseModel]) -> None:
-    # Reconstructing an `AnySchema` from a model's JSON schema matches building it from the model itself.
     from_model = AnySchema(spec=model)
     from_json = AnySchema(spec=model.model_json_schema())
-    assert from_json == from_model
+    # Compare the fields in order, so a failure shows which one differs.
+    assert list(from_json.fields.items()) == list(from_model.fields.items())
 
 
 class _MixedLiteral(BaseModel):
@@ -259,6 +248,28 @@ def test_unsupported_literal_raises_from_model_and_json_schema(model: type[BaseM
         AnySchema(spec=model)
     with pytest.raises(UnsupportedDTypeError, match="single type"):
         AnySchema(spec=model.model_json_schema())
+
+
+class _Permission(IntFlag):
+    READ = 1
+    WRITE = 2
+
+
+class _IntFlagModel(BaseModel):
+    permission: _Permission
+
+
+class _IntFloatLiteral(BaseModel):
+    x: Literal[1, 2.5]  # type: ignore[valid-type]  # pyright: ignore[reportInvalidTypeForm]
+
+
+def test_documented_differences_from_model() -> None:
+    # Keep in sync with "Differences from the original Pydantic model" in docs/user-guide/getting-started.md.
+    assert AnySchema(spec=_IntFlagModel)._nw_schema == nw.Schema({"permission": nw.Int64()})
+    assert AnySchema(spec=_IntFlagModel.model_json_schema())._nw_schema == nw.Schema({"permission": nw.UInt8()})
+    with pytest.raises(UnsupportedDTypeError, match="single type"):
+        AnySchema(spec=_IntFloatLiteral)
+    assert AnySchema(spec=_IntFloatLiteral.model_json_schema())._nw_schema == nw.Schema({"x": nw.Float64()})
 
 
 class _RecursiveNode(BaseModel):

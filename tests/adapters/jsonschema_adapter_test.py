@@ -35,6 +35,12 @@ def test_jsonschema_adapter_inlines_nested_and_chained_refs() -> None:
     assert field_type == {"type": "array", "items": {"anyOf": [_ADDRESS, {"type": "null"}]}}
 
 
+@pytest.mark.parametrize("keyword", ["prefixItems", "anyOf", "oneOf", "allOf"])
+def test_jsonschema_adapter_inlines_refs_in_subschema_lists(keyword: str) -> None:
+    spec = json_object_schema({"x": {keyword: [{"$ref": "#/$defs/Address"}]}}, **{"$defs": {"Address": _ADDRESS}})
+    assert next(jsonschema_adapter(spec))[1] == {keyword: [_ADDRESS]}
+
+
 def test_jsonschema_adapter_ref_siblings_take_precedence() -> None:
     spec = json_object_schema(
         {"address": {"$ref": "#/$defs/Address", "description": "home"}},

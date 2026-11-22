@@ -80,6 +80,9 @@ print(result)
     field nullable. To make it nullable, set `{"anyschema": {"nullable": True}}` in `metadata`:
     [`parse_into_field`][anyschema.parsers.ParserPipeline.parse_into_field] reads it after parsing.
 
+    A value a step writes counts as explicit: it beats the field-level `| None` and applies to the whole field, even
+    when the step wrote it while parsing a nested type. Write `nullable` only to override, never as a default.
+
 ### Custom Parser with Nested Types
 
 This example shows how to handle a custom generic type. Note how we use

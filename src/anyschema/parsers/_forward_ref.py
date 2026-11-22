@@ -117,6 +117,9 @@ class ForwardRefStep(ParserStep):
     def resolve(self, forward_ref: ForwardRef) -> FieldType:
         """Resolve a ForwardRef with this step's namespaces.
 
+        `ParserPipeline.parse_into_field` also calls it to find a field-level `None`, so a subclass that changes how
+        references resolve should override this method rather than `parse`.
+
         Arguments:
             forward_ref: The forward reference to resolve.
 

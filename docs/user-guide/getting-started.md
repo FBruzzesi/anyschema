@@ -303,8 +303,9 @@ print(schema.to_arrow())
 
 Local `$ref`s (including a root `$ref`), nested objects, arrays, enums and integer bounds are supported, so
 `exclusiveMinimum: 0` turns `age` into an unsigned integer. A field is nullable only when its own schema allows `null`
-(a `null` in `items` makes only the elements nullable), and the `required` keyword is ignored. To start from a raw
-JSON document, decode it with `json.loads` first.
+(a `null` in `items` makes only the elements nullable), and the `required` keyword is ignored. A recursive `$ref`
+raises `UnsupportedDTypeError`, as a self-referencing model does, unless the field sets its `dtype`. To start from a
+raw JSON document, decode it with `json.loads` first.
 
 !!! note "Differences from the original Pydantic model"
 
@@ -319,8 +320,6 @@ JSON document, decode it with `json.loads` first.
         `1.0`. The model itself raises `UnsupportedDTypeError` for mixed value types.
     - `AwareDatetime` is emitted as a plain `date-time` string, so it becomes a `Datetime` without time zone instead
         of raising. Set `time_zone` through `json_schema_extra={"anyschema": {...}}` to keep it.
-    - A self-referencing model raises `UnsupportedDTypeError`, unless the recursion only goes through `dict` values
-        (e.g. `children: dict[str, "Node"]`), which become an empty `Struct` as they do for the model.
     - `model_json_schema()` names fields by their alias. Pass `by_alias=False` to keep the Python field names.
 
 Each property subschema is converted by the [`JsonSchemaStep`][api-jsonschema-step] parser step, which recurses

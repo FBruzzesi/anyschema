@@ -6,7 +6,6 @@ from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any, Final
 
 from anyschema._metadata import get_anyschema_value_by_key, set_anyschema_meta
-from anyschema.exceptions import UnsupportedDTypeError
 
 if TYPE_CHECKING:
     from anyschema.typing import FieldMetadata, JsonSchema
@@ -30,7 +29,8 @@ def inline_refs(schema: JsonSchema, root: JsonSchema, _expanding: tuple[str, ...
     """Return a copy of `schema` with every local `$ref` replaced by the definition it points to.
 
     Keywords next to a `$ref` override the referenced ones. The referenced `title` and `description` are dropped, so
-    a model docstring does not become the description of every field of that model type.
+    a model docstring does not become the description of every field of that model type. A recursive `$ref` is kept
+    as is, for `JsonSchemaStep` to reject unless the field sets a `dtype`.
 
     Arguments:
         schema: The (sub)schema to resolve.
@@ -38,13 +38,11 @@ def inline_refs(schema: JsonSchema, root: JsonSchema, _expanding: tuple[str, ...
         _expanding: The `$ref`s being expanded on the current path, used to detect cycles.
 
     Raises:
-        UnsupportedDTypeError: If a `$ref` is recursive, since it has no finite dtype.
         ValueError: If a `$ref` is not local (`#...`) or cannot be resolved.
     """
     if isinstance(ref := schema.get("$ref"), str):
         if ref in _expanding:
-            msg = f"Recursive JSON Schema reference is not supported: {ref!r}."
-            raise UnsupportedDTypeError(msg)
+            return schema
         definition = _resolve_json_pointer(root, ref)
         merged = {key: value for key, value in definition.items() if key not in _DEFINITION_DOC_KEYWORDS}
         merged.update((key, value) for key, value in schema.items() if key != "$ref")

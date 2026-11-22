@@ -40,8 +40,8 @@ __all__ = (
 def jsonschema_adapter(spec: JsonSchema) -> FieldSpecIterable:
     """Adapter for JSON Schema objects, such as the output of `pydantic.BaseModel.model_json_schema()`.
 
-    Each property is yielded with its subschema as the field type, with every local `$ref` inlined, for
-    [`JsonSchemaStep`][anyschema.parsers.JsonSchemaStep] to convert.
+    Each property is yielded with its subschema as the field type, with every local, non-recursive `$ref` inlined,
+    for [`JsonSchemaStep`][anyschema.parsers.JsonSchemaStep] to convert.
 
     A field is nullable when its own schema allows `null`: a `null` branch in `anyOf`/`oneOf`/`allOf`, `"null"` in a
     `type` list, or `null` in `enum`/`const`. A `null` inside `items` makes only the elements nullable, and the
@@ -59,7 +59,6 @@ def jsonschema_adapter(spec: JsonSchema) -> FieldSpecIterable:
 
     Raises:
         ValueError: If `spec` is not a JSON Schema object, or a `$ref` is not local or cannot be resolved.
-        UnsupportedDTypeError: If a `$ref` is recursive.
 
     Examples:
         >>> schema = {

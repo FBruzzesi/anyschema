@@ -146,6 +146,7 @@ def test_jsonschema_step_nested_field_metadata(pipeline: ParserPipeline) -> None
         ({"type": "array", "prefixItems": [{"type": "integer"}, {"type": "string"}]}, "Tuple with mixed types"),
         ({"type": "foo"}, "Unsupported JSON Schema type: 'foo'"),
         ({"const": None, "type": "null"}, "non-empty and of a single type"),  # `Literal[None]`, as for the model
+        ({"$ref": "#/$defs/Node"}, "Recursive JSON Schema reference"),  # the adapter keeps only recursive ones
     ],
 )
 def test_jsonschema_step_unsupported_raises(pipeline: ParserPipeline, schema: dict[str, Any], match: str) -> None:
@@ -163,7 +164,6 @@ def test_jsonschema_step_unsupported_raises(pipeline: ParserPipeline, schema: di
         True,
         {"a": 1},  # plain mapping, not a schema
         {"b": int},
-        {"$ref": "#/$defs/Address"},  # unresolved reference
         {"allOf": [{"type": "integer"}, {"minimum": 0}]},
         {"not": {"type": "string"}},
     ],

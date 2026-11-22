@@ -6,7 +6,6 @@ import pytest
 
 from anyschema._dependencies import is_jsonschema
 from anyschema.adapters import jsonschema_adapter
-from anyschema.exceptions import UnsupportedDTypeError
 from tests.conftest import json_object_schema
 
 _ADDRESS = json_object_schema({"street": {"type": "string"}})
@@ -176,24 +175,11 @@ def test_jsonschema_adapter_bad_reference_raises(ref: str, match: str) -> None:
         next(jsonschema_adapter(spec))
 
 
-@pytest.mark.parametrize(
-    "spec",
-    [
-        json_object_schema(
-            {"node": {"$ref": "#/$defs/Node"}},
-            **{"$defs": {"Node": json_object_schema({"child": {"$ref": "#/$defs/Node"}})}},
-        ),
-        json_object_schema({"self": {"$ref": "#"}}),
-        {"$ref": "#/$defs/Node", "$defs": {"Node": json_object_schema({"child": {"$ref": "#/$defs/Node"}})}},
-        {
-            "allOf": [{"$ref": "#/$defs/Node"}],
-            "$defs": {"Node": json_object_schema({"child": {"$ref": "#/$defs/Node"}})},
-        },
-    ],
-)
-def test_jsonschema_adapter_recursive_reference_raises(spec: dict[str, object]) -> None:
-    with pytest.raises(UnsupportedDTypeError, match="Recursive JSON Schema reference"):
-        next(jsonschema_adapter(spec))
+def test_jsonschema_adapter_keeps_recursive_reference() -> None:
+    # Kept for `JsonSchemaStep` to reject, so that a `dtype` override on the field still works.
+    node = json_object_schema({"child": {"$ref": "#/$defs/Node"}})
+    spec = json_object_schema({"node": {"$ref": "#/$defs/Node"}}, **{"$defs": {"Node": node}})
+    assert next(jsonschema_adapter(spec))[1] == node
 
 
 @pytest.mark.parametrize(

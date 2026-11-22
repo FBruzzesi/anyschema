@@ -58,8 +58,9 @@ class JsonSchemaStep(ParserStep):
     - A schema without `type` or constraints (such as `{}` for `typing.Any`) and `{"type": "null"}` become `Object`.
     - Other scalars are parsed as the equivalent Python type (e.g. `"format": "date-time"` as `datetime`), so
         metadata such as `time_zone` and `time_unit` applies as for any other spec.
+    - A `$ref` raises: `jsonschema_adapter` inlines every reference except recursive ones.
 
-    Mappings it does not recognize (e.g. an unresolved `$ref`) are left to the next step.
+    Other mappings, such as a multi-item `allOf`, are left to the next step.
 
     Nested subschemas go through the pipeline, so a custom step placed before this one can intercept any of them,
     e.g. to map `{"type": "string", "format": "uuid"}` to a dedicated dtype.
@@ -77,11 +78,21 @@ class JsonSchemaStep(ParserStep):
 
         Returns:
             A Narwhals DType if `input_type` is a JSON Schema this step understands, None otherwise.
+
+        Raises:
+            UnsupportedDTypeError: For a `$ref`, a union of different dtypes, mixed `enum` values, or an unknown
+                `type`.
         """
         if not isinstance(input_type, Mapping):  # Keep this as a fast path!
             return None
 
         schema: JsonSchema = input_type
+        if "$ref" in schema:
+            msg = (
+                f"Recursive JSON Schema reference is not supported: {schema['$ref']!r}. "
+                "Set the field dtype explicitly with `{'anyschema': {'dtype': ...}}` metadata."
+            )
+            raise UnsupportedDTypeError(msg)
         if (branches := union_branches(schema)) is not None:
             return self._parse_union(branches, constraints, metadata)
         if "const" in schema:

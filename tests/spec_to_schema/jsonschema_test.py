@@ -214,6 +214,13 @@ class _RoundTripTree(BaseModel):
     children: dict[str, _RoundTripTree]
 
 
+class _RoundTripRecursiveWithDtype(BaseModel):
+    """Self-referencing model whose recursive field sets its dtype, so it is not parsed."""
+
+    name: str
+    child: _RoundTripRecursiveWithDtype | None = Field(None, json_schema_extra={"anyschema": {"dtype": "String"}})
+
+
 _ROUND_TRIP_MODELS: list[type[BaseModel] | Any] = [
     PydanticStudent,
     PydanticEventWithTimeMetadata,
@@ -226,6 +233,7 @@ _ROUND_TRIP_MODELS: list[type[BaseModel] | Any] = [
         ),
     ),
     _RoundTripTree,
+    _RoundTripRecursiveWithDtype,
 ]
 
 
@@ -257,6 +265,17 @@ class _RecursiveNode(BaseModel):
     child: _RecursiveNode | None = None
 
 
-def test_recursive_model_json_schema_is_rejected() -> None:
+@pytest.mark.parametrize(
+    "spec",
+    [
+        _RecursiveNode.model_json_schema(),
+        json_object_schema({"self": {"$ref": "#"}}),
+        {
+            "allOf": [{"$ref": "#/$defs/Node"}],
+            "$defs": {"Node": json_object_schema({"child": {"$ref": "#/$defs/Node"}})},
+        },
+    ],
+)
+def test_recursive_json_schema_is_rejected(spec: dict[str, object]) -> None:
     with pytest.raises(UnsupportedDTypeError, match="Recursive JSON Schema reference"):
-        AnySchema(spec=_RecursiveNode.model_json_schema())
+        AnySchema(spec=spec)

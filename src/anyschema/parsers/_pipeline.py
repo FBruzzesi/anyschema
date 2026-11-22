@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from functools import cache
 from itertools import chain
+from types import GenericAlias
 from typing import TYPE_CHECKING, Literal, cast, overload
 
 from narwhals.dtypes import DType
@@ -73,6 +74,9 @@ class ParserPipeline:
 
         Returns:
             A Narwhals DType from the first successful parser, or None if no parser succeeded and `strict=False`.
+
+        Raises:
+            NotImplementedError: If no step can parse `input_type` and `strict=True`.
         """
         for step in self.steps:
             result = step.parse(input_type, constraints, metadata)
@@ -80,8 +84,11 @@ class ParserPipeline:
                 return result
 
         if strict:
+            # On Python 3.10 `set[int]` passes `isinstance(..., type)`.
+            is_class = isinstance(input_type, type) and not isinstance(input_type, GenericAlias)
+            type_name = repr(qualified_type_name(input_type)) if is_class else repr(input_type)
             msg = (
-                f"No parser in the pipeline could handle type: '{qualified_type_name(input_type)}'.\n"
+                f"No parser in the pipeline could handle type: {type_name}.\n"
                 f"Please consider opening a feature request https://github.com/FBruzzesi/anyschema/issues"
             )
             raise NotImplementedError(msg)

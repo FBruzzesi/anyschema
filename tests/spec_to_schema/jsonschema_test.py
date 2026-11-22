@@ -241,11 +241,16 @@ class _MixedLiteral(BaseModel):
     x: Literal[1, "a"]
 
 
-def test_mixed_type_literal_raises_from_model_and_json_schema() -> None:
+class _NoneLiteral(BaseModel):
+    x: Literal[None]  # noqa: PYI061
+
+
+@pytest.mark.parametrize("model", [_MixedLiteral, _NoneLiteral])
+def test_unsupported_literal_raises_from_model_and_json_schema(model: type[BaseModel]) -> None:
     with pytest.raises(UnsupportedDTypeError, match="single type"):
-        AnySchema(spec=_MixedLiteral)
+        AnySchema(spec=model)
     with pytest.raises(UnsupportedDTypeError, match="single type"):
-        AnySchema(spec=_MixedLiteral.model_json_schema())
+        AnySchema(spec=model.model_json_schema())
 
 
 class _RecursiveNode(BaseModel):

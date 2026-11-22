@@ -43,8 +43,9 @@ def jsonschema_adapter(spec: JsonSchema) -> FieldSpecIterable:
     Each property is yielded with its subschema as the field type, with every local `$ref` inlined, for
     [`JsonSchemaStep`][anyschema.parsers.JsonSchemaStep] to convert.
 
-    A field is nullable only when its schema allows `null`: a `null` branch in `anyOf`/`oneOf`, `"null"` in a `type`
-    list, or `null` in `enum`. The `required` keyword does not affect nullability.
+    A field is nullable when its own schema allows `null`: a `null` branch in `anyOf`/`oneOf`/`allOf`, `"null"` in a
+    `type` list, or `null` in `enum`/`const`. A `null` inside `items` makes only the elements nullable, and the
+    `required` keyword does not affect nullability.
 
     Arguments:
         spec: A JSON Schema with a `"properties"` mapping and `"type": "object"` (or no `type`), or a root `"$ref"` to

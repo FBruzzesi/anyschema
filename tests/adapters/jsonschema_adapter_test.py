@@ -118,6 +118,8 @@ def test_jsonschema_adapter_same_ref_twice_is_not_a_cycle() -> None:
         ({"oneOf": [{"type": "null"}, {"type": "integer"}]}, {"anyschema": {"nullable": True}}),
         ({"type": ["integer", "null"]}, {"anyschema": {"nullable": True}}),
         ({"type": "null"}, {"anyschema": {"nullable": True}}),
+        ({"allOf": [{"anyOf": [{"type": "integer"}, {"type": "null"}]}]}, {"anyschema": {"nullable": True}}),
+        ({"type": ["string", "null"], "anyOf": [{"format": "email"}]}, {"anyschema": {"nullable": True}}),
         ({"enum": ["a", None]}, {"anyschema": {"nullable": True}}),
         ({"const": None}, {"anyschema": {"nullable": True}}),
         ({"enum": ["a", "b"]}, {}),

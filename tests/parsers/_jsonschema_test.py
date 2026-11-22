@@ -37,6 +37,7 @@ def pipeline() -> ParserPipeline:
         ({}, nw.Object()),
         ({"title": "Anything"}, nw.Object()),
         ({"type": "null"}, nw.Object()),
+        ({"type": ["null"]}, nw.Object()),
         ({"type": "array"}, nw.List(nw.Object())),
         ({"type": "array", "items": {"type": "integer"}}, nw.List(nw.Int64())),
         ({"type": "array", "prefixItems": [{"type": "number"}] * 3}, nw.Array(nw.Float64(), shape=3)),
@@ -144,6 +145,7 @@ def test_jsonschema_step_nested_field_metadata(pipeline: ParserPipeline) -> None
         ({"type": ["integer", "string"]}, "mixed types"),
         ({"type": "array", "prefixItems": [{"type": "integer"}, {"type": "string"}]}, "Tuple with mixed types"),
         ({"type": "foo"}, "Unsupported JSON Schema type: 'foo'"),
+        ({"const": None, "type": "null"}, "non-empty and of a single type"),  # `Literal[None]`, as for the model
     ],
 )
 def test_jsonschema_step_unsupported_raises(pipeline: ParserPipeline, schema: dict[str, Any], match: str) -> None:

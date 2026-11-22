@@ -55,7 +55,7 @@ class JsonSchemaStep(ParserStep):
         own schema allows `null`.
     - Keywords next to `anyOf`/`oneOf`/`allOf` apply to every branch. `anyOf: [number, string]` becomes `Decimal`, as
         Pydantic emits it for `Decimal` fields. Other unions of different types are rejected.
-    - A schema without `type` or constraints, such as `{}` for `typing.Any`, becomes `Object`.
+    - A schema without `type` or constraints (such as `{}` for `typing.Any`) and `{"type": "null"}` become `Object`.
     - Other scalars are parsed as the equivalent Python type (e.g. `"format": "date-time"` as `datetime`), so
         metadata such as `time_zone` and `time_unit` applies as for any other spec.
 
@@ -92,6 +92,8 @@ class JsonSchemaStep(ParserStep):
         json_type = schema.get("type", "object" if "properties" in schema else None)
         if json_type is None:
             return nw.Object() if schema.keys() <= _ANNOTATION_KEYWORDS else None
+        if json_type == "null":
+            return nw.Object()
         if json_type == "object":
             return parse_struct(
                 self.pipeline,

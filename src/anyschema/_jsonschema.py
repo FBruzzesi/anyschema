@@ -119,21 +119,20 @@ def union_branches(schema: JsonSchema) -> list[JsonSchema] | None:
             return [{**siblings, **branch} for branch in branches]
     if isinstance(json_type := schema.get("type"), list):
         return [{**schema, "type": type_name} for type_name in json_type]
-    if json_type == "null":
-        return [schema]
     return None
 
 
 def allows_null(schema: object) -> bool:
-    """Whether the top level of `schema` allows `null`.
+    """Whether `schema` allows `null` at its top level, looking through `anyOf`/`oneOf`/`allOf` and `type` lists.
 
-    That is a `null` branch in `anyOf`/`oneOf`, `"null"` in a `type` list, or `null` in `enum`/`const`. Nested
-    subschemas (e.g. `items`) do not count.
+    Nested subschemas such as `items` do not count: they make the elements nullable, not the field.
     """
     if not isinstance(schema, Mapping):
         return False
+    if schema.get("type") == "null":
+        return True
     if (branches := union_branches(schema)) is not None:
-        return any(branch.get("type") == "null" for branch in branches)
+        return any(allows_null(branch) for branch in branches)
     if "const" in schema:
         return schema["const"] is None
     return isinstance(values := schema.get("enum"), list) and None in values

@@ -12,7 +12,7 @@ from typing_extensions import TypeIs
 from anyschema._jsonschema import extract_field_metadata, union_branches
 from anyschema._utils import INT64_MIN, UINT64_MAX, int_dtype_from_bounds
 from anyschema.exceptions import UnsupportedDTypeError
-from anyschema.parsers._base import ParserStep
+from anyschema.parsers._base import ParserStep, parse_struct
 from anyschema.parsers._builtin import parse_enum_values
 
 if TYPE_CHECKING:
@@ -94,11 +94,9 @@ class JsonSchemaStep(ParserStep):
         if json_type is None:
             return nw.Object() if schema.keys() <= _ANNOTATION_KEYWORDS else None
         if json_type == "object":
-            return nw.Struct(
-                [
-                    nw.Field(name, self.pipeline.parse(property_schema, (), extract_field_metadata(property_schema)))
-                    for name, property_schema in schema.get("properties", {}).items()
-                ]
+            return parse_struct(
+                self.pipeline,
+                ((name, sub, (), extract_field_metadata(sub)) for name, sub in schema.get("properties", {}).items()),
             )
         if json_type == "array":
             return self._parse_array(schema, constraints, metadata)

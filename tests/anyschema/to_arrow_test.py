@@ -159,3 +159,13 @@ def test_to_arrow_enum_in_array_keeps_shape() -> None:
     pa_schema = AnySchema(spec=Schema({"a": nw.Array(nw.Enum(["x", "y"]), (2, 3))})).to_arrow()
 
     assert pa_schema.field("a").type == pa.list_(pa.list_(ENUM_ARROW_TYPE, 3), 2)
+
+
+def test_to_arrow_map_and_float16() -> None:
+    spec = Schema(
+        {"m": nw.Map(nw.String(), nw.Int64()), "e": nw.Map(nw.String(), nw.Enum(["x", "y"])), "f": nw.Float16()}
+    )
+
+    pa_schema = AnySchema(spec=spec).to_arrow()
+
+    assert pa_schema.types == [pa.map_(pa.string(), pa.int64()), pa.map_(pa.string(), ENUM_ARROW_TYPE), pa.float16()]

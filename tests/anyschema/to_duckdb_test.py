@@ -72,6 +72,9 @@ def test_nw_schema_to_duckdb(nw_schema: nw.Schema) -> None:
         (nw.Array(nw.Int32(), (2, 3)), "INTEGER[3][2]"),
         (nw.Enum(["it's", "ok"]), "ENUM('it''s', 'ok')"),
         (nw.List(nw.Int64), "BIGINT[]"),
+        (nw.Map(nw.String(), nw.Int64()), "MAP(VARCHAR, BIGINT)"),
+        (nw.Map(nw.String(), nw.Enum(["a"])), "MAP(VARCHAR, ENUM('a'))"),
+        (nw.Map(nw.Int32(), nw.Datetime("us", "UTC")), "MAP(INTEGER, TIMESTAMP WITH TIME ZONE)"),
     ],
 )
 def test_to_duckdb_special_dtypes(dtype: IntoDType, expected: str) -> None:
@@ -97,7 +100,17 @@ def test_to_duckdb_tz_aware_non_us_raises() -> None:
         schema.to_duckdb()
 
 
-@pytest.mark.parametrize("dtype", [nw.Categorical(), nw.Object(), nw.Unknown(), nw.List(nw.Object)])
+@pytest.mark.parametrize(
+    "dtype",
+    [
+        nw.Categorical(),
+        nw.Object(),
+        nw.Unknown(),
+        nw.List(nw.Object),
+        nw.Float16(),
+        nw.Map(nw.String(), nw.Object()),
+    ],
+)
 def test_to_duckdb_unsupported_dtype_raises(dtype: IntoDType) -> None:
     schema = AnySchema(spec=nw.Schema({"x": dtype}))
 

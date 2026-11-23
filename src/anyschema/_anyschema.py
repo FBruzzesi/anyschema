@@ -64,6 +64,8 @@ def _enums_to_categorical(dtype: IntoDType) -> IntoDType:
         return nw.Array(_enums_to_categorical(dtype.inner), dtype.size)
     if isinstance(dtype, nw.Struct):
         return nw.Struct([nw.Field(field.name, _enums_to_categorical(field.dtype)) for field in dtype.fields])
+    if isinstance(dtype, nw.Map):
+        return nw.Map(_enums_to_categorical(dtype.key), _enums_to_categorical(dtype.value))
     return dtype
 
 
@@ -89,15 +91,21 @@ def _infer_adapter(spec: Spec) -> Adapter:
     raise ValueError(msg)
 
 
-def _contains_tz_aware_datetime(dtype: IntoDType) -> bool:
-    """Return whether `dtype`, or any dtype nested in it, is a timezone-aware `Datetime`."""
-    if isinstance(dtype, nw.Datetime):
-        return dtype.time_zone is not None
+def _contains_dtype(dtype: IntoDType, predicate: Callable[[IntoDType], bool]) -> bool:
+    """Return whether `dtype`, or any dtype nested in it, satisfies `predicate`."""
+    if predicate(dtype):
+        return True
     if isinstance(dtype, (nw.List, nw.Array)):
-        return _contains_tz_aware_datetime(dtype.inner)
+        return _contains_dtype(dtype.inner, predicate)
     if isinstance(dtype, nw.Struct):
-        return any(_contains_tz_aware_datetime(field.dtype) for field in dtype.fields)
+        return any(_contains_dtype(field.dtype, predicate) for field in dtype.fields)
+    if isinstance(dtype, nw.Map):
+        return _contains_dtype(dtype.key, predicate) or _contains_dtype(dtype.value, predicate)
     return False
+
+
+def _is_tz_aware_datetime(dtype: IntoDType) -> bool:
+    return isinstance(dtype, nw.Datetime) and dtype.time_zone is not None
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -642,7 +650,14 @@ class AnySchema:
             >>> schema.to_pandas(dtype_backend=("pyarrow", "numpy_nullable", "pyarrow", None))
             {'id': 'Int64[pyarrow]', 'username': 'string', 'email': string[pyarrow], 'is_active': 'bool'}
         """
-        return self._nw_schema.to_pandas(dtype_backend=dtype_backend)
+        # NOTE: narwhals converts a top-level Enum to a pandas Categorical, but cannot convert a nested one.
+        nw_schema = Schema(
+            {
+                name: dtype if isinstance(dtype, nw.Enum) else _enums_to_categorical(dtype)
+                for name, dtype in self._nw_schema.items()
+            }
+        )
+        return nw_schema.to_pandas(dtype_backend=dtype_backend)
 
     def to_polars(self) -> pl.Schema:
         """Converts input model into polars Schema.
@@ -665,6 +680,18 @@ class AnySchema:
             >>> schema.to_polars()
             Schema({'id': Int64, 'username': String, 'email': String, 'is_active': Boolean})
         """
+        import polars as pl
+        from narwhals.utils import parse_version
+
+        # narwhals gives `pl.Unknown` for Float16 on old polars, and raises its own error for Map.
+        polars_version = parse_version(pl.__version__)
+        for name, dtype in self._nw_schema.items():
+            if polars_version < (1, 36) and _contains_dtype(dtype, lambda d: isinstance(d, nw.Float16)):
+                msg = f"Float16 needs polars>=1.36, found {pl.__version__} (field '{name}')"
+                raise UnsupportedDTypeError(msg)
+            if polars_version < (2,) and _contains_dtype(dtype, lambda d: isinstance(d, nw.Map)):
+                msg = f"Map needs polars>=2.0, found {pl.__version__} (field '{name}')"
+                raise UnsupportedDTypeError(msg)
         return self._nw_schema.to_polars()
 
     def to_duckdb(self) -> dict[str, DuckDBPyType]:
@@ -679,7 +706,7 @@ class AnySchema:
             The converted duckdb schema.
 
         Raises:
-            UnsupportedDTypeError: If a dtype has no DuckDB equivalent (Categorical, Object, Unknown), or a
+            UnsupportedDTypeError: If a dtype has no DuckDB equivalent (Categorical, Float16, Object, Unknown), or a
                 timezone-aware datetime has a time unit other than microseconds.
 
         Examples:
@@ -720,7 +747,9 @@ class AnySchema:
                 return duckdb.array_type(to_duckdb_type(dtype.inner), dtype.size)
             if isinstance(dtype, dtypes.Struct):
                 return duckdb.struct_type({field.name: to_duckdb_type(field.dtype) for field in dtype.fields})
-            if issubclass(dtype.base_type(), (dtypes.Categorical, dtypes.Object, dtypes.Unknown)):
+            if isinstance(dtype, dtypes.Map):
+                return duckdb.map_type(to_duckdb_type(dtype.key), to_duckdb_type(dtype.value))
+            if issubclass(dtype.base_type(), (dtypes.Categorical, dtypes.Float16, dtypes.Object, dtypes.Unknown)):
                 msg = f"{dtype} has no DuckDB equivalent"
                 raise UnsupportedDTypeError(msg)
             return narwhals_to_native_dtype(dtype, version=version, deferred_time_zone=None)  # type: ignore[arg-type]
@@ -781,6 +810,10 @@ class AnySchema:
         Returns:
             The converted pyspark StructType.
 
+        Raises:
+            UnsupportedDTypeError: If a dtype, at any nesting level, has no PySpark equivalent (e.g. Float16, Enum,
+                Object, unsigned integers).
+
         Examples:
             >>> from anyschema import AnySchema
             >>> from pydantic import BaseModel
@@ -795,19 +828,28 @@ class AnySchema:
             StructType([StructField('id', LongType(), False), StructField('username', StringType(), True)])
         """
         from narwhals._spark_like.utils import narwhals_to_native_dtype
+        from narwhals.exceptions import UnsupportedDTypeError as NarwhalsUnsupportedDTypeError
         from narwhals.utils import Version
         from pyspark.sql import SparkSession, types
 
         # NOTE: narwhals reads the session only for timezone-aware datetimes, and starting one can boot a JVM.
-        needs_session = any(_contains_tz_aware_datetime(field.dtype) for field in self._fields.values())
+        needs_session = any(_contains_dtype(field.dtype, _is_tz_aware_datetime) for field in self._fields.values())
         session = SparkSession.builder.getOrCreate() if needs_session else None
         version = Version.MAIN
+
+        def to_spark_type(field: AnyField) -> types.DataType:
+            try:
+                return narwhals_to_native_dtype(field.dtype, version=version, spark_types=types, session=session)
+            # narwhals raises its own UnsupportedDTypeError for Float16/Enum/..., AssertionError for Object/Unknown
+            except (NarwhalsUnsupportedDTypeError, AssertionError) as exc:
+                msg = f"{field.dtype} has no PySpark equivalent (field '{field.name}')"
+                raise UnsupportedDTypeError(msg) from exc
 
         return types.StructType(
             fields=[
                 types.StructField(
                     name=field.name,
-                    dataType=narwhals_to_native_dtype(field.dtype, version=version, spark_types=types, session=session),
+                    dataType=to_spark_type(field),
                     nullable=field.nullable,
                     metadata=dict(field.metadata),
                 )

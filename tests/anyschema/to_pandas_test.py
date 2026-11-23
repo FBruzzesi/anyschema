@@ -167,3 +167,25 @@ def test_nw_schema_to_arrow(
 
     assert isinstance(pd_schema, dict)
     assert pd_schema == expected
+
+
+@pytest.mark.parametrize(
+    ("dtype_backend", "float16"), [(None, "float16"), ("numpy_nullable", "float16"), ("pyarrow", "Float16[pyarrow]")]
+)
+def test_to_pandas_map_and_float16(dtype_backend: DTypeBackend, float16: str) -> None:
+    spec = nw.Schema(
+        {
+            "m": nw.Map(nw.String(), nw.Int64()),
+            "e": nw.Map(nw.String(), nw.Enum(["x", "y"])),
+            "l": nw.List(nw.Enum(["x", "y"])),
+            "f": nw.Float16(),
+        }
+    )
+    categorical = pa.dictionary(pa.uint32(), pa.string())
+
+    assert AnySchema(spec=spec).to_pandas(dtype_backend=dtype_backend) == {
+        "m": pd.ArrowDtype(pa.map_(pa.string(), pa.int64())),
+        "e": pd.ArrowDtype(pa.map_(pa.string(), categorical)),
+        "l": pd.ArrowDtype(pa.list_(categorical)),
+        "f": float16,
+    }

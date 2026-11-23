@@ -75,6 +75,8 @@ def test_to_ibis_preserves_nullability() -> None:
         (nw.Duration("ms"), "!interval('ms')"),
         (nw.Array(nw.Int32(), (2, 3)), "!array<array<int32, 3>, 2>"),
         (nw.List(nw.Struct({"ts": nw.Datetime("us", "UTC")})), "!array<struct<ts: timestamp('UTC', 6)>>"),
+        (nw.Map(nw.String(), nw.Int64()), "!map<string, int64>"),
+        (nw.Float16(), "!float16"),
     ],
 )
 def test_to_ibis_special_dtypes(dtype: IntoDType, expected: str) -> None:
@@ -92,6 +94,7 @@ def test_to_ibis_special_dtypes(dtype: IntoDType, expected: str) -> None:
         nw.Unknown(),
         nw.List(nw.Object()),
         nw.Struct({"a": nw.Int128()}),
+        nw.Map(nw.String(), nw.Enum(["a"])),
     ],
 )
 def test_to_ibis_unsupported_dtype_raises(dtype: IntoDType) -> None:

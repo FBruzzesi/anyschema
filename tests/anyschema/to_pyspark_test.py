@@ -175,7 +175,17 @@ def test_to_pyspark_time_zone_in_map(pyspark_session: SparkSession) -> None:  # 
     assert spark_schema["m"].dataType == types.MapType(types.StringType(), types.TimestampType())
 
 
-@pytest.mark.parametrize("dtype", [nw.Float16(), nw.Map(nw.String(), nw.Float16()), nw.Enum(["a"])])
+@pytest.mark.parametrize(
+    "dtype",
+    [
+        nw.Float16(),
+        nw.Map(nw.String(), nw.Float16()),
+        nw.Enum(["a"]),
+        nw.Object(),
+        nw.Unknown(),
+        nw.Map(nw.String(), nw.Object()),
+    ],
+)
 def test_to_pyspark_unsupported_dtype_raises(dtype: nw.dtypes.DType) -> None:
     schema = AnySchema(spec=Schema({"x": dtype}))
 

@@ -462,8 +462,9 @@ print(AnySchema(spec=Inventory).to_polars())
 ```
 
 Not every backend supports every dtype: polars needs version 2.0 for `Map` and 1.36 for `Float16`, and DuckDB and
-PySpark have no `Float16`. These raise `UnsupportedDTypeError`, and so does `Object` (e.g. from `dict[str, Any]`) on
-the backends that cannot represent it.
+PySpark have no `Float16`. These raise `UnsupportedDTypeError`. Only polars can represent `Object` (e.g. from
+`dict[str, Any]`): DuckDB, Ibis and PySpark raise `UnsupportedDTypeError` for it, PyArrow and pandas raise
+`NotImplementedError`.
 
 ## Working with (Integer) Constraints
 

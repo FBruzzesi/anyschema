@@ -170,9 +170,10 @@ def test_nw_schema_to_arrow(
 
 
 @pytest.mark.parametrize(
-    ("dtype_backend", "float16"), [(None, "float16"), ("numpy_nullable", "float16"), ("pyarrow", "Float16[pyarrow]")]
+    ("dtype_backend", "expected_float16"),
+    [(None, "float16"), ("numpy_nullable", "float16"), ("pyarrow", "Float16[pyarrow]")],
 )
-def test_to_pandas_map_and_float16(dtype_backend: DTypeBackend, float16: str) -> None:
+def test_to_pandas_map_and_float16(dtype_backend: DTypeBackend, expected_float16: str) -> None:
     spec = nw.Schema(
         {
             "m": nw.Map(nw.String(), nw.Int64()),
@@ -187,7 +188,7 @@ def test_to_pandas_map_and_float16(dtype_backend: DTypeBackend, float16: str) ->
 
     result = AnySchema(spec=spec).to_pandas(dtype_backend=dtype_backend)
 
-    # A top-level Enum keeps its categories: `CategoricalDtype == "category"` holds either way, so check them.
+    # `CategoricalDtype == "category"` ignores the categories, so compare them directly.
     top_level = result.pop("t")
     assert isinstance(top_level, pd.CategoricalDtype)
     assert (top_level.categories.tolist(), top_level.ordered) == (["x", "y"], True)
@@ -196,7 +197,7 @@ def test_to_pandas_map_and_float16(dtype_backend: DTypeBackend, float16: str) ->
         "e": pd.ArrowDtype(pa.map_(pa.string(), categorical)),
         "k": pd.ArrowDtype(pa.map_(categorical, pa.int64())),
         "l": pd.ArrowDtype(pa.list_(categorical)),
-        "f": float16,
+        "f": expected_float16,
     }
 
 

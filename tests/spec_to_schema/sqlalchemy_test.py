@@ -4,6 +4,8 @@ from typing import TYPE_CHECKING, Mapping
 
 import narwhals as nw
 import pytest
+from sqlalchemy import Column, Integer, MetaData, Table
+from sqlalchemy.dialects import postgresql
 
 from anyschema import AnySchema
 from tests.conftest import (
@@ -23,6 +25,10 @@ from tests.conftest import (
 
 if TYPE_CHECKING:
     from anyschema.typing import SQLAlchemyTableType
+
+hstore_table = Table(
+    "hstore_table", MetaData(), Column("id", Integer, primary_key=True), Column("attributes", postgresql.HSTORE)
+)
 
 
 @pytest.mark.parametrize(
@@ -106,6 +112,7 @@ if TYPE_CHECKING:
                 "matrix": nw.List(nw.List(nw.Int32())),
             },
         ),
+        (hstore_table, {"id": nw.Int32(), "attributes": nw.Map(nw.String(), nw.String())}),
     ],
 )
 def test_sqlalchemy_spec(spec: SQLAlchemyTableType, expected_schema: Mapping[str, nw.dtypes.DType]) -> None:

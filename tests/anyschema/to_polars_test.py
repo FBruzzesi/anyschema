@@ -9,6 +9,7 @@ from narwhals.utils import parse_version
 from pydantic import BaseModel
 
 from anyschema import AnySchema
+from anyschema._anyschema import POLARS_HAS_FLOAT_16, POLARS_HAS_MAP
 from anyschema.exceptions import UnsupportedDTypeError
 
 pytest.importorskip("polars")
@@ -75,21 +76,33 @@ def test_int_enum_to_polars() -> None:
     assert AnySchema(spec=Response).to_polars() == pl.Schema({"status": pl.UInt16()})
 
 
-@pytest.mark.skipif(parse_version(pl.__version__) < (2,), reason="`Map` needs polars>=2.0")
-def test_map_and_float16_to_polars() -> None:
-    spec = Schema({"m": nw.Map(nw.String(), nw.Int64()), "f": nw.Float16()})
+POLARS_VERSION = parse_version(pl.__version__)
 
-    assert AnySchema(spec=spec).to_polars() == pl.Schema({"m": pl.Map(pl.String(), pl.Int64()), "f": pl.Float16()})
+
+@pytest.mark.skipif(POLARS_VERSION < POLARS_HAS_FLOAT_16, reason="`Float16` needs polars>=1.36")
+def test_float16_to_polars() -> None:
+    assert AnySchema(spec=Schema({"f": nw.Float16()})).to_polars() == pl.Schema({"f": pl.Float16()})
+
+
+@pytest.mark.skipif(POLARS_VERSION < POLARS_HAS_MAP, reason="`Map` needs polars>=2.0")
+def test_map_to_polars() -> None:
+    spec = Schema({"m": nw.Map(nw.String(), nw.Int64())})
+
+    assert AnySchema(spec=spec).to_polars() == pl.Schema({"m": pl.Map(pl.String(), pl.Int64())})
 
 
 @pytest.mark.thread_unsafe(reason="patches polars.__version__")
 @pytest.mark.parametrize(
     ("polars_version", "dtype", "match"),
     [
-        ("1.35.0", nw.Float16(), r"Float16 needs polars>=1.36, found 1.35.0 \(field 'x'\)"),
-        ("1.35.0", nw.List(nw.Float16()), r"Float16 needs polars>=1.36"),
-        ("1.99.0", nw.Map(nw.String(), nw.Int64()), r"Map needs polars>=2.0, found 1.99.0 \(field 'x'\)"),
-        ("1.99.0", nw.Struct({"a": nw.Map(nw.String(), nw.Int64())}), r"Map needs polars>=2.0"),
+        ("1.17.0", nw.Int128(), r"Int128 needs polars>=1.18.0, found 1.17.0 \(field 'x'\)"),
+        ("1.33.0", nw.UInt128(), r"UInt128 needs polars>=1.34.0, found 1.33.0 \(field 'x'\)"),
+        ("1.35.0", nw.Float16(), r"Float16 needs polars>=1.36.0, found 1.35.0 \(field 'x'\)"),
+        ("1.35.0", nw.List(nw.Float16()), r"Float16 needs polars>=1.36.0"),
+        ("1.35.0", nw.List(nw.Float16), r"Float16 needs polars>=1.36.0"),
+        ("1.35.0", nw.Struct({"a": nw.Float16}), r"Float16 needs polars>=1.36.0"),
+        ("1.99.0", nw.Map(nw.String(), nw.Int64()), r"Map needs polars>=2.0.0, found 1.99.0 \(field 'x'\)"),
+        ("1.99.0", nw.Struct({"a": nw.Map(nw.String(), nw.Int64())}), r"Map needs polars>=2.0.0"),
     ],
 )
 def test_to_polars_too_old_raises(
@@ -100,3 +113,24 @@ def test_to_polars_too_old_raises(
 
     with pytest.raises(UnsupportedDTypeError, match=match):
         schema.to_polars()
+
+
+@pytest.mark.skipif(POLARS_VERSION < POLARS_HAS_MAP, reason="the installed polars must support every dtype")
+@pytest.mark.thread_unsafe(reason="patches polars.__version__")
+@pytest.mark.parametrize(
+    ("polars_version", "dtype"),
+    [
+        ("1.18.0", nw.Int128()),
+        ("1.34.0", nw.UInt128()),
+        ("1.36.0", nw.Float16()),
+        ("2.0.0", nw.Map(nw.String(), nw.Int64())),
+    ],
+)
+def test_to_polars_at_min_version_converts(
+    monkeypatch: pytest.MonkeyPatch, polars_version: str, dtype: nw.dtypes.DType
+) -> None:
+    # Convert before patching: narwhals caches the polars version on first use, so it keeps the real one.
+    expected = Schema({"x": dtype}).to_polars()
+    monkeypatch.setattr(pl, "__version__", polars_version)
+
+    assert AnySchema(spec=Schema({"x": dtype})).to_polars() == expected

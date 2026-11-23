@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from operator import attrgetter
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, Literal, TypeAlias, TypeVar, cast, overload
+from typing import TYPE_CHECKING, Any, Final, Literal, TypeAlias, TypeVar, cast, overload
 
 import narwhals as nw
 from narwhals.schema import Schema
@@ -29,7 +29,7 @@ from anyschema.parsers import ParserPipeline
 from anyschema.parsers._pipeline import shared_auto_pipeline
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Iterable, Mapping
+    from collections.abc import Callable, Iterable, Iterator, Mapping
 
     import pandas as pd
     import polars as pl
@@ -91,17 +91,38 @@ def _infer_adapter(spec: Spec) -> Adapter:
     raise ValueError(msg)
 
 
-def _contains_dtype(dtype: IntoDType, predicate: Callable[[IntoDType], bool]) -> bool:
-    """Return whether `dtype`, or any dtype nested in it, satisfies `predicate`."""
-    if predicate(dtype):
-        return True
+def _iter_dtypes(dtype: IntoDType) -> Iterator[IntoDType]:
+    """Yield `dtype` and every dtype nested in it, depth first."""
+    yield dtype
     if isinstance(dtype, (nw.List, nw.Array)):
-        return _contains_dtype(dtype.inner, predicate)
-    if isinstance(dtype, nw.Struct):
-        return any(_contains_dtype(field.dtype, predicate) for field in dtype.fields)
-    if isinstance(dtype, nw.Map):
-        return _contains_dtype(dtype.key, predicate) or _contains_dtype(dtype.value, predicate)
-    return False
+        yield from _iter_dtypes(dtype.inner)
+    elif isinstance(dtype, nw.Struct):
+        for field in dtype.fields:
+            yield from _iter_dtypes(field.dtype)
+    elif isinstance(dtype, nw.Map):
+        yield from _iter_dtypes(dtype.key)
+        yield from _iter_dtypes(dtype.value)
+
+
+POLARS_HAS_INT_128: Final[tuple[int, ...]] = (1, 18, 0)
+"""https://github.com/pola-rs/polars/pull/20232"""
+
+POLARS_HAS_UINT_128: Final[tuple[int, ...]] = (1, 34, 0)
+"""https://github.com/pola-rs/polars/pull/24346"""
+
+POLARS_HAS_FLOAT_16: Final[tuple[int, ...]] = (1, 36, 0)
+"""https://github.com/pola-rs/polars/pull/25185"""
+
+POLARS_HAS_MAP: Final[tuple[int, ...]] = (2, 0, 0)
+"""https://github.com/pola-rs/polars/pull/28984"""
+
+# Below these versions narwhals gives `pl.Unknown` for the dtype (or raises its own error for `Map`).
+_POLARS_MIN_VERSION_BY_DTYPE: Final[Mapping[type[DType], tuple[int, ...]]] = {
+    nw.Int128: POLARS_HAS_INT_128,
+    nw.UInt128: POLARS_HAS_UINT_128,
+    nw.Float16: POLARS_HAS_FLOAT_16,
+    nw.Map: POLARS_HAS_MAP,
+}
 
 
 def _is_tz_aware_datetime(dtype: IntoDType) -> bool:
@@ -666,8 +687,8 @@ class AnySchema:
             The converted polars schema.
 
         Raises:
-            UnsupportedDTypeError: If a dtype, at any nesting level, is Float16 on polars < 1.36 or Map on
-                polars < 2.0.
+            UnsupportedDTypeError: If a dtype, at any nesting level, is newer than the installed polars: Int128
+                needs polars 1.18, UInt128 1.34, Float16 1.36 and Map 2.0.
 
         Examples:
             >>> from anyschema import AnySchema
@@ -687,15 +708,21 @@ class AnySchema:
         import polars as pl
         from narwhals.utils import parse_version
 
-        # narwhals gives `pl.Unknown` for Float16 on old polars, and raises its own error for Map.
         polars_version = parse_version(pl.__version__)
-        for name, dtype in self._nw_schema.items():
-            if polars_version < (1, 36) and _contains_dtype(dtype, lambda d: isinstance(d, nw.Float16)):
-                msg = f"Float16 needs polars>=1.36, found {pl.__version__} (field '{name}')"
-                raise UnsupportedDTypeError(msg)
-            if polars_version < (2,) and _contains_dtype(dtype, lambda d: isinstance(d, nw.Map)):
-                msg = f"Map needs polars>=2.0, found {pl.__version__} (field '{name}')"
-                raise UnsupportedDTypeError(msg)
+        if too_new := {
+            dtype_cls: min_version
+            for dtype_cls, min_version in _POLARS_MIN_VERSION_BY_DTYPE.items()
+            if polars_version < min_version
+        }:
+            for name, dtype in self._nw_schema.items():
+                for nested in _iter_dtypes(dtype):
+                    # `base_type()` also matches class-form children such as `nw.List(nw.Float16)`.
+                    if (min_version := too_new.get(nested.base_type())) is not None:
+                        msg = (
+                            f"{nested.base_type().__name__} needs polars>={'.'.join(map(str, min_version))}, "
+                            f"found {pl.__version__} (field '{name}')"
+                        )
+                        raise UnsupportedDTypeError(msg)
         return self._nw_schema.to_polars()
 
     def to_duckdb(self) -> dict[str, DuckDBPyType]:
@@ -837,7 +864,9 @@ class AnySchema:
         from pyspark.sql import SparkSession, types
 
         # NOTE: narwhals reads the session only for timezone-aware datetimes, and starting one can boot a JVM.
-        needs_session = any(_contains_dtype(field.dtype, _is_tz_aware_datetime) for field in self._fields.values())
+        needs_session = any(
+            _is_tz_aware_datetime(nested) for field in self._fields.values() for nested in _iter_dtypes(field.dtype)
+        )
         session = SparkSession.builder.getOrCreate() if needs_session else None
         version = Version.MAIN
 

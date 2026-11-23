@@ -79,7 +79,7 @@ def test_int_enum_to_polars() -> None:
 def test_map_and_float16_to_polars() -> None:
     spec = Schema({"m": nw.Map(nw.String(), nw.Int64()), "f": nw.Float16()})
 
-    assert AnySchema(spec=spec).to_polars() == pl.Schema({"m": pl.Map(pl.String, pl.Int64), "f": pl.Float16})
+    assert AnySchema(spec=spec).to_polars() == pl.Schema({"m": pl.Map(pl.String(), pl.Int64()), "f": pl.Float16()})
 
 
 @pytest.mark.thread_unsafe(reason="patches polars.__version__")

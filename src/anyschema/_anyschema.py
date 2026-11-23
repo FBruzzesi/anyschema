@@ -839,11 +839,14 @@ class AnySchema:
 
         def to_spark_type(field: AnyField) -> types.DataType:
             try:
-                return narwhals_to_native_dtype(field.dtype, version=version, spark_types=types, session=session)
+                spark_type: types.DataType = narwhals_to_native_dtype(
+                    field.dtype, version=version, spark_types=types, session=session
+                )
             # narwhals raises its own UnsupportedDTypeError for Float16/Enum/..., AssertionError for Object/Unknown
             except (NarwhalsUnsupportedDTypeError, AssertionError) as exc:
                 msg = f"{field.dtype} has no PySpark equivalent (field '{field.name}')"
                 raise UnsupportedDTypeError(msg) from exc
+            return spark_type
 
         return types.StructType(
             fields=[

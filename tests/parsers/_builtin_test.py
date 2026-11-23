@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import sys
-from collections.abc import Iterable, Mapping, Sequence
+from collections import Counter, OrderedDict, defaultdict
+from collections.abc import Iterable, Mapping, MutableMapping, Sequence
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
@@ -9,15 +10,18 @@ from enum import Enum, IntEnum, IntFlag
 from ipaddress import IPv4Address, IPv4Network, IPv6Address, IPv6Interface
 from pathlib import Path, PurePosixPath
 from types import NoneType
-from typing import Any, List, Literal, Tuple, TypedDict
+from typing import Annotated, Any, Dict, List, Literal, Optional, Tuple, TypedDict
+from typing import Mapping as TypingMapping
 from typing import Sequence as TypingSequence
 from uuid import UUID
 
 import narwhals as nw
 import pytest
+import typing_extensions
+from annotated_types import Ge, Le
 
 from anyschema.exceptions import UnsupportedDTypeError
-from anyschema.parsers import ParserPipeline, PyTypeStep, UnionTypeStep
+from anyschema.parsers import ParserPipeline, PyTypeStep, UnionTypeStep, make_pipeline
 
 
 class Color(Enum):
@@ -92,6 +96,8 @@ def py_type_parser() -> PyTypeStep:
         (IPv6Interface, nw.String()),
         (IPv4Network, nw.String()),
         (object, nw.Object()),
+        (Any, nw.Object()),
+        (typing_extensions.Any, nw.Object()),
         (Status, nw.Enum(Status)),
         (Color, nw.UInt8()),
         (HttpStatus, nw.UInt16()),
@@ -119,6 +125,7 @@ def test_parse_non_nested(py_type_parser: PyTypeStep, input_type: Any, expected:
         (list[float], nw.List(nw.Float64())),
         (list[bool], nw.List(nw.Boolean())),
         (list[list[int]], nw.List(nw.List(nw.Int64()))),
+        (list[Any], nw.List(nw.Object())),
         (list[tuple[int, int]], nw.List(nw.Array(nw.Int64(), shape=2))),
         (Sequence[int], nw.List(nw.Int64())),
         (Sequence[str | None], nw.List(nw.String())),
@@ -235,12 +242,31 @@ class PersonWithAddressTypedDict(TypedDict):
 @pytest.mark.parametrize(
     ("input_type", "expected"),
     [
-        # Plain dict -> empty Struct
+        # Bare mappings -> empty Struct
         (dict, nw.Struct([])),
-        # dict[K, V] -> empty Struct (we don't use the value type for now)
-        (dict[str, int], nw.Struct([])),
-        (dict[str, str], nw.Struct([])),
-        (Mapping[str, int], nw.Struct([])),
+        (Dict, nw.Struct([])),
+        (TypingMapping, nw.Struct([])),
+        (Mapping, nw.Struct([])),
+        (MutableMapping, nw.Struct([])),
+        (Counter, nw.Struct([])),
+        # Typed mappings -> Map
+        (dict[str, int], nw.Map(nw.String(), nw.Int64())),
+        (Dict[str, int], nw.Map(nw.String(), nw.Int64())),
+        (Mapping[str, int], nw.Map(nw.String(), nw.Int64())),
+        (MutableMapping[str, int], nw.Map(nw.String(), nw.Int64())),
+        (OrderedDict[str, int], nw.Map(nw.String(), nw.Int64())),
+        (defaultdict[str, int], nw.Map(nw.String(), nw.Int64())),
+        (Counter[str], nw.Map(nw.String(), nw.Int64())),
+        (dict[str, Any], nw.Map(nw.String(), nw.Object())),
+        (dict[str, int | None], nw.Map(nw.String(), nw.Int64())),
+        (dict[str, dict[int, list[float]]], nw.Map(nw.String(), nw.Map(nw.Int64(), nw.List(nw.Float64())))),
+        (
+            dict[str, PersonTypedDict],
+            nw.Map(
+                nw.String(),
+                nw.Struct([nw.Field(name="name", dtype=nw.String()), nw.Field(name="age", dtype=nw.Int64())]),
+            ),
+        ),
         # TypedDict -> Struct with fields
         (
             PersonTypedDict,
@@ -280,6 +306,45 @@ class PersonWithAddressTypedDict(TypedDict):
 def test_parse_dict_types(py_type_parser: PyTypeStep, input_type: Any, expected: nw.dtypes.DType) -> None:
     result = py_type_parser.parse(input_type, (), {})
     assert result == expected
+
+
+@pytest.mark.parametrize(
+    ("input_type", "expected"),
+    [
+        # Key and value are narrowed by their own constraints
+        (dict[Annotated[int, Ge(0)], Annotated[int, Le(100)]], nw.Map(nw.UInt64(), nw.Int64())),
+        # Field-level constraints describe the mapping, not its items
+        (Annotated[dict[str, int], Ge(0)], nw.Map(nw.String(), nw.Int64())),
+    ],
+)
+def test_parse_mapping_constraints(input_type: Any, expected: nw.dtypes.DType) -> None:
+    assert make_pipeline().parse(input_type, (), {}) == expected
+
+
+@pytest.mark.parametrize(
+    ("input_type", "nullable"),
+    [(dict[str, int | None], False), (dict[str, int] | None, True), (Optional[dict[str, int]], True)],
+)
+def test_parse_mapping_field_nullability(input_type: Any, *, nullable: bool) -> None:
+    field = make_pipeline().parse_into_field("a", input_type, (), {})
+    assert (field.dtype, field.nullable) == (nw.Map(nw.String(), nw.Int64()), nullable)
+
+
+@pytest.mark.parametrize(
+    ("input_type", "match"),
+    [
+        (dict[str | None, int], "Map keys cannot be null"),
+        (dict[Optional[str], int], "Map keys cannot be null"),
+        (dict[Annotated[str | None, "meta"], int], "Map keys cannot be null"),
+        (dict[Literal["a", None], int], "Map keys cannot be null"),  # noqa: PYI061
+        (dict[Any, int], "Map keys cannot be Object"),
+        (dict[object, int], "Map keys cannot be Object"),
+    ],
+)
+def test_parse_mapping_unsupported_key_raises(input_type: Any, match: str) -> None:
+    pipeline = make_pipeline()
+    with pytest.raises(UnsupportedDTypeError, match=match):
+        pipeline.parse(input_type, (), {})
 
 
 @dataclass

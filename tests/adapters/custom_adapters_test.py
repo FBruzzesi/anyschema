@@ -140,18 +140,17 @@ def test_polars_schema_with_dict() -> None:
 
 
 @pytest.mark.parametrize(
-    "dict_type",
-    [dict, dict[str, int], dict[str, str]],
+    ("dict_type", "expected"),
+    [
+        (dict, pa.struct([])),
+        (dict[str, int], pa.map_(pa.string(), pa.int64())),
+        (dict[str, str], pa.map_(pa.string(), pa.string())),
+    ],
 )
-def test_various_dict_types(dict_type: type) -> None:
-    """Test that various dict type annotations are handled."""
-    fields = {"data": dict_type}
-    schema_spec = SimpleSchema(fields=fields)
+def test_various_dict_types(dict_type: type, expected: pa.DataType) -> None:
+    """Bare dicts become empty structs, typed dicts become maps."""
+    schema_spec = SimpleSchema(fields={"data": dict_type})
 
-    schema = AnySchema(spec=schema_spec, adapter=simple_dict_adapter)
-    arrow_schema = schema.to_arrow()
+    arrow_schema = AnySchema(spec=schema_spec, adapter=simple_dict_adapter).to_arrow()
 
-    assert len(arrow_schema) == len(fields)
-    assert arrow_schema.names == ["data"]
-    # All dict types should become structs
-    assert "struct" in str(arrow_schema.types[0]).lower()
+    assert arrow_schema.field("data").type == expected

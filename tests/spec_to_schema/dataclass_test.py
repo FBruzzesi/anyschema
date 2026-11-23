@@ -28,6 +28,11 @@ class Order:
     co_buyers: list[Customer]
 
 
+@dataclass
+class Basket:
+    counts: dict[str, int]
+
+
 CUSTOMER_STRUCT = nw.Struct({"name": nw.String(), "joined_at": nw.Datetime("us", time_zone="UTC")})
 
 
@@ -53,6 +58,7 @@ CUSTOMER_STRUCT = nw.Struct({"name": nw.String(), "joined_at": nw.Datetime("us",
                 "co_buyers": nw.List(CUSTOMER_STRUCT),
             },
         ),
+        (Basket, {"counts": nw.Map(nw.String(), nw.Int64())}),
     ],
 )
 def test_dataclass(spec: DataclassType, expected_schema: Mapping[str, nw.dtypes.DType]) -> None:

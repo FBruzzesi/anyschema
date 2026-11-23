@@ -41,6 +41,8 @@ class CustomType:
         ("List[int]", nw.List(nw.Int64())),
         ("int | None", nw.Int64()),
         ("Optional[int]", nw.Int64()),
+        ("Any", nw.Object()),
+        ("dict[str, Any]", nw.Map(nw.String(), nw.Object())),
     ],
 )
 def test_forward_ref(forward_ref_parser: ForwardRefStep, input_type: Any, expected: nw.dtypes.DType) -> None:

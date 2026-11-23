@@ -200,7 +200,8 @@ print(schema.to_arrow())
     ```
 
 SQLAlchemy support covers numeric types, strings, dates, intervals, binary data, JSON, UUIDs, `Enum`, `ARRAY`, and
-the PostgreSQL types `INTERVAL`, `INET`, `CIDR` and `MACADDR`. Three mappings to know:
+the PostgreSQL types `INTERVAL`, `INET`, `CIDR`, `MACADDR` and `HSTORE` (as `Map(String, String)`). Three mappings to
+know:
 
 * `ARRAY(..., dimensions=N)` becomes `N` nested `List`s (`dimensions` is the nesting depth, not a length).
 * `Enum` uses the labels SQLAlchemy stores: member names by default, or member values with `values_callable`.
@@ -433,6 +434,37 @@ You can use nested structures with Pydantic models, TypedDict, dataclasses, or a
 As you can see, a field (`addresses`) that contains a nested structure is correctly represented as a nested struct in
 the schema.
 
+## Mappings and `Any`
+
+Typed mappings become a `Map` dtype: `dict[K, V]`, `Mapping[K, V]`, `MutableMapping[K, V]`, `OrderedDict[K, V]` and
+`defaultdict[K, V]` give `Map(K, V)`, and `Counter[K]` gives `Map(K, Int64)`. A bare `dict` or `Mapping` has no key or
+value type, so it gives an empty `Struct`. `Any` (and `object`) gives `Object`.
+
+* Map keys cannot be null or `Object`: `dict[str | None, int]` and `dict[Any, int]` raise `UnsupportedDTypeError`.
+    Values can: `dict[str, int | None]` gives `Map(String, Int64)`, and the field itself stays non-nullable.
+* Constraints on a mapping field describe the mapping, not its items. To constrain keys or values, annotate `K` or `V`.
+
+```python exec="true" source="above" result="python" session="mappings"
+from typing import Annotated, Any
+
+from anyschema import AnySchema
+from annotated_types import Ge
+from pydantic import BaseModel
+
+
+class Inventory(BaseModel):
+    stock: dict[str, Annotated[int, Ge(0)]]
+    attributes: dict[str, Any]
+    extra: dict
+
+
+print(AnySchema(spec=Inventory).to_polars())
+```
+
+Not every backend supports every dtype: polars needs version 2.0 for `Map` and 1.36 for `Float16`, and DuckDB and
+PySpark have no `Float16`. These raise `UnsupportedDTypeError`, and so does `Object` (e.g. from `dict[str, Any]`) on
+the backends that cannot represent it.
+
 ## Working with (Integer) Constraints
 
 Constraints are processed by the [`AnnotatedTypesStep`][api-annotated-types-step]
@@ -662,7 +694,8 @@ print(pd_schema)
     DuckDB stores the time zone on the connection, not on the type. Every timezone-aware datetime becomes
     `TIMESTAMPTZ`, whatever its time zone, and only microsecond precision is supported.
 
-Categorical, Object and Unknown dtypes have no DuckDB equivalent and raise `UnsupportedDTypeError`.
+Categorical, Float16, Object and Unknown dtypes have no DuckDB equivalent and raise `UnsupportedDTypeError`, also
+when nested inside a List, Array, Struct or Map.
 
 ```python exec="true" source="above" result="python" session="duckdb-format"
 from datetime import datetime
@@ -697,7 +730,7 @@ print(con.sql("DESCRIBE events"))
     schemas cannot store it.
 
 Int128, UInt128, Categorical, Enum, Object and Unknown dtypes have no Ibis equivalent and raise
-`UnsupportedDTypeError`, also when nested inside a List, Array or Struct.
+`UnsupportedDTypeError`, also when nested inside a List, Array, Struct or Map.
 
 ```python exec="true" source="above" result="python" session="ibis-format"
 from datetime import datetime

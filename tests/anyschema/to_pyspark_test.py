@@ -184,6 +184,8 @@ def test_to_pyspark_time_zone_in_map(pyspark_session: SparkSession) -> None:  # 
         nw.Object(),
         nw.Unknown(),
         nw.Map(nw.String(), nw.Object()),
+        nw.Datetime("ns"),
+        nw.List(nw.Datetime("ms")),
     ],
 )
 def test_to_pyspark_unsupported_dtype_raises(dtype: nw.dtypes.DType) -> None:

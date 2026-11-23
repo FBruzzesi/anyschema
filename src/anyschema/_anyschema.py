@@ -843,7 +843,7 @@ class AnySchema:
 
         Raises:
             UnsupportedDTypeError: If a dtype, at any nesting level, has no PySpark equivalent (e.g. Float16, Enum,
-                Object, unsigned integers).
+                Object, unsigned integers, non-microsecond datetimes).
 
         Examples:
             >>> from anyschema import AnySchema
@@ -875,9 +875,10 @@ class AnySchema:
                 spark_type: types.DataType = narwhals_to_native_dtype(
                     field.dtype, version=version, spark_types=types, session=session
                 )
-            # narwhals raises its own UnsupportedDTypeError for Float16/Enum/..., AssertionError for Object/Unknown
-            except (NarwhalsUnsupportedDTypeError, AssertionError) as exc:
-                msg = f"{field.dtype} has no PySpark equivalent (field '{field.name}')"
+            # narwhals raises AssertionError for Object/Unknown, ValueError for a Datetime unit or time zone Spark
+            # cannot hold, and UnsupportedDTypeError for the rest.
+            except (NarwhalsUnsupportedDTypeError, AssertionError, ValueError) as exc:
+                msg = f"{field.dtype} has no PySpark equivalent (field '{field.name}'): {exc}"
                 raise UnsupportedDTypeError(msg) from exc
             return spark_type
 

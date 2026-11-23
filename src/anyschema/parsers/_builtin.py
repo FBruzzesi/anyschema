@@ -115,7 +115,7 @@ class PyTypeStep(ParserStep):
                 return parse_struct(self.pipeline, typed_dict_adapter(input_type))
             if is_dataclass(input_type):
                 return parse_struct(self.pipeline, dataclass_adapter(input_type))
-            if issubclass(input_type, Mapping):  # Bare mapping: no key or value type, so an empty Struct
+            if issubclass(input_type, Mapping):  # Bare mapping: no key or value type
                 return nw.Struct([])
             # TODO(FBruzzesi): https://github.com/FBruzzesi/anyschema/issues/56
             if issubclass(input_type, (set, frozenset)):
@@ -147,8 +147,12 @@ class PyTypeStep(ParserStep):
         if origin in _MAPPING_ORIGINS:
             if not (args := get_args(input_type)):  # Bare `typing.Dict`, `typing.Mapping`, ...
                 return nw.Struct([])
-            # `Counter[K]` takes only the key type, its values are counts.
-            key_type, value_type = (args[0], int) if origin is Counter else args
+            if origin is Counter:  # `Counter[K]` values are counts
+                args = (*args, int)
+            if len(args) != 2:  # noqa: PLR2004
+                msg = f"Mapping needs one key and one value type: {input_type}"
+                raise UnsupportedDTypeError(msg)
+            key_type, value_type = args
             return self._parse_mapping(input_type, key_type, value_type, metadata)
 
         if origin not in {list, Sequence, Iterable, tuple}:
@@ -170,23 +174,21 @@ class PyTypeStep(ParserStep):
     def _parse_mapping(
         self, input_type: FieldType, key_type: FieldType, value_type: FieldType, metadata: FieldMetadata
     ) -> DType:
-        """Parse a typed mapping into a `Map`.
-
-        Field constraints describe the mapping, not its items, so key and value are parsed without them.
+        """Parse a typed mapping into a `Map`, without the field constraints.
 
         Raises:
             UnsupportedDTypeError: If the key is nullable or parses to `Object`.
         """
-        # shortcut: no forward-ref resolver, so a string key hiding `None` passes, pass a real type then.
+        # shortcut: no forward-ref resolver, so a string key such as `"str | None"` passes. Add one if users hit it.
         if field_contains_none(key_type):
             msg = f"Map keys cannot be null: {input_type}"
             raise UnsupportedDTypeError(msg)
-        key = self.pipeline.parse(key_type, constraints=(), metadata=metadata, strict=True)
-        if isinstance(key, nw.Object):  # Narwhals rejects it
+        key_dtype = self.pipeline.parse(key_type, constraints=(), metadata=metadata, strict=True)
+        if isinstance(key_dtype, nw.Object):  # `nw.Map` raises a bare TypeError for it
             msg = f"Map keys cannot be Object: {input_type}"
             raise UnsupportedDTypeError(msg)
-        value = self.pipeline.parse(value_type, constraints=(), metadata=metadata, strict=True)
-        return nw.Map(key, value)
+        value_dtype = self.pipeline.parse(value_type, constraints=(), metadata=metadata, strict=True)
+        return nw.Map(key_dtype, value_dtype)
 
     def _parse_enum_values(
         self, values: list[Any], source: FieldType, constraints: FieldConstraints, metadata: FieldMetadata

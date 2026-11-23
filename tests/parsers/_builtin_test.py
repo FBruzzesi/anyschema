@@ -9,7 +9,7 @@ from decimal import Decimal
 from enum import Enum, IntEnum, IntFlag
 from ipaddress import IPv4Address, IPv4Network, IPv6Address, IPv6Interface
 from pathlib import Path, PurePosixPath
-from types import NoneType
+from types import GenericAlias, NoneType
 from typing import Annotated, Any, Dict, List, Literal, Optional, Tuple, TypedDict
 from typing import Mapping as TypingMapping
 from typing import Sequence as TypingSequence
@@ -312,13 +312,18 @@ def test_parse_dict_types(py_type_parser: PyTypeStep, input_type: Any, expected:
     ("input_type", "expected"),
     [
         # Key and value are narrowed by their own constraints
-        (dict[Annotated[int, Ge(0)], Annotated[int, Le(100)]], nw.Map(nw.UInt64(), nw.Int64())),
+        (dict[Annotated[int, Ge(0)], Annotated[int, Ge(0), Le(100)]], nw.Map(nw.UInt64(), nw.UInt8())),
         # Field-level constraints describe the mapping, not its items
         (Annotated[dict[str, int], Ge(0)], nw.Map(nw.String(), nw.Int64())),
     ],
 )
 def test_parse_mapping_constraints(input_type: Any, expected: nw.dtypes.DType) -> None:
     assert make_pipeline().parse(input_type, (), {}) == expected
+
+
+def test_parse_mapping_passes_metadata_to_key_and_value() -> None:
+    result = make_pipeline().parse(dict[datetime, datetime], (), {"anyschema": {"time_zone": "UTC"}})
+    assert result == nw.Map(nw.Datetime("us", "UTC"), nw.Datetime("us", "UTC"))
 
 
 @pytest.mark.parametrize(
@@ -339,9 +344,13 @@ def test_parse_mapping_field_nullability(input_type: Any, *, nullable: bool) -> 
         (dict[Literal["a", None], int], "Map keys cannot be null"),  # noqa: PYI061
         (dict[Any, int], "Map keys cannot be Object"),
         (dict[object, int], "Map keys cannot be Object"),
+        # Wrong arity: type checkers reject `dict[str]`, Python accepts it
+        (GenericAlias(dict, (str,)), "Mapping needs one key and one value type"),
+        (GenericAlias(dict, (str, int, int)), "Mapping needs one key and one value type"),
+        (GenericAlias(Counter, (str, int)), "Mapping needs one key and one value type"),
     ],
 )
-def test_parse_mapping_unsupported_key_raises(input_type: Any, match: str) -> None:
+def test_parse_invalid_mapping_raises(input_type: Any, match: str) -> None:
     pipeline = make_pipeline()
     with pytest.raises(UnsupportedDTypeError, match=match):
         pipeline.parse(input_type, (), {})

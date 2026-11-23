@@ -12,6 +12,7 @@ from narwhals.utils import parse_version
 from pydantic import AwareDatetime, BaseModel, Field, FutureDatetime, NaiveDatetime, PastDate, PastDatetime, PositiveInt
 from pyspark.sql import SparkSession
 from sqlalchemy import ARRAY, BigInteger, Boolean, Column, Date, DateTime, Float, Integer, MetaData, String, Table
+from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 from anyschema.parsers import ParserPipeline
@@ -322,6 +323,13 @@ array_fixed_table = Table(
     Column[int]("id", Integer, primary_key=True, unique=True),
     Column[Sequence[float]]("coordinates", ARRAY(Float(), dimensions=3)),
     Column[Sequence[int]]("matrix", ARRAY(Integer, dimensions=2)),
+)
+
+hstore_table = Table(
+    "hstore_table",
+    sql_metadata,
+    Column[int]("id", Integer, primary_key=True),
+    Column[dict[str, str | None]]("attributes", postgresql.HSTORE()),
 )
 
 # Tables with datetime metadata

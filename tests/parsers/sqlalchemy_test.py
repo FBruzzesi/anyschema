@@ -84,6 +84,7 @@ class NumericDecorator(sqltypes.TypeDecorator[Any]):
         (postgresql.INET(), nw.String()),
         (postgresql.CIDR(), nw.String()),
         (postgresql.MACADDR(), nw.String()),
+        (postgresql.HSTORE(), nw.Map(nw.String(), nw.String())),
         (int, None),
         ("not a sqlalchemy type", None),
     ],

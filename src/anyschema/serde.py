@@ -13,6 +13,7 @@ from narwhals.dtypes import (
     Decimal,
     Duration,
     Enum,
+    Float16,
     Float32,
     Float64,
     Int8,
@@ -21,6 +22,7 @@ from narwhals.dtypes import (
     Int64,
     Int128,
     List,
+    Map,
     Object,
     String,
     Struct,
@@ -54,6 +56,7 @@ _DTYPE_BY_NAME: Final[dict[str, DType]] = {
     "Datetime": Datetime(),
     "Decimal": Decimal(),
     "Duration": Duration(),
+    "Float16": Float16(),
     "Float32": Float32(),
     "Float64": Float64(),
     "Int8": Int8(),
@@ -91,6 +94,8 @@ def serialize_dtype(dtype: DType) -> str:
         "Datetime(time_unit='ms', time_zone='UTC')"
         >>> serialize_dtype(Struct({"a": Int64(), "b": String()}))
         "Struct({'a': Int64, 'b': String})"
+        >>> serialize_dtype(Map(String(), List(Int64())))
+        'Map(String, List(Int64))'
     """
     return str(dtype)
 
@@ -120,6 +125,8 @@ def deserialize_dtype(into_dtype: str) -> DType:
         Datetime(time_unit='ms', time_zone='UTC')
         >>> deserialize_dtype("Datetime")
         Datetime(time_unit='us', time_zone=None)
+        >>> deserialize_dtype("Map(String, List(Int64))")
+        Map(String, List(Int64))
     """
     try:
         return _to_dtype(ast.parse(into_dtype, mode="eval").body)
@@ -172,6 +179,9 @@ def _to_dtype(node: ast.expr) -> DType:
 
         case ast.Call(func=ast.Name(id="List"), args=[inner], keywords=[]):
             return List(_to_dtype(inner))
+
+        case ast.Call(func=ast.Name(id="Map"), args=[key, value], keywords=[]):
+            return Map(_to_dtype(key), _to_dtype(value))  # `Map(Object, ...)` raises `TypeError`
 
         case ast.Call(
             func=ast.Name(id="Array"),

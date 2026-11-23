@@ -65,6 +65,7 @@ class ForwardRefStep(ParserStep):
             "set": set,
             # Typing constructs
             "Annotated": typing.Annotated,
+            "Any": typing.Any,
             "Dict": dict,
             "List": list,
             "Optional": typing.Optional,

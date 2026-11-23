@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping, Sequence
+from collections import Counter, OrderedDict, defaultdict
+from collections.abc import Iterable, Mapping, MutableMapping, Sequence
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 from enum import Enum, Flag
@@ -10,6 +11,7 @@ from typing import TYPE_CHECKING, Any, Literal
 from uuid import UUID
 
 import narwhals as nw
+import typing_extensions
 from typing_extensions import get_args, get_origin  # noqa: UP035
 
 from anyschema._dependencies import is_dataclass, is_typed_dict
@@ -17,6 +19,7 @@ from anyschema._metadata import get_anyschema_value_by_key
 from anyschema._utils import int_dtype_from_bounds
 from anyschema.adapters import dataclass_adapter, typed_dict_adapter
 from anyschema.exceptions import UnsupportedDTypeError
+from anyschema.parsers._annotated import field_contains_none
 from anyschema.parsers._base import ParserStep, parse_struct
 
 if TYPE_CHECKING:
@@ -26,6 +29,7 @@ if TYPE_CHECKING:
 
 # `IPv4Interface`/`IPv6Interface` subclass the `Address` types
 _STDLIB_STRING_TYPES = (str, UUID, PurePath, IPv4Address, IPv6Address, IPv4Network, IPv6Network)
+_MAPPING_ORIGINS = frozenset({dict, Mapping, MutableMapping, OrderedDict, defaultdict, Counter})
 
 
 class PyTypeStep(ParserStep):
@@ -33,12 +37,17 @@ class PyTypeStep(ParserStep):
 
     Handles:
 
-    - `int`, `float`, `decimal`, `str`, `bytes`, `bool`, `date`, `datetime`, `timedelta`, `time`, `object`
+    - `int`, `float`, `decimal`, `str`, `bytes`, `bool`, `date`, `datetime`, `timedelta`, `time`
+    - `object` and `Any`, as Object
     - `Enum` and `Literal`: string values give an `Enum` dtype, int values the smallest int dtype that fits them
         (`Literal[1, 2]` gives `UInt8`), other values the dtype of their type. `Flag` enums give `Int64`.
     - `UUID`, `pathlib` paths and `ipaddress` types, as String
     - generics: `list[T]`, `Sequence[T]`, `Iterable[T]`, `tuple[T, ...]`
-    - `dict`, `Mapping[K, V]`, typed dictionaries (`TypedDict`) and dataclasses
+    - typed mappings: `dict[K, V]`, `Mapping[K, V]`, `MutableMapping[K, V]`, `OrderedDict[K, V]`,
+        `defaultdict[K, V]` give `Map(K, V)`, `Counter[K]` gives `Map(K, Int64)`. Keys cannot be nullable or Object.
+        Key and value are parsed without the field constraints: annotate `K` and `V` to constrain them.
+    - bare mappings (`dict`, `Mapping`, ...) give an empty Struct
+    - typed dictionaries (`TypedDict`) and dataclasses
     """
 
     def parse(self, input_type: FieldType, constraints: FieldConstraints, metadata: FieldMetadata) -> DType | None:  # noqa: C901, PLR0912
@@ -58,6 +67,10 @@ class PyTypeStep(ParserStep):
         # Checking get_origin() first avoids this issue.
         if (origin := get_origin(input_type)) is not None:
             return self._parse_generic(input_type, origin, constraints, metadata)
+
+        # Before the class checks: `Any` is a class on Python 3.11+.
+        if input_type is object or input_type is Any or input_type is typing_extensions.Any:
+            return nw.Object()
 
         # Now handle actual classes (not generic aliases)
         if isinstance(input_type, type):
@@ -102,7 +115,7 @@ class PyTypeStep(ParserStep):
                 return parse_struct(self.pipeline, typed_dict_adapter(input_type))
             if is_dataclass(input_type):
                 return parse_struct(self.pipeline, dataclass_adapter(input_type))
-            if issubclass(input_type, dict):  # Plain dict without type parameters -> Struct with Object fields
+            if issubclass(input_type, Mapping):  # Bare mapping: no key or value type
                 return nw.Struct([])
             # TODO(FBruzzesi): https://github.com/FBruzzesi/anyschema/issues/56
             if issubclass(input_type, (set, frozenset)):
@@ -110,15 +123,12 @@ class PyTypeStep(ParserStep):
             if issubclass(input_type, (list, tuple, Sequence, Iterable)):
                 return nw.List(nw.Object())
 
-        if input_type is object:
-            return nw.Object()
-
         return None
 
     def _parse_generic(
         self, input_type: FieldType, origin: Any, constraints: FieldConstraints, metadata: FieldMetadata
     ) -> DType | None:
-        """Parse generic types like `list[int]`, `dict[str, int]` and `Literal[...]`.
+        """Parse generic types like `list[int]`, `dict[str, int]` (as `Map`) and `Literal[...]`.
 
         Arguments:
             input_type: The generic type to parse.
@@ -134,10 +144,16 @@ class PyTypeStep(ParserStep):
             values = [value for value in get_args(input_type) if value is not None]
             return self._parse_enum_values(values, input_type, constraints, metadata)
 
-        if origin in {dict, Mapping}:
-            # For now, we treat dict[K, V] as an empty Struct
-            # TODO(FBruzzesi): What's a better way to map this? We should introspect the mapping values
-            return nw.Struct([])
+        if origin in _MAPPING_ORIGINS:
+            if not (args := get_args(input_type)):  # Bare `typing.Dict`, `typing.Mapping`, ...
+                return nw.Struct([])
+            if origin is Counter:  # `Counter[K]` values are counts
+                args = (*args, int)
+            if len(args) != 2:  # noqa: PLR2004
+                msg = f"Mapping needs one key and one value type: {input_type}"
+                raise UnsupportedDTypeError(msg)
+            key_type, value_type = args
+            return self._parse_mapping(input_type, key_type, value_type, metadata)
 
         if origin not in {list, Sequence, Iterable, tuple}:
             return None
@@ -154,6 +170,25 @@ class PyTypeStep(ParserStep):
             return nw.Array(inner_dtype, shape=len(args))
 
         return nw.List(inner_dtype)
+
+    def _parse_mapping(
+        self, input_type: FieldType, key_type: FieldType, value_type: FieldType, metadata: FieldMetadata
+    ) -> DType:
+        """Parse a typed mapping into a `Map`, without the field constraints.
+
+        Raises:
+            UnsupportedDTypeError: If the key is nullable or parses to `Object`.
+        """
+        # shortcut: no forward-ref resolver, so a string key such as `"str | None"` passes. Add one if users hit it.
+        if field_contains_none(key_type):
+            msg = f"Map keys cannot be null: {input_type}"
+            raise UnsupportedDTypeError(msg)
+        key_dtype = self.pipeline.parse(key_type, constraints=(), metadata=metadata, strict=True)
+        if isinstance(key_dtype, nw.Object):  # `nw.Map` raises a bare TypeError for it
+            msg = f"Map keys cannot be Object: {input_type}"
+            raise UnsupportedDTypeError(msg)
+        value_dtype = self.pipeline.parse(value_type, constraints=(), metadata=metadata, strict=True)
+        return nw.Map(key_dtype, value_dtype)
 
     def _parse_enum_values(
         self, values: list[Any], source: FieldType, constraints: FieldConstraints, metadata: FieldMetadata

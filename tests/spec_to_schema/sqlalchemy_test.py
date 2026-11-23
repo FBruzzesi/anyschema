@@ -18,6 +18,7 @@ from tests.conftest import (
     complex_table,
     event_table_with_time_metadata,
     event_table_with_tz_aware,
+    hstore_table,
     user_table,
 )
 
@@ -106,6 +107,7 @@ if TYPE_CHECKING:
                 "matrix": nw.List(nw.List(nw.Int32())),
             },
         ),
+        (hstore_table, {"id": nw.Int32(), "attributes": nw.Map(nw.String(), nw.String())}),
     ],
 )
 def test_sqlalchemy_spec(spec: SQLAlchemyTableType, expected_schema: Mapping[str, nw.dtypes.DType]) -> None:

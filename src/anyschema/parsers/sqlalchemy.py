@@ -46,6 +46,7 @@ class SQLAlchemyTypeStep(ParserStep):
     - `Date`, `DateTime`, `Time`, `Interval` and PostgreSQL `INTERVAL`.
     - Binary types (`LargeBinary`, `BINARY`, `VARBINARY`, ...).
     - `ARRAY` (including PostgreSQL `ARRAY`), as one `List` per dimension.
+    - PostgreSQL `HSTORE`, as `Map(String, String)`.
     - Any other `TypeDecorator` (e.g. `PickleType` or a custom type), parsed as its implementation type.
 
     Warning:
@@ -128,6 +129,8 @@ class SQLAlchemyTypeStep(ParserStep):
 
         if isinstance(input_type, (sqltypes.Interval, postgresql.INTERVAL)):
             return nw.Duration()
+        if isinstance(input_type, postgresql.HSTORE):
+            return nw.Map(nw.String(), nw.String())
         if isinstance(input_type, sqltypes._Binary):  # noqa: SLF001
             # All binary dtypes inherit from this one, namely: LargeBinary, BINARY, VARBINARY, BLOB, etc..
             return nw.Binary()

@@ -167,3 +167,42 @@ def test_nw_schema_to_arrow(
 
     assert isinstance(pd_schema, dict)
     assert pd_schema == expected
+
+
+@pytest.mark.parametrize(
+    ("dtype_backend", "expected_float16"),
+    [(None, "float16"), ("numpy_nullable", "float16"), ("pyarrow", "Float16[pyarrow]")],
+)
+def test_to_pandas_map_and_float16(dtype_backend: DTypeBackend, expected_float16: str) -> None:
+    spec = nw.Schema(
+        {
+            "m": nw.Map(nw.String(), nw.Int64()),
+            "e": nw.Map(nw.String(), nw.Enum(["x", "y"])),
+            "k": nw.Map(nw.Enum(["x", "y"]), nw.Int64()),
+            "l": nw.List(nw.Enum(["x", "y"])),
+            "f": nw.Float16(),
+            "t": nw.Enum(["x", "y"]),
+        }
+    )
+    categorical = pa.dictionary(pa.uint32(), pa.string())
+
+    result = AnySchema(spec=spec).to_pandas(dtype_backend=dtype_backend)
+
+    # `CategoricalDtype == "category"` ignores the categories, so compare them directly.
+    top_level = result.pop("t")
+    assert isinstance(top_level, pd.CategoricalDtype)
+    assert (top_level.categories.tolist(), top_level.ordered) == (["x", "y"], True)
+    assert result == {
+        "m": pd.ArrowDtype(pa.map_(pa.string(), pa.int64())),
+        "e": pd.ArrowDtype(pa.map_(pa.string(), categorical)),
+        "k": pd.ArrowDtype(pa.map_(categorical, pa.int64())),
+        "l": pd.ArrowDtype(pa.list_(categorical)),
+        "f": expected_float16,
+    }
+
+
+def test_to_pandas_object_in_map_raises() -> None:
+    schema = AnySchema(spec=nw.Schema({"a": nw.Map(nw.String(), nw.Object())}))
+
+    with pytest.raises(NotImplementedError, match="Object"):
+        schema.to_pandas()

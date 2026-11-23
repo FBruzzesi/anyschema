@@ -10,6 +10,7 @@ from pydantic import Field as PydanticField
 from pyspark.sql import types
 
 from anyschema import AnySchema
+from anyschema.exceptions import UnsupportedDTypeError
 
 if TYPE_CHECKING:
     from pyspark.sql import SparkSession
@@ -158,3 +159,37 @@ def test_to_pyspark_nested_time_zone(pyspark_session: SparkSession) -> None:  # 
     spark_schema = AnySchema(spec=spec).to_pyspark()
 
     assert spark_schema["ts"].dataType == types.ArrayType(types.TimestampType())
+
+
+def test_to_pyspark_map() -> None:
+    spark_schema = AnySchema(spec=Schema({"m": nw.Map(nw.String(), nw.Int64())})).to_pyspark()
+
+    assert spark_schema["m"].dataType == types.MapType(types.StringType(), types.LongType())
+
+
+def test_to_pyspark_time_zone_in_map(pyspark_session: SparkSession) -> None:  # noqa: ARG001
+    spec = Schema({"m": nw.Map(nw.String(), nw.Datetime("us", time_zone="UTC"))})
+
+    spark_schema = AnySchema(spec=spec).to_pyspark()
+
+    assert spark_schema["m"].dataType == types.MapType(types.StringType(), types.TimestampType())
+
+
+@pytest.mark.parametrize(
+    "dtype",
+    [
+        nw.Float16(),
+        nw.Map(nw.String(), nw.Float16()),
+        nw.Enum(["a"]),
+        nw.Object(),
+        nw.Unknown(),
+        nw.Map(nw.String(), nw.Object()),
+        nw.Datetime("ns"),
+        nw.List(nw.Datetime("ms")),
+    ],
+)
+def test_to_pyspark_unsupported_dtype_raises(dtype: nw.dtypes.DType) -> None:
+    schema = AnySchema(spec=Schema({"x": dtype}))
+
+    with pytest.raises(UnsupportedDTypeError, match=r"has no PySpark equivalent \(field 'x'\)"):
+        schema.to_pyspark()

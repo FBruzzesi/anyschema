@@ -159,3 +159,30 @@ def test_to_arrow_enum_in_array_keeps_shape() -> None:
     pa_schema = AnySchema(spec=Schema({"a": nw.Array(nw.Enum(["x", "y"]), (2, 3))})).to_arrow()
 
     assert pa_schema.field("a").type == pa.list_(pa.list_(ENUM_ARROW_TYPE, 3), 2)
+
+
+def test_to_arrow_map_and_float16() -> None:
+    spec = Schema(
+        {
+            "m": nw.Map(nw.String(), nw.Int64()),
+            "e": nw.Map(nw.String(), nw.Enum(["x", "y"])),
+            "k": nw.Map(nw.Enum(["x", "y"]), nw.Int64()),
+            "f": nw.Float16(),
+        }
+    )
+
+    pa_schema = AnySchema(spec=spec).to_arrow()
+
+    assert pa_schema.types == [
+        pa.map_(pa.string(), pa.int64()),
+        pa.map_(pa.string(), ENUM_ARROW_TYPE),
+        pa.map_(ENUM_ARROW_TYPE, pa.int64()),
+        pa.float16(),
+    ]
+
+
+def test_to_arrow_object_in_map_raises() -> None:
+    schema = AnySchema(spec=Schema({"a": nw.Map(nw.String(), nw.Object())}))
+
+    with pytest.raises(NotImplementedError, match="Object"):
+        schema.to_arrow()

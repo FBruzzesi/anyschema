@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Mapping
+from typing import Any, Mapping
 
 import narwhals as nw
 import pytest
+from pydantic import BaseModel
 
 from anyschema import AnySchema
 from tests.conftest import (
@@ -12,8 +13,12 @@ from tests.conftest import (
     PydanticStudent,
 )
 
-if TYPE_CHECKING:
-    from pydantic import BaseModel
+
+class PydanticLooseRecord(BaseModel):
+    a: Any
+    b: list[Any]
+    c: dict[str, int]
+    d: dict[str, Any]
 
 
 # Typed explicitly so mypy uses this element type instead of joining the model constructors
@@ -47,6 +52,15 @@ PYDANTIC_MODEL_CASES: list[tuple[type[BaseModel], Mapping[str, nw.dtypes.DType]]
             "naive_ms": nw.Datetime("ms"),
             "past_utc": nw.Datetime("us", time_zone="UTC"),
             "future_ns": nw.Datetime("ns"),
+        },
+    ),
+    (
+        PydanticLooseRecord,
+        {
+            "a": nw.Object(),
+            "b": nw.List(nw.Object()),
+            "c": nw.Map(nw.String(), nw.Int64()),
+            "d": nw.Map(nw.String(), nw.Object()),
         },
     ),
 ]

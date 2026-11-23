@@ -4,8 +4,6 @@ from typing import TYPE_CHECKING, Mapping
 
 import narwhals as nw
 import pytest
-from sqlalchemy import Column, Integer, MetaData, Table
-from sqlalchemy.dialects import postgresql
 
 from anyschema import AnySchema
 from tests.conftest import (
@@ -20,15 +18,12 @@ from tests.conftest import (
     complex_table,
     event_table_with_time_metadata,
     event_table_with_tz_aware,
+    hstore_table,
     user_table,
 )
 
 if TYPE_CHECKING:
     from anyschema.typing import SQLAlchemyTableType
-
-hstore_table = Table(
-    "hstore_table", MetaData(), Column("id", Integer, primary_key=True), Column("attributes", postgresql.HSTORE)
-)
 
 
 @pytest.mark.parametrize(

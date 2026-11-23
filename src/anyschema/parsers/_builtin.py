@@ -29,8 +29,7 @@ if TYPE_CHECKING:
 
 # `IPv4Interface`/`IPv6Interface` subclass the `Address` types
 _STDLIB_STRING_TYPES = (str, UUID, PurePath, IPv4Address, IPv6Address, IPv4Network, IPv6Network)
-# `Counter` is a mapping too, but takes only the key type.
-_MAPPING_ORIGINS = frozenset({dict, Mapping, MutableMapping, OrderedDict, defaultdict})
+_MAPPING_ORIGINS = frozenset({dict, Mapping, MutableMapping, OrderedDict, defaultdict, Counter})
 
 
 class PyTypeStep(ParserStep):
@@ -145,9 +144,10 @@ class PyTypeStep(ParserStep):
             values = [value for value in get_args(input_type) if value is not None]
             return self._parse_enum_values(values, input_type, constraints, metadata)
 
-        if origin in _MAPPING_ORIGINS or origin is Counter:
+        if origin in _MAPPING_ORIGINS:
             if not (args := get_args(input_type)):  # Bare `typing.Dict`, `typing.Mapping`, ...
                 return nw.Struct([])
+            # `Counter[K]` takes only the key type, its values are counts.
             key_type, value_type = (args[0], int) if origin is Counter else args
             return self._parse_mapping(input_type, key_type, value_type, metadata)
 

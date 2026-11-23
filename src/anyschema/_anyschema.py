@@ -665,6 +665,10 @@ class AnySchema:
         Returns:
             The converted polars schema.
 
+        Raises:
+            UnsupportedDTypeError: If a dtype, at any nesting level, is Float16 on polars < 1.36 or Map on
+                polars < 2.0.
+
         Examples:
             >>> from anyschema import AnySchema
             >>> from pydantic import BaseModel
